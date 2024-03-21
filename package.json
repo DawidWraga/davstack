@@ -11,11 +11,13 @@
 		"release": "turbo build --filter=docs^... && changeset publish",
 		"test": "vitest",
 		"test:ui": "vitest --ui",
-		"test:run": "vitest run"
+		"test:run": "vitest run",
+		"test:coverage": "vitest --coverage"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.1",
 		"@davstack/eslint-config": "workspace:*",
+		"@vitest/coverage-v8": "^1.4.0",
 		"@vitest/ui": "^1.4.0",
 		"eslint": "^8.57.0",
 		"prettier": "^3.2.5",
