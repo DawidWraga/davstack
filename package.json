@@ -8,14 +8,18 @@
 		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
 		"changeset": "changeset",
 		"version-packages": "changeset version",
-		"release": "turbo build --filter=docs^... && changeset publish"
+		"release": "turbo build --filter=docs^... && changeset publish",
+		"test": "vitest",
+		"test:ui": "vitest --ui",
+		"test:run": "vitest run"
 	},
 	"devDependencies": {
-		"@davstack/eslint-config": "workspace:*",
 		"@changesets/cli": "^2.27.1",
+		"@davstack/eslint-config": "workspace:*",
 		"eslint": "^8.57.0",
 		"prettier": "^3.2.5",
-		"turbo": "latest"
+		"turbo": "latest",
+		"vitest": "^1.4.0"
 	},
 	"packageManager": "pnpm@8.9.0",
 	"engines": {
