@@ -1,5 +1,5 @@
 {
-	"name": "@davstack/utils",
+	"name": "@davstack/store",
 	"version": "0.0.0",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
