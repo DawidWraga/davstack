@@ -4,24 +4,26 @@ import { State } from '../types';
 import { ImmerOptions } from './ImmerOptions';
 import { PersistOptions } from './PersistOptions';
 
-export interface CreateStoreOptions<T extends State> {
-  /**
-   * Zustand middlewares.
-   */
-  middlewares?: any[];
+export interface CreateStoreOptions<T extends State, TName> {
+	name?: TName;
 
-  /**
-   * Devtools middleware options.
-   */
-  devtools?: DevtoolsOptions;
+	/**
+	 * Zustand middlewares.
+	 */
+	middlewares?: any[];
 
-  /**
-   * Immer middleware options.
-   */
-  immer?: ImmerOptions;
+	/**
+	 * Devtools middleware options.
+	 */
+	devtools?: DevtoolsOptions;
 
-  /**
-   * Persist middleware options.
-   */
-  persist?: PersistOptions<T>;
+	/**
+	 * Immer middleware options.
+	 */
+	immer?: ImmerOptions;
+
+	/**
+	 * Persist middleware options.
+	 */
+	persist?: PersistOptions<T>;
 }

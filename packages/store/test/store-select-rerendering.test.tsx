@@ -1,17 +1,15 @@
-/* eslint-disable unused-imports/no-unused-vars */
-/* eslint-disable prettier/prettier */
 import React, { useContext, useMemo, useRef, useState } from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react';
 import { act } from 'react-dom/test-utils';
 import { create as createZustandStore } from 'zustand';
 
 import { createStore } from '../src/createStore';
-import { createAltStore } from '../src/createStoreAlt';
+
 import { describe, expect, test } from 'vitest';
 
 describe('store performance', () => {
 	describe('parent / child automatic render optimization / selectors', () => {
-		const tid = {
+		const testIds = {
 			parentRenderCount: 'parent-render-count',
 			childRenderCount: 'child-render-count',
 		};
@@ -19,10 +17,10 @@ describe('store performance', () => {
 		const getUi = ({ getByTestId }: ReturnType<typeof render>) => {
 			return {
 				get parentRenderCount() {
-					return getByTestId(tid.parentRenderCount).textContent;
+					return getByTestId(testIds.parentRenderCount).textContent;
 				},
 				get childRenderCount() {
-					return getByTestId(tid.childRenderCount).textContent;
+					return getByTestId(testIds.childRenderCount).textContent;
 				},
 			};
 		};
@@ -35,7 +33,9 @@ describe('store performance', () => {
 				const contextValue = useContext(MyContext);
 				renderCount.current++;
 				return (
-					<span data-testid={tid.childRenderCount}>{renderCount.current}</span>
+					<span data-testid={testIds.childRenderCount}>
+						{renderCount.current}
+					</span>
 				);
 			};
 
@@ -51,7 +51,7 @@ describe('store performance', () => {
 						>
 							Increment
 						</button>
-						<span data-testid={tid.parentRenderCount}>
+						<span data-testid={testIds.parentRenderCount}>
 							{renderCount.current}
 						</span>
 						<Child />
@@ -257,76 +257,15 @@ describe('store performance', () => {
 			});
 		});
 
-		test('zustand-x: selective rerendering', async () => {
-			const myStore = createStore('myStore')({
+		test('davstack store: selective rerendering', async () => {
+			const myStore = createStore({
 				countA: 0,
 				countB: 0,
-			}).extendActions((set, get, api) => ({
+			}).extend((store) => ({
 				incrementB: () => {
-					return set.countB(get.countB() + 1);
-					// set({ countB: state.countB + 1 });
+					store.countB.set(store.countB.get() + 1);
 				},
 			}));
-
-			const ComponentA = () => {
-				const renderCount = useRef(0);
-
-				renderCount.current++;
-				return (
-					<span data-testid={testId.componentARenderCount}>
-						{renderCount.current}
-					</span>
-				);
-			};
-
-			const ComponentB = () => {
-				const renderCount = useRef(0);
-				const countB = myStore.use.countB();
-				renderCount.current++;
-				return (
-					<span data-testid={testId.componentBRenderCount}>
-						{renderCount.current}
-					</span>
-				);
-			};
-
-			const renderResult = render(
-				<>
-					<ComponentA />
-					<ComponentB />
-				</>
-			);
-			const ui = getUi(renderResult);
-
-			// Initial render
-			expect(myStore.get.countA()).toBe(0);
-			expect(myStore.get.countB()).toBe(0);
-			expect(ui.componentARenderCount).toBe('1');
-			expect(ui.componentBRenderCount).toBe('1');
-
-			act(() => {
-				myStore.set.incrementB();
-			});
-
-			await waitFor(() => {
-				// Only ComponentB should re-render
-				expect(ui.componentARenderCount).toBe('1');
-				expect(ui.componentBRenderCount).toBe('2');
-				expect(myStore.get.countB()).toBe(1);
-			});
-		});
-		test('alt zustand-x: selective rerendering', async () => {
-			const myStore = createAltStore('myStore')({
-				countA: 0,
-				countB: 0,
-			});
-			// .extendActions((set, get, api) => ({
-			//   incrementB: () => {
-			//     return set.countB(get.countB() + 1);
-			//     // set({ countB: state.countB + 1 });
-			//   },
-			// }));
-
 			const ComponentA = () => {
 				const renderCount = useRef(0);
 
@@ -375,43 +314,5 @@ describe('store performance', () => {
 				expect(myStore.countB.get()).toBe(1);
 			});
 		});
-
-		test('eslint hook rules comparison', async () => {
-			const myStore = createStore('myStore')({
-				count: 0,
-			});
-
-			const myAltStore = createAltStore('myStore')({
-				count: 0,
-			});
-
-			const Component = () => {
-				const renderCount = useRef(0);
-
-				const num = 5;
-				if (num > 3) return null;
-
-				// eslint is not showing any warnings for any of the following hooks.
-				// not sure why
-				const count = myStore.use.count();
-				const altCount = myAltStore.count.use();
-				const someHook = useSomeHook();
-
-				renderCount.current++;
-				return (
-					<span data-testid={testId.componentARenderCount}>
-						{renderCount.current}
-					</span>
-				);
-			};
-
-			expect(true).toBe(true);
-		});
 	});
 });
-
-function useSomeHook() {
-	return useMemo(() => {
-		return true;
-	}, []);
-}
