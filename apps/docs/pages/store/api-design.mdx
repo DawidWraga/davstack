@@ -1,0 +1,152 @@
+# API Design
+
+## Creating a Store
+
+Types are inferred from the initial state object.
+
+```tsx
+const counterStore = createStore({ count: 0 });
+```
+
+## Subscribing to State Changes and Updating State
+
+```tsx
+const Counter = () => {
+	const count = counterStore.count.use();
+	return (
+		<div>
+			<p>Count: {count}</p>
+			<button onClick={() => counterStore.count.set((draft) => draft + 1)}>
+				Increment
+			</button>
+		</div>
+	);
+};
+```
+
+## Accessing State Outside Components
+
+Useful for accessing state in callbacks or conditionals.
+
+```tsx
+const handleSubmit = async () => {
+	const count = counterStore.count.get();
+	// ...
+};
+```
+
+## Local State
+
+```tsx
+const counterStore = createStore({ count: 0 }).withLocal();
+
+const Counter = () => {
+	const localCounterStore = counterStore.useLocal();
+	const count = localCounterStore.count.use();
+	return (
+		<div>
+			<p>Count: {count}</p>
+			<button onClick={() => localCounterStore.count.set((prev) => prev + 1)}>
+				Increment
+			</button>
+		</div>
+	);
+};
+
+const MultipleCountersWithDifferentValues = () => {
+	return (
+		<>
+			<counterStore.Provider initialValue={{ count: 1 }}>
+				<Counter />
+			</counterStore.Provider>
+			<counterStore.Provider initialValue={{ count: 5 }}>
+				<Counter />
+			</counterStore.Provider>
+		</>
+	);
+};
+```
+
+## Defining Actions and Computed Properties
+
+```tsx
+const counterStore = createStore({ count: 0 }).extend((store) => ({
+	getDoubled() {
+		return store.count.get() * 2;
+	},
+	increment() {
+		store.count.set((state) => state + 1);
+	},
+	decrement() {
+		store.count.set((state) => state - 1);
+	},
+}));
+
+const Counter = () => {
+	const count = counterStore.count.use();
+	const doubled = counterStore.getDoubled();
+	return (
+		<div>
+			<p>Count: {count}</p>
+			<p>Doubled: {doubled}</p>
+			<button onClick={counterStore.increment}>Increment</button>
+			<button onClick={counterStore.decrement}>Decrement</button>
+		</div>
+	);
+};
+```
+
+## Accessing and Updating the Entire State
+
+```tsx
+const counterStore = createStore({ count: 0 });
+
+const counterState = counterStore.use();
+const counterValues = counterStore.get();
+
+counterStore.set({ count: 10 });
+counterStore.set((state) => {
+	state.count = 10;
+});
+
+counterStore.assign({ count: 10 });
+```
+
+## Performance Optimizations
+
+The `useTracked` method from `react-tracked` can be used for performance optimizations by minimizing unnecessary re-renders. This uses proxies under the hood to track which properties are accessed.
+
+```tsx
+const Counter = () => {
+	// only rerenders when properties accessed using . notation have changed
+	const state = counterStore.useTracked();
+
+	// only rerenders when count has changed
+	const count = counterStore.count.useTracked();
+	// ...
+};
+```
+
+## Options
+
+The `createStore` function accepts an optional second parameter for options,
+
+```tsx
+const counterStore = createStore(
+	{ count: 0 },
+
+	{
+		middlewares: [],
+		devtools: true,
+		persist: true,
+		immer: true,
+		name: 'counterStore',
+	}
+);
+```
+
+- `middlewares`: an array of middleware functions
+- `devtools`: a boolean to enable/disable devtools integration
+- `persist`: a boolean to enable/disable state persistence
+- `immer`: a boolean to enable/disable immer integration
+- `name`: a string to name the store, used for devtools

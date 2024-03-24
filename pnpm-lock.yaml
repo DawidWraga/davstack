@@ -35,6 +35,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@davstack/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       next:
         specifier: ^13.0.6
         version: 13.5.6(react-dom@18.2.0)(react@18.2.0)

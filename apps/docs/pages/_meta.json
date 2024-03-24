@@ -1,15 +1,34 @@
 {
-  "index": "Introduction",
-  "another": "Another Page",
-  "advanced": "Advanced (A Folder)",
-  "about": {
-    "title": "About",
-    "type": "page"
-  },
-  "contact": {
-    "title": "Contact ↗",
-    "type": "page",
-    "href": "https://twitter.com/shuding_",
-    "newWindow": true
-  }
+	"index": {
+		"title": "Home",
+		"display": "hidden"
+	},
+	"about": {
+		"title": "About",
+		"type": "page"
+	},
+	"store": {
+		"title": "Store",
+		"type": "page"
+	},
+	"service": {
+		"title": "Service",
+		"type": "page"
+	},
+	"ui": {
+		"title": "UI",
+		"type": "page"
+	},
+	"temp": {
+		"title": "temp",
+		"type": "page"
+	},
+	"contact": {
+		"display": "hidden",
+		"title": "Contact ↗",
+		"type": "page",
+
+		"href": "https://twitter.com/shuding_",
+		"newWindow": true
+	}
 }
