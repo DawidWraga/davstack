@@ -9,16 +9,7 @@
 		"lint": "next lint",
 		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf .next"
 	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/shuding/nextra-docs-template.git"
-	},
-	"author": "Shu Ding <g@shud.in>",
 	"license": "MIT",
-	"bugs": {
-		"url": "https://github.com/shuding/nextra-docs-template/issues"
-	},
-	"homepage": "https://github.com/shuding/nextra-docs-template#readme",
 	"dependencies": {
 		"next": "^13.0.6",
 		"nextra": "latest",
