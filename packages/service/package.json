@@ -16,16 +16,20 @@
 		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
 	},
 	"devDependencies": {
+		"@davstack/eslint-config": "workspace:*",
 		"@davstack/tsconfig": "workspace:*",
 		"@types/react": "^18.2.61",
 		"@types/react-dom": "^18.2.19",
 		"eslint": "^8.57.0",
-		"@davstack/eslint-config": "workspace:*",
 		"react": "^18.2.0",
 		"tsup": "^8.0.2",
 		"typescript": "^5.3.3"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"dependencies": {
+		"@trpc/server": "11.0.0-next.320",
+		"zod": "^3.22.4"
 	}
 }

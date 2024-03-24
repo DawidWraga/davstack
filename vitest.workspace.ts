@@ -18,6 +18,16 @@ export default defineWorkspace([
 			// setupFiles: ['./setup.happy-dom.ts'],
 		},
 	},
+	{
+		test: {
+			name: 'service',
+			root: './packages/service',
+			environment: 'node',
+			// setupFiles: ['./test-setup.ts'],
+
+			// setupFiles: ['./setup.happy-dom.ts'],
+		},
+	},
 	// {
 	// 	test: {
 	// 		name: 'node',
