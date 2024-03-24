@@ -10,6 +10,7 @@
 		"version-packages": "changeset version",
 		"release": "turbo build --filter=docs^... && changeset publish",
 		"test": "vitest",
+		"test:watch": "vitest --watch",
 		"test:ui": "vitest --ui",
 		"test:run": "vitest run",
 		"test:coverage": "vitest --coverage"
