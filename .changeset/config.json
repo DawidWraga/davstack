@@ -7,5 +7,5 @@
 	"access": "public",
 	"updateInternalDependencies": "patch",
 	"baseBranch": "main",
-	"ignore": ["@davstack/docs"]
+	"ignore": ["docs"]
 }
