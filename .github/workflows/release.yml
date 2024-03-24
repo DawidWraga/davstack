@@ -29,9 +29,7 @@ jobs:
           registry-url: https://npm.pkg.github.com/
 
       - name: Install Dependencies
-        run: |
-          npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
-          pnpm i
+        run: pnpm i
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
