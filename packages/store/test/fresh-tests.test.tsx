@@ -107,7 +107,7 @@ describe('createStore', () => {
 		handleSubmit();
 	});
 
-	test('should define actions and computed properties', () => {
+	test('should be able to extend store to define actions and computed properties', () => {
 		const counterStore = createStore({ count: 0 }).extend((store) => ({
 			getDoubled() {
 				return store.count.get() * 2;
@@ -350,50 +350,50 @@ describe('createStore', () => {
 		});
 	});
 
-	test('should create local stores with different initial values', async () => {
-		const counterStore = createStore({ count: 0 });
-
-		const Counter = () => {
-			const localCounterStore = counterStore.useLocalStore();
-			const count = localCounterStore.count.use();
-			return (
-				<div>
-					<p data-testid={testIds.count}>Count: {count}</p>
-					<button
-						data-testid={testIds.increment}
-						onClick={() =>
-							localCounterStore.count.set(localCounterStore.count.get() + 1)
-						}
-					>
-						Increment
-					</button>
-				</div>
-			);
-		};
-
-		const MultipleCounters = () => {
-			return (
-				<>
-					<counterStore.LocalProvider initialValue={{ count: 1 }}>
-						<Counter />
-					</counterStore.LocalProvider>
-					<counterStore.LocalProvider initialValue={{ count: 5 }}>
-						<Counter />
-					</counterStore.LocalProvider>
-				</>
-			);
-		};
-
-		const { getAllByTestId } = render(<MultipleCounters />);
-		const countElements = getAllByTestId(testIds.count);
-
-		await waitFor(() => {
-			expect(countElements[0]).toHaveTextContent('Count: 1');
-			expect(countElements[1]).toHaveTextContent('Count: 5');
-		});
-	});
-
 	describe('local component store', () => {
+		test('should create local stores with different initial values', async () => {
+			const counterStore = createStore({ count: 0 });
+
+			const Counter = () => {
+				const localCounterStore = counterStore.useLocalStore();
+				const count = localCounterStore.count.use();
+				return (
+					<div>
+						<p data-testid={testIds.count}>Count: {count}</p>
+						<button
+							data-testid={testIds.increment}
+							onClick={() =>
+								localCounterStore.count.set(localCounterStore.count.get() + 1)
+							}
+						>
+							Increment
+						</button>
+					</div>
+				);
+			};
+
+			const MultipleCounters = () => {
+				return (
+					<>
+						<counterStore.LocalProvider initialValue={{ count: 1 }}>
+							<Counter />
+						</counterStore.LocalProvider>
+						<counterStore.LocalProvider initialValue={{ count: 5 }}>
+							<Counter />
+						</counterStore.LocalProvider>
+					</>
+				);
+			};
+
+			const { getAllByTestId } = render(<MultipleCounters />);
+			const countElements = getAllByTestId(testIds.count);
+
+			await waitFor(() => {
+				expect(countElements[0]).toHaveTextContent('Count: 1');
+				expect(countElements[1]).toHaveTextContent('Count: 5');
+			});
+		});
+
 		test('should be able to create and use local stores independently', async () => {
 			const userStore = createStore({
 				name: '',
