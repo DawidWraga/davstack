@@ -26,7 +26,7 @@ jobs:
           node-version: 20.x
           cache: 'pnpm'
           scope: '@davstack'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: https://npm.pkg.github.com/
 
       - name: Install Dependencies
         run: |
@@ -45,4 +45,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
