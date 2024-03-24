@@ -26,7 +26,7 @@ jobs:
           node-version: 20.x
           cache: 'pnpm'
           scope: '@davstack'
-          registry-url: https://npm.pkg.github.com/
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
         run: pnpm i
