@@ -27,6 +27,7 @@ const testIds = {
 
 const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 	return {
+		getByTestId,
 		...rest,
 		get count() {
 			return getByTestId(testIds.count).textContent;
@@ -480,6 +481,56 @@ describe('createStore', () => {
 				expect(ui.getUserAge('comp1')).toBe('26');
 				expect(ui.getUserAge('comp2')).toBe('28');
 			});
+		});
+	});
+
+	describe("should be able to use the store's state in a callback", () => {
+		const countStore = createStore({ count: 0 }).extend((store) => ({
+			incrementUsingCalback: () => {
+				store.count.set((prev) => prev + 1);
+			},
+			incrementUsingGet: () => {
+				store.count.set(store.count.get() + 1);
+			},
+		}));
+
+		const Counter = () => {
+			const count = countStore.count.use();
+
+			return (
+				<div>
+					<p data-testid={testIds.count}>Count: {count}</p>
+					<button
+						data-testid={testIds.increment}
+						onClick={countStore.incrementUsingCalback}
+					>
+						Increment
+					</button>
+					<button
+						data-testid={testIds.increment + '-get'}
+						onClick={countStore.incrementUsingGet}
+					>
+						Increment Using Get
+					</button>
+				</div>
+			);
+		};
+
+		it('should increment the count using callback', () => {
+			const ui = getUi(render(<Counter />));
+
+			expect(ui.count).toBe('Count: 0');
+			fireEvent.click(ui.increment);
+			expect(ui.count).toBe('Count: 1');
+		});
+
+		it('should increment the count using get', () => {
+			const ui = getUi(render(<Counter />));
+
+			expect(ui.count).toBe('Count: 1');
+
+			fireEvent.click(ui.getByTestId(testIds.increment + '-get'));
+			expect(ui.count).toBe('Count: 2');
 		});
 	});
 });

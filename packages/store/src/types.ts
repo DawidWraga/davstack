@@ -23,7 +23,10 @@ export type StoreApiSet<TActions = {}> = TActions;
 export type DynamicStateMethods<TState> = {
 	[TKey in keyof TState]: {
 		get: () => TState[TKey];
-		set: (newValue: TState[TKey]) => void;
+
+		set: (
+			newValueOrFn: TState[TKey] | ((prev: TState[TKey]) => TState[TKey])
+		) => void;
 		use: () => TState[TKey];
 		useTracked: () => TState[TKey];
 	};
