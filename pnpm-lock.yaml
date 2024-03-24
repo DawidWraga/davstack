@@ -75,15 +75,9 @@ importers:
 
   examples/nextjs:
     dependencies:
-      '@davstack/core':
-        specifier: workspace:*
-        version: link:../../packages/davstack-core
       '@davstack/store':
         specifier: 0.0.0
         version: link:../../packages/store
-      '@davstack/utils':
-        specifier: workspace:*
-        version: link:../../packages/davstack-utils
       next:
         specifier: ^14.1.1
         version: 14.1.1(react-dom@18.2.0)(react@18.2.0)
@@ -121,60 +115,6 @@ importers:
       tailwindcss:
         specifier: ^3.4.1
         version: 3.4.1
-      typescript:
-        specifier: ^5.3.3
-        version: 5.3.3
-
-  packages/davstack-core:
-    devDependencies:
-      '@davstack/eslint-config':
-        specifier: workspace:*
-        version: link:../../tooling/eslint
-      '@davstack/tsconfig':
-        specifier: workspace:*
-        version: link:../../tooling/typescript
-      '@types/react':
-        specifier: ^18.2.61
-        version: 18.2.61
-      '@types/react-dom':
-        specifier: ^18.2.19
-        version: 18.2.19
-      eslint:
-        specifier: ^8.57.0
-        version: 8.57.0
-      react:
-        specifier: ^18.2.0
-        version: 18.2.0
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@5.3.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.3.3
-
-  packages/davstack-utils:
-    devDependencies:
-      '@davstack/eslint-config':
-        specifier: workspace:*
-        version: link:../../tooling/eslint
-      '@davstack/tsconfig':
-        specifier: workspace:*
-        version: link:../../tooling/typescript
-      '@types/react':
-        specifier: ^18.2.61
-        version: 18.2.61
-      '@types/react-dom':
-        specifier: ^18.2.19
-        version: 18.2.19
-      eslint:
-        specifier: ^8.57.0
-        version: 8.57.0
-      react:
-        specifier: ^18.2.0
-        version: 18.2.0
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@5.3.3)
       typescript:
         specifier: ^5.3.3
         version: 5.3.3
