@@ -84,8 +84,8 @@ const counterStore = createStore({ count: 0 }).extend((store) => ({
 	decrement() {
 		store.count.set(store.count.get() - 1);
 	},
-	getDoubled() {
-		return store.count.get() * 2;
+	useDoubled() {
+		return store.count.use() * 2;
 	},
 }));
 ```
@@ -100,7 +100,7 @@ import { counterStore } from './store';
 
 const Counter = () => {
 	const count = counterStore.count.use();
-	const doubled = counterStore.getDoubled();
+	const doubled = counterStore.useDoubled();
 
 	return (
 		<div>
