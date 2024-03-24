@@ -76,7 +76,7 @@ importers:
   examples/nextjs:
     dependencies:
       '@davstack/store':
-        specifier: 0.0.0
+        specifier: 0.1.0
         version: link:../../packages/store
       next:
         specifier: ^14.1.1
