@@ -58,6 +58,10 @@ export const createStore = <TState extends State, TName extends string>(
 
 	middlewares.push(createVanillaStore);
 
+	/**
+	 * Store the applied extensions to be applied later
+	 * This allows us to ensure that the local store has the same extensions as the global store
+	 */
 	let extensions: Array<
 		(store: StoreApi<TName, TState, {}>) => Record<string, any>
 	> = [];
@@ -67,6 +71,10 @@ export const createStore = <TState extends State, TName extends string>(
 		createState: StateCreator<TState, SetImmerState<TState>>
 	) => pipe(createState as any, ...middlewares) as ImmerStoreApi<TState>;
 
+	/**
+	 * By extracting this logic we are able to recreate the store again in the LocalProvider
+	 * Otherwise the localStore setters would actually set the global store
+	 */
 	const createInnerStore = (initialState: TState) => {
 		const immerStoreApi = pipeMiddlewares(() => initialState);
 		const useStore = ((selector, equalityFn) =>
@@ -113,7 +121,7 @@ export const createStore = <TState extends State, TName extends string>(
 			);
 		};
 
-		const baseStore = {
+		return {
 			...innerSelectors,
 			immerStoreApi,
 			storeName: name,
@@ -123,18 +131,14 @@ export const createStore = <TState extends State, TName extends string>(
 			useTracked: useTrackedStore,
 			assign,
 		};
-
-		const extendedStore = extensions.reduce((acc, ext) => {
-			return {
-				...acc,
-				// @ts-expect-error
-				...ext(acc),
-			};
-		}, baseStore);
-
-		return extendedStore;
 	};
 
+	const applyExtensions = (store: StoreApi<TName, TState, {}>) => {
+		return extensions.reduce((acc, ext) => {
+			// should avoid using spread operator here as it reduce + spread harms performance
+			return Object.assign(acc, ext(acc));
+		}, store);
+	};
 	const globalStore = createInnerStore(initialState);
 
 	const LocalContext = React.createContext<StoreApi<TName, TState, {}> | null>(
@@ -148,14 +152,17 @@ export const createStore = <TState extends State, TName extends string>(
 		initialValue?: Partial<TState>;
 		children: React.ReactNode;
 	}) => {
-		const localStore = createInnerStore({
+		const mergedInitialState = {
 			...initialState,
 			...localInitialValue,
-		});
+		};
+
+		const localStore = createInnerStore(mergedInitialState);
+		// @ts-expect-error
+		const localStoreWithExtensions = applyExtensions(localStore);
 
 		return (
-			// @ts-expect-error
-			<LocalContext.Provider value={localStore}>
+			<LocalContext.Provider value={localStoreWithExtensions}>
 				{children}
 			</LocalContext.Provider>
 		);
@@ -177,28 +184,9 @@ export const createStore = <TState extends State, TName extends string>(
 			builder: (store: StoreApi<TName, TState, {}>) => TNewExtendedProps
 		): StoreApi<TName, TState, TNewExtendedProps> => {
 			extensions.push(builder);
-			const extendedStore = createInnerStore(initialState);
-			// @ts-expect-error
-			return {
-				...extendedStore,
-				extend: api.extend,
-				LocalProvider,
-				useLocalStore,
-			};
-			// const extendedStore = extensions.reduce((acc, ext) => {
-			// 	return {
-			// 		...acc,
-			// 		// @ts-expect-error
-			// 		...ext(acc),
-			// 	};
-			// }, globalStore);
-			// // @ts-expect-error
-			// return {
-			// 	...extendedStore,
-			// 	extend: api.extend,
-			// 	LocalProvider,
-			// 	useLocalStore,
-			// };
+			const extendedStore = applyExtensions(api as any);
+			Object.assign(api, extendedStore);
+			return api as unknown as StoreApi<TName, TState, TNewExtendedProps>;
 		},
 		LocalProvider,
 		useLocalStore,

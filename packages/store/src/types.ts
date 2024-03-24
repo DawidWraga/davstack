@@ -20,7 +20,6 @@ export type StoreApiUseTracked<
 > = GetRecord<T> & TSelectors;
 export type StoreApiSet<TActions = {}> = TActions;
 
-// ALT TYPE
 export type DynamicStateMethods<TState> = {
 	[TKey in keyof TState]: {
 		get: () => TState[TKey];
@@ -30,7 +29,6 @@ export type DynamicStateMethods<TState> = {
 	};
 };
 
-// ALT TYPE
 export type StoreApi<
 	TName extends string,
 	T extends State = {},
@@ -38,25 +36,69 @@ export type StoreApi<
 > = DynamicStateMethods<T> &
 	TExtendedProps & {
 		immerStoreApi: ImmerStoreApi<T>;
+		/**
+		 * The name of the store instance, useful for debugging and devtools
+		 */
 		storeName: TName;
-		// get: StoreApiGet<T, TSelectors>;
+		/**
+		 * @returns The current state of the entire store
+		 * @note This does not subscribe to changes in the store
+		 */
 		get: ZustandStoreApi<T>['getState'];
-		// set: StoreApiSet<TActions>;
+		/**
+		 * Set a new state for the entire store using Immer
+		 * @param fn A function that mutates the current state
+		 * @param actionName An optional name for the action
+		 * @example ts
+		
+		 user.set((draft) => {
+		   draft.name = 'John Doe'
+		 })
+
+		 */
 		set: SetImmerState<T>;
-		// use: StoreApiUse<T, TSelectors>;
+		/**
+		 * Assign a partial state to the store using Immer
+		 * @param state The partial state to assign
+		 * @example ts
+		 user.assign({ name: 'John Doe' })
+		 */
+		assign: MergeState<T>;
+		/**
+		 * @returns A Reactive version of the entire store
+		 * @note AVOID using this in most cases as it will cause the component to re-render on every change in the store.
+		 */
+
 		use: UseImmerStore<T>;
-		// useStore: UseImmerStore<T>;
-		// useTracked: StoreApiUseTracked<T, TSelectors>;
+		/**
+		 * @returns A reactive proxy of version of the entire store
+		 */
 		useTracked: () => T;
 
+		/**
+		 * A provider for the store that allows you to access scoped state and actions using useLocalStore
+		 * @param children The children components that will have access to the scoped store
+		 * @param initialValue The initial value of the scoped store (partial state)
+		 */
 		LocalProvider: React.FC<{
 			children: React.ReactNode;
 			initialValue: Partial<T>;
 		}>;
-		useLocalStore: () => Omit<StoreApi<TName, T, TExtendedProps>, 'withLocal'>;
 
-		assign: MergeState<T>;
+		/**
+		 *
+		 * @returns A local store that is scoped to the children components of the LocalProvider
+		 */
+		useLocalStore: () => Omit<
+			StoreApi<TName, T, TExtendedProps>,
+			'LocalProvider' | 'useLocalStore'
+		>;
 
+		/**
+		 * Extends the store with new actions and selectors
+		 *
+		 * @param builder A function that extends the store with new actions and selectors
+		 */
 		extend<TComputedBuilder extends ExtendBuilder<TName, T, TExtendedProps>>(
 			builder: TComputedBuilder
 		): StoreApi<TName, T, TExtendedProps & ReturnType<TComputedBuilder>>;
