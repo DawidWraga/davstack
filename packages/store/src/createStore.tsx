@@ -98,7 +98,7 @@ export const createStore = <TState extends State, TName extends string>(
 		);
 
 		const innerSelectors = Object.fromEntries(
-			Object.entries(initialState).map(([key, value]) => {
+			Object.entries(initialState).map(([key, value]: [string, any]) => {
 				return [
 					key,
 					{
