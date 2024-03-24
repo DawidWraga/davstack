@@ -1,5 +1,5 @@
 {
-	"name": "docs",
+	"name": "@davstack/docs",
 	"version": "0.0.1",
 	"description": "Nextra docs template",
 	"scripts": {
