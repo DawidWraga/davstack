@@ -30,8 +30,8 @@ export type Middleware<
 	TNewContext extends unknown = unknown,
 > = (opts: {
 	ctx: TContext;
-	next: (ctx?: TNewContext) => Promise<void>;
-}) => Promise<void>;
+	next: (ctx?: TNewContext) => Promise<TNewContext>;
+}) => Promise<TNewContext>;
 
 export type ServiceDef<
 	TResolver extends Resolver<any, any, any>,
@@ -89,6 +89,7 @@ export function service<
 			) {
 				return createBuilder({
 					...def,
+					// @ts-expect-error
 					middleware: [...def.middleware, middleware],
 				}) as unknown as ServiceBuilder<
 					TInputSchema,
@@ -197,7 +198,6 @@ export type Service<
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
 	): ReturnType<TResolver>;
 };
-
 export function createResolver<
 	TResolver extends Resolver<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
@@ -206,46 +206,59 @@ export function createResolver<
 	TContext extends Record<string, any> | unknown,
 >(def: ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TContext>) {
 	/**
-	 *  Calls the resolver function without parsing input/output
-	 *  Useful for calling the resolver when the input/output is already parsed
+	 * Invokes the resolver with middleware logic
+	 */
+	const callerWithMiddleware = async (
+		ctx: TContext,
+		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null,
+		middlewares: Middleware<TContext, TContext>[] = def.middleware
+	) => {
+		let currentCtx = ctx;
+
+		const executeMiddleware = async (index: number): Promise<any> => {
+			if (index >= middlewares.length) {
+				return def.resolver({ input, ctx: currentCtx });
+			} else {
+				const currentMiddleware = middlewares[index];
+				return await currentMiddleware({
+					ctx: currentCtx,
+					next: async (newCtx?: TContext) => {
+						currentCtx = newCtx || currentCtx;
+						return executeMiddleware(index + 1);
+					},
+				});
+			}
+		};
+
+		return executeMiddleware(0);
+	};
+
+	/**
+	 * Calls the resolver function without parsing input/output
+	 * Useful for calling the resolver when the input/output is already parsed
 	 */
 	const callerWithoutParser = async (
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null
 	) => {
-		if (!def.resolver) {
-			throw new Error('Resolver not defined');
-		}
-		return def.resolver({ input, ctx });
+		return callerWithMiddleware(ctx, input);
 	};
 
 	/**
-	 * invokes the resolver without parsing input/output
+	 * Invokes the resolver with parsing input/output and middleware logic
 	 * Useful for safe calling the resolver directly
 	 */
 	const callerWithParser = async (ctx: TContext, input: any) => {
-		let currentCtx = ctx;
-		const next = async (newCtx?: TContext) => {
-			currentCtx = newCtx || currentCtx;
-			const maybeParsedInput = def.inputSchema
-				? def.inputSchema.parse(input)
-				: input;
-			const result = await callerWithoutParser(currentCtx, maybeParsedInput);
-			const maybeParsedOutput = def.outputSchema
-				? def.outputSchema.parse(result)
-				: result;
-			return maybeParsedOutput;
-		};
+		const maybeParsedInput = def.inputSchema
+			? def.inputSchema.parse(input)
+			: input;
+		const result = await callerWithMiddleware(ctx, maybeParsedInput);
 
-		for (const middleware of def.middleware) {
-			await middleware({
-				ctx: currentCtx,
-				next,
-			});
-		}
-
-		return next();
+		const maybeParsedOutput = def.outputSchema
+			? def.outputSchema.parse(result)
+			: result;
+		return maybeParsedOutput;
 	};
 
-	return Object.assign(callerWithParser, def);
+	return Object.assign(callerWithParser, def, { callerWithoutParser });
 }

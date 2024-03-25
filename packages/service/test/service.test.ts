@@ -24,6 +24,22 @@ const d = {
 	},
 };
 
+type ApiContext = {
+	user?: { id: string };
+};
+
+const publicService = service<ApiContext>();
+
+const privateService = service<Required<ApiContext>>().use(
+	async ({ ctx, next }) => {
+		if (!ctx.user) {
+			throw new Error('No user');
+		}
+		return await next();
+		// await next({ user: { id: ctx.user.id } });
+	}
+);
+
 describe('Service', () => {
 	describe('Schema definitions', () => {
 		const createUser = service()
@@ -185,21 +201,6 @@ describe('Service', () => {
 	});
 
 	describe('Should handle middleware correctly', () => {
-		type ApiContext = {
-			user?: { id: string };
-		};
-
-		const publicService = service<ApiContext>();
-
-		const privateService = service<Required<ApiContext>>().use(
-			async ({ ctx, next }) => {
-				if (!ctx.user) {
-					throw new Error('No user');
-				}
-				await next({ user: { id: ctx.user.id } });
-			}
-		);
-
 		test('public service: should pass with no user', async () => {
 			const createUser = publicService
 				.input(d.input)
@@ -213,7 +214,7 @@ describe('Service', () => {
 			).resolves.not.toThrowError();
 		});
 
-		test('private service: should throw on no user; should pass with user', async () => {
+		test.only('private service: should throw on no user; should pass with user', async () => {
 			const createUser = privateService
 				.input(d.input)
 				.output(d.output)

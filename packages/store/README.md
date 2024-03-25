@@ -16,7 +16,7 @@ Zustand is a small, fast and scalable state-management solution battle-tested ag
 npm install zustand @davstack/store
 ```
 
-# Usage Example
+## Subscribing to State Changes and Updating State
 
 ```tsx
 import { createStore } from '@davstack/store';
