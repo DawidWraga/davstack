@@ -1,6 +1,6 @@
 {
 	"name": "@davstack/store",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
@@ -9,6 +9,16 @@
 	"files": [
 		"dist/**"
 	],
+	"description": "The most intuitive and pratical React state management library, built on top of Zustand. ",
+	"homepage": "https://davstack.com",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/DawidWraga/davstack.git",
+		"directory": "packages/store"
+	},
+	"bugs": {
+		"url": "https://github.com/dawidwraga/davstack/issues"
+	},
 	"scripts": {
 		"build": "tsup src/index.tsx --format esm,cjs --dts --external react",
 		"dev": "tsup src/index.tsx --format esm,cjs --watch --dts --external react",
