@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { z } from 'zod';
 
 import { silentTestConsoleError, silentTestConsoleLog } from './test-utils';
@@ -183,21 +184,24 @@ describe('Service', () => {
 		});
 	});
 
-	describe('Should handle access control correctly', () => {
-		test('Should be able to acces the access level', async () => {
-			const createUser = service()
-				.access('public')
-				.input(d.input)
-				.output(d.output)
-				.mutation(async ({ input, ctx }) => {
-					return d.defaultOutput;
-				});
-			expect(createUser.accessLevel).toBe('public');
-		});
+	describe('Should handle middleware correctly', () => {
+		type ApiContext = {
+			user?: { id: string };
+		};
 
-		test('public procedure: should pass with no user', async () => {
-			const createUser = service()
-				.access('public')
+		const publicService = service<ApiContext>();
+
+		const privateService = service<Required<ApiContext>>().use(
+			async ({ ctx, next }) => {
+				if (!ctx.user) {
+					throw new Error('No user');
+				}
+				await next({ user: { id: ctx.user.id } });
+			}
+		);
+
+		test('public service: should pass with no user', async () => {
+			const createUser = publicService
 				.input(d.input)
 				.output(d.output)
 				.mutation(async ({ input, ctx }) => {
@@ -209,9 +213,8 @@ describe('Service', () => {
 			).resolves.not.toThrowError();
 		});
 
-		test('authed procedure: should throw on no user; should pass with user', async () => {
-			const createUser = service()
-				.access('authed')
+		test('private service: should throw on no user; should pass with user', async () => {
+			const createUser = privateService
 				.input(d.input)
 				.output(d.output)
 				.mutation(async ({ input, ctx }) => {
@@ -219,7 +222,8 @@ describe('Service', () => {
 				});
 
 			await expect(async () => {
-				await createUser({ user: { id: '' } }, { name: 'test' });
+				// @ts-expect-error
+				await createUser({}, { name: 'test' });
 			}).rejects.toThrowError();
 
 			await expect(

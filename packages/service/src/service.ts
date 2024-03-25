@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import {
 	z,
 	infer as zInfer,
@@ -6,24 +7,16 @@ import {
 	ZodSchema,
 	ZodTypeAny,
 } from 'zod';
-
 import { Simplify } from './utils/type-utils';
-
-// TODO: refactor this (careful, used in create-router-from-services.ts)
-// make it so that different ctx can be passed in
-export type MyContext = Simplify<{
-	user: {
-		id: string;
-	};
-}>;
 
 // Generic type for resolver functions
 export type Resolver<
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown,
+	TContext extends Record<string, any> | unknown = unknown,
 > = (opts: {
 	input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null;
-	ctx: MyContext;
+	ctx: Simplify<TContext>;
 }) => Promise<TOutputSchema extends ZodTypeAny ? zInfer<TOutputSchema> : void>;
 
 // Define the builder interface capturing generic types for input and output
@@ -32,151 +25,192 @@ type ZodSchemaOrRawShape = ZodSchema<any> | ZodRawShape;
 type InferZodSchemaOrRawShape<T extends ZodSchemaOrRawShape> =
 	T extends ZodRawShape ? ZodObject<T> : T;
 
-export interface ServiceBuilder<
-	TInputSchema extends ZodTypeAny | undefined,
-	TOutputSchema extends ZodTypeAny | undefined,
-	TType extends 'mutation' | 'query' | undefined,
-	TAccess extends 'public' | 'authed' | undefined = 'authed',
-> {
-	// allows for objects to be passed in without having to call z.object
-	input: <TNewInputSchema extends ZodSchemaOrRawShape>(
-		schema: TNewInputSchema
-	) => ServiceBuilder<
-		InferZodSchemaOrRawShape<TNewInputSchema>, // handle zod object or raw shape
-		TOutputSchema,
-		TType,
-		TAccess
-	>;
-	output: <TNewOutput extends ZodTypeAny>(
-		schema: TNewOutput
-	) => ServiceBuilder<TInputSchema, TNewOutput, TType, TAccess>;
-	access: <TNewAccess extends 'public' | 'authed'>(
-		access: TNewAccess
-	) => ServiceBuilder<TInputSchema, TOutputSchema, TType, TNewAccess>;
-	mutation: <TResolver extends Resolver<TInputSchema, TOutputSchema>>(
-		resolver: TResolver
-	) => Service<TResolver, TInputSchema, TOutputSchema, 'mutation', TAccess>;
-	query: <TResolver extends Resolver<TInputSchema, TOutputSchema>>(
-		resolver: TResolver
-	) => Service<TResolver, TInputSchema, TOutputSchema, 'query', TAccess>;
-}
-
-export type Service<
-	TResolver extends Resolver<any, any>,
-	TInputSchema extends ZodTypeAny | undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown,
-	TType extends 'mutation' | 'query' | undefined,
-	TAccess extends 'public' | 'authed' | undefined = 'authed',
-> = ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TAccess> & {
-	(
-		ctx: MyContext,
-		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
-	): ReturnType<TResolver>;
-};
+export type Middleware<
+	TContext extends Record<string, any> | unknown,
+	TNewContext extends unknown = unknown,
+> = (opts: {
+	ctx: TContext;
+	next: (ctx?: TNewContext) => Promise<void>;
+}) => Promise<void>;
 
 export type ServiceDef<
-	TResolver extends Resolver<any, any>,
+	TResolver extends Resolver<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown,
 	TType extends 'mutation' | 'query' | undefined,
-	TAccess extends 'public' | 'authed' | undefined,
+	TContext extends Record<string, any> | unknown = unknown,
 > = {
 	inputSchema: TInputSchema;
 	outputSchema: TOutputSchema;
 	resolver: TResolver;
 	type: TType;
-	accessLevel: TAccess;
+	middleware: Middleware<TContext, TContext>[];
 };
 
-const initlaDef = {
+const initialDef = {
 	inputSchema: undefined,
 	outputSchema: undefined,
 	resolver: undefined,
 	type: undefined,
-	accessLevel: 'authed' as const,
+	middleware: [] as Middleware<any, any>[],
 };
 
-export function service() {
-	const def: ServiceDef<any, any, any, any, any> = { ...initlaDef };
+export function service<
+	TContext extends Record<string, any> | unknown = unknown,
+>() {
+	function createBuilder<
+		TInputSchema extends ZodTypeAny | undefined,
+		TOutputSchema extends ZodTypeAny | undefined,
+		TType extends 'mutation' | 'query' | undefined,
+		TContextOverride extends Record<string, any> | unknown = unknown,
+	>(
+		def: ServiceDef<any, TInputSchema, TOutputSchema, TType, TContextOverride>
+	): ServiceBuilder<TInputSchema, TOutputSchema, TType, TContextOverride> {
+		return {
+			input<TNewInputSchema extends ZodSchemaOrRawShape>(
+				schema: TNewInputSchema
+			) {
+				const inputSchema =
+					schema instanceof ZodSchema ? schema : z.object(schema);
+				return createBuilder({
+					...def,
+					inputSchema: inputSchema as InferZodSchemaOrRawShape<TNewInputSchema>, // handle zod object or raw shape
+				});
+			},
+			output<TNewOutput extends ZodTypeAny>(schema: TNewOutput) {
+				return createBuilder({
+					...def,
+					outputSchema: schema,
+				});
+			},
 
-	const builder: ServiceBuilder<undefined, any, any> = {
-		access: function <TNewAccess extends 'public' | 'authed'>(
-			access: TNewAccess
-		) {
-			def.accessLevel = access;
-			return this as unknown as ServiceBuilder<undefined, any, any, TNewAccess>;
-		},
-		// allows for objects to be passed in without having to call z.object
-		input: function <TNewInputSchema extends ZodSchemaOrRawShape>(
-			schema: TNewInputSchema
-		) {
-			if (schema instanceof ZodSchema) {
-				def.inputSchema = schema;
-			} else {
-				def.inputSchema = z.object(schema);
-			}
+			use<TNewContext extends TContextOverride>(
+				middleware: Middleware<TContextOverride, TNewContext>
+			) {
+				return createBuilder({
+					...def,
+					middleware: [...def.middleware, middleware],
+				}) as unknown as ServiceBuilder<
+					TInputSchema,
+					TOutputSchema,
+					TType,
+					TNewContext
+				>;
+			},
+			mutation<
+				TResolver extends Resolver<
+					TInputSchema,
+					TOutputSchema,
+					TContextOverride
+				>,
+			>(resolver: TResolver) {
+				const newDef: ServiceDef<
+					TResolver,
+					TInputSchema,
+					TOutputSchema,
+					'mutation',
+					TContextOverride
+				> = {
+					...def,
+					resolver,
+					type: 'mutation',
+				};
+				return createResolver(newDef) as unknown as Service<
+					TResolver,
+					TInputSchema,
+					TOutputSchema,
+					'mutation',
+					TContextOverride
+				>;
+			},
+			query<
+				TResolver extends Resolver<
+					TInputSchema,
+					TOutputSchema,
+					TContextOverride
+				>,
+			>(resolver: TResolver) {
+				const newDef: ServiceDef<
+					TResolver,
+					TInputSchema,
+					TOutputSchema,
+					'query',
+					TContextOverride
+				> = {
+					...def,
+					resolver,
+					type: 'query',
+				};
+				return createResolver(newDef) as unknown as Service<
+					TResolver,
+					TInputSchema,
+					TOutputSchema,
+					'query',
+					TContextOverride
+				>;
+			},
+		};
+	}
 
-			return this as unknown as ServiceBuilder<
-				InferZodSchemaOrRawShape<TNewInputSchema>, // handle zod object or raw shape
-				undefined,
-				any
-			>;
-		},
-		output: function <TNewOutput extends ZodTypeAny>(schema: TNewOutput) {
-			def.outputSchema = schema;
-			return this as unknown as ServiceBuilder<undefined, TNewOutput, any>;
-		},
-		mutation: function <TResolver extends Resolver<any, any>>(
-			resolver: TResolver
-		) {
-			const newDef = {
-				...def,
-				resolver,
-				type: 'mutation',
-			} as ServiceDef<any, any, any, 'mutation', any>;
-			// console.log("MUTATION: ", newDef);
-			return createResolver(newDef) as unknown as Service<
-				TResolver,
-				any,
-				any,
-				'mutation'
-			>;
-		},
-		query: function <TResolver extends Resolver<any, any>>(
-			resolver: TResolver
-		) {
-			const newDef = {
-				...def,
-				resolver,
-				type: 'query',
-			} as ServiceDef<TResolver, any, any, 'query', any>;
+	return createBuilder<undefined, any, any, TContext>({
+		...initialDef,
+	});
+}
+export interface ServiceBuilder<
+	TInputSchema extends ZodTypeAny | undefined,
+	TOutputSchema extends ZodTypeAny | undefined,
+	TType extends 'mutation' | 'query' | undefined,
+	TContext extends Record<string, any> | unknown = unknown,
+> {
+	input: <TNewInputSchema extends ZodSchemaOrRawShape>(
+		schema: TNewInputSchema
+	) => ServiceBuilder<
+		InferZodSchemaOrRawShape<TNewInputSchema>,
+		TOutputSchema,
+		TType,
+		TContext
+	>;
+	output: <TNewOutput extends ZodTypeAny>(
+		schema: TNewOutput
+	) => ServiceBuilder<TInputSchema, TNewOutput, TType, TContext>;
+	use: <TNewContext extends TContext>(
+		middleware: Middleware<TContext, TNewContext>
+	) => ServiceBuilder<TInputSchema, TOutputSchema, TType, TNewContext>;
 
-			// console.log("QUERY: ", newDef);
-			return createResolver(newDef) as unknown as Service<
-				TResolver,
-				undefined,
-				any,
-				'query'
-			>;
-		},
-	};
-
-	return builder;
+	mutation: <TResolver extends Resolver<TInputSchema, TOutputSchema, TContext>>(
+		resolver: TResolver
+	) => Service<TResolver, TInputSchema, TOutputSchema, 'mutation', TContext>;
+	query: <TResolver extends Resolver<TInputSchema, TOutputSchema, TContext>>(
+		resolver: TResolver
+	) => Service<TResolver, TInputSchema, TOutputSchema, 'query', TContext>;
 }
 
+export type Service<
+	TResolver extends Resolver<any, any, any>,
+	TInputSchema extends ZodTypeAny | undefined,
+	TOutputSchema extends ZodTypeAny | undefined | unknown,
+	TType extends 'mutation' | 'query' | undefined,
+	TContext extends Record<string, any> | unknown = unknown,
+> = ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TContext> & {
+	(
+		ctx: TContext,
+		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
+	): ReturnType<TResolver>;
+};
+
 export function createResolver<
-	TResolver extends Resolver<any, any>,
+	TResolver extends Resolver<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined,
 	TType extends 'mutation' | 'query',
-	TAccess extends 'public' | 'authed' | undefined,
->(def: ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TAccess>) {
+	TContext extends Record<string, any> | unknown,
+>(def: ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TContext>) {
 	/**
 	 *  Calls the resolver function without parsing input/output
 	 *  Useful for calling the resolver when the input/output is already parsed
 	 */
 	const callerWithoutParser = async (
-		ctx: MyContext,
+		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null
 	) => {
 		if (!def.resolver) {
@@ -189,24 +223,28 @@ export function createResolver<
 	 * invokes the resolver without parsing input/output
 	 * Useful for safe calling the resolver directly
 	 */
-	const callerWithParser = async (ctx: MyContext, input: any) => {
-		const isOnlyAuthed = def.accessLevel === 'authed';
-		if (isOnlyAuthed) {
-			const hasId =
-				ctx.user?.id !== undefined &&
-				ctx.user.id !== null &&
-				ctx.user.id !== '';
-			if (!hasId) throw new Error('User is not logged in');
+	const callerWithParser = async (ctx: TContext, input: any) => {
+		let currentCtx = ctx;
+		const next = async (newCtx?: TContext) => {
+			currentCtx = newCtx || currentCtx;
+			const maybeParsedInput = def.inputSchema
+				? def.inputSchema.parse(input)
+				: input;
+			const result = await callerWithoutParser(currentCtx, maybeParsedInput);
+			const maybeParsedOutput = def.outputSchema
+				? def.outputSchema.parse(result)
+				: result;
+			return maybeParsedOutput;
+		};
+
+		for (const middleware of def.middleware) {
+			await middleware({
+				ctx: currentCtx,
+				next,
+			});
 		}
 
-		const maybeParsedInput = def.inputSchema
-			? def.inputSchema.parse(input)
-			: input;
-		const result = await callerWithoutParser(ctx, maybeParsedInput);
-		const maybeParsedOutput = def.outputSchema
-			? def.outputSchema.parse(result)
-			: result;
-		return maybeParsedOutput;
+		return next();
 	};
 
 	return Object.assign(callerWithParser, def);
