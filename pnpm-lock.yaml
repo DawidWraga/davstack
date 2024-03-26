@@ -35,6 +35,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@davstack/service':
+        specifier: workspace:^
+        version: link:../../packages/service
       '@davstack/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -80,7 +83,7 @@ importers:
     dependencies:
       '@davstack/store':
         specifier: 0.1.0
-        version: link:../../packages/store
+        version: 0.1.0(react@18.2.0)(scheduler@0.23.0)(zustand@4.5.2)
       next:
         specifier: ^14.1.1
         version: 14.1.1(react-dom@18.2.0)(react@18.2.0)
@@ -682,6 +685,21 @@ packages:
       human-id: 1.0.2
       prettier: 2.8.8
     dev: true
+
+  /@davstack/store@0.1.0(react@18.2.0)(scheduler@0.23.0)(zustand@4.5.2):
+    resolution: {integrity: sha512-N1wEv3GtqqkJY3J8EvjNj3ssp15OfB+H8ly1AN4cqRP8GqzIKw/ovFEzFrAqXmXLPo+buHnqCZh5I78FW/WJyA==}
+    peerDependencies:
+      zustand: '>=4.3.9'
+    dependencies:
+      immer: 10.0.4
+      react-dom: 18.2.0(react@18.2.0)
+      react-tracked: 1.7.14(react-dom@18.2.0)(react@18.2.0)(scheduler@0.23.0)
+      zustand: 4.5.2(@types/react@18.2.61)(immer@10.0.4)(react@18.2.0)
+    transitivePeerDependencies:
+      - react
+      - react-native
+      - scheduler
+    dev: false
 
   /@esbuild/aix-ppc64@0.20.2:
     resolution: {integrity: sha512-D+EBOJHXdNZcLJRBkhENNG8Wji2kgc9AZ9KiPr1JuZjsNtyHzrsfLRrY0tk2H2aoFu6RANO1y1iPPUCDYWkb5g==}

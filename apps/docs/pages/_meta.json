@@ -1,9 +1,5 @@
 {
 	"index": {
-		"title": "Home",
-		"display": "hidden"
-	},
-	"about": {
 		"title": "About",
 		"type": "page"
 	},
@@ -19,15 +15,11 @@
 		"title": "UI",
 		"type": "page"
 	},
-	"temp": {
-		"title": "temp",
-		"type": "page"
-	},
+
 	"contact": {
 		"display": "hidden",
 		"title": "Contact ↗",
 		"type": "page",
-
 		"href": "https://twitter.com/shuding_",
 		"newWindow": true
 	}

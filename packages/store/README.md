@@ -1,10 +1,10 @@
-# DavStack Store
+# Davstack Store
 
-The most intuitive and practical React state management library, built on top of [Zustand](https://github.com/pmndrs/zustand).
+Davstack store is an intuitive and practical React state management library, built on top of [Zustand](https://github.com/pmndrs/zustand).
 
 Zustand is a small, fast and scalable state-management solution battle-tested against common pitfalls, like the dreaded [zombie child problem](https://react-redux.js.org/api/hooks#stale-props-and-zombie-children), [react concurrency](https://github.com/bvaughn/rfcs/blob/useMutableSource/text/0000-use-mutable-source.md), and [context loss](https://github.com/facebook/react/issues/13332) between mixed renderers.
 
-### Key Features
+### Why Use DavStack Store?
 
 1. **Simple API**: Just define the initial state, getters/setters/hooks/types are automatically generated. No need to write boilerplate code.
 2. **Computed Properties and Actions**: Define derived state and actions that automatically update when dependent state changes.
@@ -16,7 +16,7 @@ Zustand is a small, fast and scalable state-management solution battle-tested ag
 npm install zustand @davstack/store
 ```
 
-Visit the [DavStack Store Docs](https://davstack.com/store/overview) for more information and examples, such as this [todo app example](https://davstack.com/store/todo-example).
+Visit the [Davstack Store Docs](https://davstack.com/store/overview) for more information and examples, such as this [todo app example](https://davstack.com/store/todo-example).
 
 ### Creating a Store
 
@@ -42,7 +42,7 @@ const Counter = () => {
 
 ### Updating State
 
-Update state using the auto-generated `set` method. DavStack Store uses Immer under the hood, allowing you to update state immutably.
+Update state using the auto-generated `set` method. Davstack Store uses Immer under the hood, allowing you to update state immutably.
 
 ```tsx
 counterStore.count.set(10);
@@ -121,7 +121,7 @@ const Counter = () => {
 
 ### Local State Management
 
-By default, stores are global and work without the need for any provider. However, if you require locally scoped stores, DavStack Store makes it super easy using the `LocalProvider` component.
+By default, stores are global and work without the need for any provider. However, if you require locally scoped stores, Davstack Store makes it super easy using the `LocalProvider` component.
 
 ```tsx
 const ParentComponent = () => {
@@ -181,7 +181,7 @@ const counterStore = createStore(
 
 ### Acknowledgements
 
-DavStack Store wouldn't be possible without the incredible work done by the Zustand creators. We'd also like to give a shout-out to [Zustand X](https://github.com/udecode/zustand-x) for inspiring some of the code in this library.
+Davstack Store wouldn't be possible without the incredible work done by the Zustand creators. We'd also like to give a shout-out to [Zustand X](https://github.com/udecode/zustand-x) for inspiring some of the code in this library.
 
 ### Contributing
 
