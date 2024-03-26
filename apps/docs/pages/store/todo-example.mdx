@@ -1,0 +1,63 @@
+# Todo Example
+
+A simple todo app using @davstack/store, using React, typescript, tailwind.
+
+<iframe
+	src="https://codesandbox.io/p/devbox/unruffled-vaughan-7gzkyd?embed=1&file=%2Fapp%2Ftodo%2Ftodo-store.ts"
+	style={{
+		width: '100%',
+		height: 900,
+		outline: '1px solid #252525',
+		border: 0,
+		borderRadius: 8,
+		marginBottom: 16,
+		marginTop: 16,
+		zIndex: 100,
+	}}
+	title="unruffled-vaughan"
+	allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+	sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+/>
+Incase the codesandbox doesn't load, here is the code for the todo store:
+
+```ts filename="todo-store.ts"
+import { createStore } from '@davstack/store';
+
+export const todoStore = createStore({
+	// Only need to cast the default value if the type can't be inferred
+	todos: [] as Todo[],
+}).extend((store) => ({
+	addTodo(text: string) {
+		// .set method uses immer, so we can mutate the draft while keeping state immutable
+		store.set((draft) => {
+			draft.todos.push({
+				id: Date.now(),
+				text,
+				completed: false,
+			});
+		});
+	},
+	toggleTodo(id: number) {
+		store.set((draft) => {
+			const todo = draft.todos.find((todo) => todo.id === id);
+			if (todo) {
+				todo.completed = !todo.completed;
+			}
+		});
+	},
+	deleteTodo(id: number) {
+		store.set((draft) => {
+			const index = draft.todos.findIndex((todo) => todo.id === id);
+			if (index !== -1) {
+				draft.todos.splice(index, 1);
+			}
+		});
+	},
+}));
+
+type Todo = {
+	id: number;
+	text: string;
+	completed: boolean;
+};
+```

@@ -1,0 +1,11 @@
+{
+	"overview": {
+		"title": "Overview"
+	},
+	"todo-example": {
+		"title": "Todo Example",
+		"theme": {
+			"layout": "full"
+		}
+	}
+}
