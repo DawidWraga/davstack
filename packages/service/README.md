@@ -18,6 +18,8 @@ Davstack service provides a structured service builder, decoupling your _service
 
 - **Seamless Integration with tRPC**: Davstack Service is built to complement tRPC. You can easily turn your services into tRPC procedures / routers with 0 boilerplate.
 
+Services also infer the output type from the query/mutation function. This means that output schemas are optional, just like tRPC.
+
 ### Installation
 
 ```bash
@@ -36,7 +38,6 @@ import { z } from 'zod';
 
 const getTasks = service()
 	.input(z.object({ projectId: z.string() }))
-	.output(z.array(z.object({ id: z.string(), title: z.string() })))
 	.query(async ({ ctx, input }) => {
 		// Complex logic to fetch tasks based on projectId
 		return tasks;
@@ -84,7 +85,7 @@ export type ServiceContext = {
 
 export const publicService = service<ServiceContext>();
 
-const protectedService = service<Required<ServiceContext>>().use(
+export const protectedService = service<Required<ServiceContext>>().use(
 	async ({ ctx, next }) => {
 		if (!ctx.user) {
 			throw new Error('Unauthorized');
@@ -95,11 +96,11 @@ const protectedService = service<Required<ServiceContext>>().use(
 ```
 
 ```ts filename="usage.ts"
-export const publicService = publicService().query(async ({ ctx }) => {
+export const publicService = publicService.query(async ({ ctx }) => {
 	return 'Public data';
 });
 
-export const protectedService = protectedService().query(async ({ ctx }) => {
+export const protectedService = protectedService.query(async ({ ctx }) => {
 	return 'Protected data';
 });
 ```
