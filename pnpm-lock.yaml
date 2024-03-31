@@ -133,6 +133,12 @@ importers:
       '@auth/prisma-adapter':
         specifier: ^1.4.0
         version: 1.5.2(@prisma/client@5.11.0)
+      '@davstack/service':
+        specifier: workspace:^
+        version: link:../../packages/service
+      '@davstack/store':
+        specifier: workspace:^
+        version: link:../../packages/store
       '@prisma/client':
         specifier: ^5.10.2
         version: 5.11.0(prisma@5.11.0)
