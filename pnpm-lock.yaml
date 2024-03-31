@@ -53,6 +53,9 @@ importers:
       nextra-theme-docs:
         specifier: latest
         version: 2.13.4(next@13.5.6)(nextra@2.13.4)(react-dom@18.2.0)(react@18.2.0)
+      posthog-js:
+        specifier: ^1.116.6
+        version: 1.116.6
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -4552,6 +4555,10 @@ packages:
       reusify: 1.0.4
     dev: true
 
+  /fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
+    dev: false
+
   /fflate@0.8.2:
     resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
     dev: true
@@ -7352,6 +7359,17 @@ packages:
       picocolors: 1.0.0
       source-map-js: 1.2.0
     dev: true
+
+  /posthog-js@1.116.6:
+    resolution: {integrity: sha512-rvt8HxzJD4c2B/xsUa4jle8ApdqljeBI2Qqjp4XJMohQf18DXRyM6b96H5/UMs8jxYuZG14Er0h/kEIWeU6Fmw==}
+    dependencies:
+      fflate: 0.4.8
+      preact: 10.20.1
+    dev: false
+
+  /preact@10.20.1:
+    resolution: {integrity: sha512-JIFjgFg9B2qnOoGiYMVBtrcFxHqn+dNXbq76bVmcaHYJFYR4lW67AOcXgAYQQTDYXDOg/kTZrKPNCdRgJ2UJmw==}
+    dev: false
 
   /preferred-pm@3.1.2:
     resolution: {integrity: sha512-nk7dKrcW8hfCZ4H6klWcdRknBOXWzNQByJ0oJyX97BOupsYD+FzLS4hflgEu/uPUEHZCuRfMxzCBsuWd7OzT8Q==}
