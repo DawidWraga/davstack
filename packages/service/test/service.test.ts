@@ -214,7 +214,7 @@ describe('Service', () => {
 			).resolves.not.toThrowError();
 		});
 
-		test.only('private service: should throw on no user; should pass with user', async () => {
+		test('private service: should throw on no user; should pass with user', async () => {
 			const createUser = privateService
 				.input(d.input)
 				.output(d.output)
@@ -230,6 +230,91 @@ describe('Service', () => {
 			await expect(
 				createUser({ user: { id: '1' } }, { name: 'test' })
 			).resolves.not.toThrowError();
+		});
+
+		test('should infer outputs', async () => {
+			const createUser = publicService
+				.input(d.input)
+				.mutation(async ({ input, ctx }) => {
+					return d.defaultOutput;
+				});
+
+			const user = await createUser({ user: { id: '' } }, { name: 'test' });
+			expect(user).toStrictEqual(d.defaultOutput);
+		});
+	});
+
+	/**
+	 * added test as it was causing some bugs
+	 */
+	describe('Should handle creating context from complex middlware types', async () => {
+		// from next auth
+		type User = {
+			id: string;
+			name?: string | null;
+			email?: string | null;
+			image?: string | null;
+		};
+
+		const getServerAuthSession = async () => {
+			return undefined as { user: User } | undefined;
+		};
+
+		const db = {} as any;
+
+		const createServiceContext = async (opts: { headers: Headers }) => {
+			const session = await getServerAuthSession();
+
+			const user = session?.user;
+
+			return {
+				db,
+				user,
+				...opts,
+			};
+		};
+
+		type WithUser<T> = Omit<T, 'user'> & { user: { id: string } };
+
+		type ServiceContext = Awaited<ReturnType<typeof createServiceContext>>;
+		type ServiceContextAuthed = WithUser<ServiceContext>;
+
+		const publicService = service<ServiceContext>();
+		const authedService = service<ServiceContextAuthed>().use(
+			async ({ ctx, next }) => {
+				if (!ctx.user) {
+					throw new Error('Unauthorized');
+				}
+				return next();
+			}
+		);
+
+		const createUser = authedService
+			.input(d.input)
+			// .output(d.output)
+			.mutation(async ({ input, ctx }) => {
+				return d.defaultOutput;
+			});
+
+		test('should be able to call directly', async () => {
+			const user = await createUser(
+				{ user: { id: '1' }, db, headers: {} as any },
+				{ name: 'test' }
+			);
+			expect(user).toStrictEqual(d.defaultOutput);
+		});
+
+		const getLatestTodo = authedService.query(async ({ ctx }) => {
+			return 'hello' as const;
+		});
+
+		test('should be able to call directly - v2', async () => {
+			const todo = await getLatestTodo({
+				user: { id: '1' },
+				db,
+				headers: {} as any,
+			});
+			expect(todo).toStrictEqual('hello');
 		});
 	});
 });
