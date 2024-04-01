@@ -1,6 +1,6 @@
 {
 	"name": "@davstack/service",
-	"version": "0.1.5",
+	"version": "0.1.7",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
@@ -29,7 +29,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@trpc/server": "11.0.0-next.320",
+		"@trpc/server": "next",
 		"zod": "^3.22.4"
 	}
 }

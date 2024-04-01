@@ -194,6 +194,11 @@ export type Service<
 	TType extends 'mutation' | 'query' | undefined,
 	TContext extends Record<string, any> | unknown = unknown,
 > = ServiceDef<TResolver, TInputSchema, TOutputSchema, TType, TContext> & {
+	callerWithoutParser: (
+		ctx: TContext,
+		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
+	) => ReturnType<TResolver>;
+} & {
 	(
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void

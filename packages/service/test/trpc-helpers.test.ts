@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 // import { service } from "./service";
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, expectTypeOf, test } from 'vitest';
 import { service } from '../src';
 import {
 	createTrpcProcedureFromService,
@@ -75,8 +75,15 @@ describe('integrate with trpc router', () => {
 		const caller = createCaller(d.ctx).createUser;
 
 		expect(caller).toBeDefined();
+		expectTypeOf(caller).toBeFunction();
+		expectTypeOf(caller).parameter(0).toMatchTypeOf<{ name: string }>();
+		expectTypeOf(caller).returns.toMatchTypeOf<
+			Promise<typeof d.defaultOutput>
+		>();
 
 		const result = await caller({ name: 'test' });
+
+		expectTypeOf(result).toEqualTypeOf(d.defaultOutput);
 		expect(result).toStrictEqual(d.defaultOutput);
 	});
 
@@ -96,6 +103,11 @@ describe('integrate with trpc router', () => {
 		const caller = createCaller(d.ctx).createUser!;
 
 		expect(caller).toBeDefined();
+		expectTypeOf(caller).toBeFunction();
+		expectTypeOf(caller).parameter(0).toMatchTypeOf<{ name: string }>();
+		expectTypeOf(caller).returns.toMatchTypeOf<
+			Promise<typeof d.defaultOutput>
+		>();
 
 		const resultPromise = caller({ name: 'test' });
 		expect(resultPromise).resolves.toStrictEqual(d.defaultOutput);
@@ -132,7 +144,7 @@ describe('integrate with trpc router', () => {
 			});
 
 		const router = createRouter({
-			createUser: createTrpcProcedureFromService(authedCreateUser as any),
+			createUser: createTrpcProcedureFromService(authedCreateUser),
 		});
 
 		const createCaller = createCallerFactory(router);
