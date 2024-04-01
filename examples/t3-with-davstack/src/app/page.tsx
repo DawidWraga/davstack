@@ -6,9 +6,9 @@ export default async function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-slate-900 text-white ">
       <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16 ">
-        <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-[2rem]">
           Create t3 app
-          <div className="">with Davstack</div>
+          <div className="mt-2">with Davstack</div>
         </h1>
 
         {/* DEMOS:   */}

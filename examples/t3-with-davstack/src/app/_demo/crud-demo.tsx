@@ -1,16 +1,37 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { api } from "@/trpc/react";
+import { useSession } from "next-auth/react";
 
 export interface CrudDemoProps {}
 
 export function CrudDemo(props: CrudDemoProps) {
-  // const session = await getServerAuthSession();
-  // if (!session?.user) return null;
+  const { data: session } = useSession();
+  const isAuthed = !!session?.user;
+  const {
+    data: latestPost,
+    isPending,
+    error,
+  } = api.post.getLatest.useQuery(undefined, {
+    enabled: isAuthed,
+  });
 
-  // const latestPost = await api.post.getLatest();
+  if (!isAuthed) return <>Sign in to see crud demo</>;
 
-  const latestPost = {
-    name: "My latest post",
-  };
+  if (error) {
+    return (
+      <div className="rounded bg-red-500 p-4 text-white">
+        <p className="font-bold">Error</p>
+        <pre>{JSON.stringify(error, null, 4)}</pre>
+      </div>
+    );
+  }
+
+  if (isPending) {
+    return <p>Loading...</p>;
+  }
 
   return (
     <div className="w-full max-w-xs">
@@ -24,11 +45,6 @@ export function CrudDemo(props: CrudDemoProps) {
     </div>
   );
 }
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-import { api } from "@/trpc/react";
 
 export function CreatePost() {
   const router = useRouter();
