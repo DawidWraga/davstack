@@ -230,6 +230,9 @@ importers:
       '@trpc/server':
         specifier: next
         version: 11.0.0-rc.329
+      superjson:
+        specifier: ^2.2.1
+        version: 2.2.1
       zod:
         specifier: ^3.22.4
         version: 3.22.4
