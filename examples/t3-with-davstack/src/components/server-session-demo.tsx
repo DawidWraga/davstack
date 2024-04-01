@@ -11,7 +11,6 @@ export async function ServerSessionDemo(props: ServerSessionDemoProps) {
 
   return (
     <div>
-      server auth session demo:
       <div className="flex items-center gap-1">
         <p className="flex-1 text-center  text-white">
           {session && <span>Logged in as {session.user?.name}</span>}

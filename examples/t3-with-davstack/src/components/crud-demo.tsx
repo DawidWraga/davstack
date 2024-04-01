@@ -1,12 +1,19 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { api } from "@/api/react";
-import { useSession } from "next-auth/react";
 import { type Todo } from "@prisma/client";
-import { useMutationState } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+
+/**
+ * This is the client side for a todo application.
+ *
+ * IMPORTANT: This is **THE EXACT SAME** as using regular tRPC + react query. Davstack store does not make any changes to regular tRPC usage.
+ *
+ * The only difference that Davstack store makes is how you define the tRPC router
+ * (@see api folder)
+ */
 
 export interface CrudDemoProps {}
 
@@ -57,6 +64,9 @@ export function TodosList(props: TodosListProps) {
 }
 
 function TodoItem({ todo }: { todo: Todo }) {
+  /**
+   * You may not be familiar with this way of handling optimistic updates as it is new in tanstack query v5. This is all react-query stuff, no Davstack magic here.
+   */
   const apiUtils = api.useUtils();
   const updateTodo = api.todo.updateTodo.useMutation({
     onSettled: () => {
@@ -125,7 +135,7 @@ function CreateTodoForm() {
     >
       <input
         type="text"
-        placeholder="Title"
+        placeholder="Enter todo name"
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="w-full rounded-full px-2 py-1 text-black"

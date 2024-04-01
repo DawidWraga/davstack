@@ -1,6 +1,10 @@
 import { todoServices } from "@/api/services";
+import { publicHelloWorld } from "@/api/services/public-hello-word";
 import { createTRPCRouter } from "@/lib/trpc";
-import { createTrpcRouterFromServices } from "@davstack/service";
+import {
+  createTrpcProcedureFromService,
+  createTrpcRouterFromServices,
+} from "@davstack/service";
 
 /**
  * This is the primary router for your server.
@@ -9,6 +13,7 @@ import { createTrpcRouterFromServices } from "@davstack/service";
  */
 export const apiRouter = createTRPCRouter({
   todo: createTrpcRouterFromServices(todoServices),
+  publicHello: createTrpcProcedureFromService(publicHelloWorld),
 });
 
 // export type definition of API

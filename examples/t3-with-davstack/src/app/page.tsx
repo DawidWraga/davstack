@@ -1,5 +1,5 @@
 import { CrudDemo } from "@/components/crud-demo";
-import { ServerApiCaller } from "@/components/server-api-caller";
+import { ServerApiCallerDemo } from "@/components/server-api-caller-demo";
 import { ServerSessionDemo } from "@/components/server-session-demo";
 
 export default async function Home() {
@@ -14,8 +14,8 @@ export default async function Home() {
         {/* DEMOS:   */}
         <div className="m-1 flex flex-col items-center gap-2  *:min-w-[350px] *:border *:border-gray-500 *:p-4">
           <CrudDemo />
+          <ServerApiCallerDemo />
           <ServerSessionDemo />
-          <ServerApiCaller />
         </div>
       </div>
     </main>

@@ -10,7 +10,6 @@ import { apiRouter } from "@/api/router";
  * handling a HTTP request (e.g. when you make requests from Client Components).
  */
 const createContext = async (req: NextRequest) => {
-  console.log("CREATING CONTEXT FOR TRPC/ROUTE");
   return createServiceContext({
     headers: req.headers,
   });
