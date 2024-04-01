@@ -1,7 +1,7 @@
 import { service } from "@davstack/service";
 
-import { getServerAuthSession } from "@/server/auth";
-import { db } from "@/server/db";
+import { getServerAuthSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { type User } from "next-auth";
 
 export const createServiceContext = async (opts: { headers: Headers }) => {

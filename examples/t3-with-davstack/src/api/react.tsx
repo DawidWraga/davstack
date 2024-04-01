@@ -1,3 +1,4 @@
+/* eslint-disable turbo/no-undeclared-env-vars */
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +7,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import SuperJSON from "superjson";
 
-import { type AppRouter } from "@/server/router";
+import { type ApiRouter } from "@/api/router";
 
 const createQueryClient = () => new QueryClient();
 
@@ -20,7 +21,7 @@ const getQueryClient = () => {
   return (clientQueryClientSingleton ??= createQueryClient());
 };
 
-export const api = createTRPCReact<AppRouter>();
+export const api = createTRPCReact<ApiRouter>();
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();

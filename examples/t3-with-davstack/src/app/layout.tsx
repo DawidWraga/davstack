@@ -2,9 +2,9 @@ import "@/styles/globals.css";
 
 import { Inter } from "next/font/google";
 
-import { TRPCReactProvider } from "@/api-react";
-// import { SessionProvider } from "next-auth/react";
-import { SessionProvider } from "@/session-provider";
+import { TRPCReactProvider } from "@/api/react";
+
+import { SessionProvider } from "@/components/session-provider";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",

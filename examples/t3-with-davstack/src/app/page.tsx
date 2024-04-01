@@ -1,6 +1,6 @@
-import { CrudDemo } from "@/app/_demo/crud-demo";
-import { ServerApiCaller } from "@/app/_demo/server-api-caller";
-import { ServerSessionDemo } from "@/app/_demo/server-session-demo";
+import { CrudDemo } from "@/components/crud-demo";
+import { ServerApiCaller } from "@/components/server-api-caller";
+import { ServerSessionDemo } from "@/components/server-session-demo";
 
 export default async function Home() {
   return (

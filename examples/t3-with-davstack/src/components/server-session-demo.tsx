@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getServerAuthSession } from "@/server/auth";
+import { getServerAuthSession } from "@/lib/auth";
 
 export interface ServerSessionDemoProps {}
 

@@ -134,10 +134,10 @@ importers:
         specifier: ^1.4.0
         version: 1.5.2(@prisma/client@5.11.0)
       '@davstack/service':
-        specifier: ^0.1.2
+        specifier: workspace:*
         version: link:../../packages/service
       '@davstack/store':
-        specifier: ^0.1.4
+        specifier: 'workspace:* '
         version: link:../../packages/store
       '@prisma/client':
         specifier: ^5.10.2
@@ -228,8 +228,8 @@ importers:
   packages/service:
     dependencies:
       '@trpc/server':
-        specifier: 11.0.0-next.320
-        version: 11.0.0-next.320
+        specifier: next
+        version: 11.0.0-rc.329
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -2307,10 +2307,6 @@ packages:
       '@trpc/server': 11.0.0-rc.329
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-    dev: false
-
-  /@trpc/server@11.0.0-next.320:
-    resolution: {integrity: sha512-cIcJBNt78OnDHAUgGEfUJZNteXfPbzTt6XQ6kTFZkOtlbxwCIfTaVYac+WmQBV4yIQZJTk0BeaDgJkXGcVDp0w==}
     dev: false
 
   /@trpc/server@11.0.0-rc.329:
