@@ -2,8 +2,9 @@
 
 import { describe, expect, test } from "vitest";
 
-import { authedService, publicService } from "../src/server/service";
+import { authedService, publicService } from "../src/lib/service";
 import { service } from "@davstack/service";
+import { api } from "@/api/react-ssr";
 
 describe("service tests from within t3 app", () => {
   test("publicService should be defined", () => {

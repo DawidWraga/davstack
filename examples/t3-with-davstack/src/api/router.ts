@@ -1,22 +1,20 @@
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 import { todoServices } from "@/api/services";
-import { publicHelloWorld } from "@/api/services/public-hello-word";
-import { createTRPCRouter } from "@/lib/trpc";
-import {
-  createTrpcProcedureFromService,
-  createTrpcRouterFromServices,
-} from "@davstack/service";
+import * as publicHelloWorldServices from "@/api/services/public-hello-word";
+import { ServiceContext } from "@/lib/service";
+import { createTrpcRouterFromServices, getTrpc } from "@davstack/service";
+
+// can use existing trpc instance and existing createTrpcRouter function
+// otherwise this default is provided by the service package
+const t = getTrpc<ServiceContext>();
 
 /**
  * This is the primary router for your server.
- *
- * All routers added in /api/routers should be manually added here.
  */
-export const apiRouter = createTRPCRouter({
+export const apiRouter = t.router({
   todo: createTrpcRouterFromServices(todoServices),
-  publicHello: createTrpcProcedureFromService(publicHelloWorld),
+  other: createTrpcRouterFromServices(publicHelloWorldServices),
 });
 
 // export type definition of API
 export type ApiRouter = typeof apiRouter;
-
-// type temp = ApiRouter['todo'][]

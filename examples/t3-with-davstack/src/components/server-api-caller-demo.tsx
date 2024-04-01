@@ -17,11 +17,11 @@ export async function ServerApiCallerDemo(props: ServerApiCallerDemoProps) {
    *
    */
 
-  const hello = await api.publicHello();
+  const hello = await api.other.publicHelloWorld();
 
   // alternative way to call the service directly:
   // const ctx = createServiceContext();
-  // const hello = await publicHelloWorld(ctx);
+  // const hello = await publicHelloWorldWorld(ctx);
 
   return <div>server api caller demo: {hello.greeting}</div>;
 }
