@@ -134,10 +134,10 @@ importers:
         specifier: ^1.4.0
         version: 1.5.2(@prisma/client@5.11.0)
       '@davstack/service':
-        specifier: workspace:^
+        specifier: ^0.1.2
         version: link:../../packages/service
       '@davstack/store':
-        specifier: workspace:^
+        specifier: ^0.1.4
         version: link:../../packages/store
       '@prisma/client':
         specifier: ^5.10.2

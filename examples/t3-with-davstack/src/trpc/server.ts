@@ -3,6 +3,8 @@ import "server-only";
 import { headers } from "next/headers";
 import { cache } from "react";
 
+
+// TODO: replace createCaller w direct services and delete this file
 import { createCaller } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
 
