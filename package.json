@@ -9,11 +9,11 @@
 		"changeset": "changeset",
 		"version-packages": "changeset version",
 		"release": "turbo build --filter=docs^... && changeset publish ",
-		"test": "vitest",
-		"test:watch": "vitest --watch",
-		"test:ui": "vitest --ui",
-		"test:run": "vitest run",
-		"test:coverage": "vitest --coverage"
+		"test": "vitest --typecheck",
+		"test:watch": "vitest --watch --typecheck",
+		"test:ui": "vitest --ui ",
+		"test:run": "vitest run --typecheck",
+		"test:coverage": "vitest --coverage --typecheck"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.1",

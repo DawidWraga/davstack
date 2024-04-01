@@ -23,6 +23,24 @@ export default defineWorkspace([
 			name: 'service',
 			root: './packages/service',
 			environment: 'node',
+			typecheck: {
+				enabled: true,
+				include: ['**/*.test.ts'],
+			},
+			// setupFiles: ['./test-setup.ts'],
+
+			// setupFiles: ['./setup.happy-dom.ts'],
+		},
+	},
+	{
+		test: {
+			name: 't3-app',
+			root: './examples/t3-with-davstack',
+			environment: 'node',
+			typecheck: {
+				enabled: true,
+				include: ['**/*.test.ts'],
+			},
 			// setupFiles: ['./test-setup.ts'],
 
 			// setupFiles: ['./setup.happy-dom.ts'],
