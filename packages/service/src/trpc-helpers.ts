@@ -10,7 +10,7 @@ import { Resolver, Service } from './service';
 import { initTRPC, TRPCError } from '@trpc/server';
 import SuperJSON from 'superjson';
 
-const getTrpc = <TContext extends object>() => {
+export const getTrpc = <TContext extends object>() => {
 	return initTRPC.context<TContext>().create({
 		transformer: SuperJSON,
 		errorFormatter({ shape, error }) {
@@ -76,7 +76,7 @@ const getTrpc = <TContext extends object>() => {
 
 export function createTrpcProcedureFromService<
 	TService extends Service<any, any, any, any, any>,
->(service: TService) {
+>(service: TService, customTrpc?: ReturnType<typeof getTrpc>) {
 	if (!service.resolver) {
 		throw new Error('Resolver not defined');
 	}
@@ -96,6 +96,7 @@ export function createTrpcProcedureFromService<
 
 	const inputSchema = service.inputSchema ?? z.void();
 	const t =
+		customTrpc ??
 		getTrpc<
 			TService['middleware'] extends object ? TService['middleware'] : object
 		>();
@@ -118,7 +119,7 @@ export function createTrpcProcedureFromService<
 
 export function createManyTrpcProceduresFromServices<
 	TServiceMap extends Record<string, Service<any, any, any, any, any>>,
->(serviceMap: TServiceMap) {
+>(serviceMap: TServiceMap, customTrpc?: ReturnType<typeof getTrpc>) {
 	type ServiceKeys = keyof TServiceMap;
 	type Procedures = {
 		[K in ServiceKeys]: ReturnType<
@@ -128,7 +129,8 @@ export function createManyTrpcProceduresFromServices<
 	const procedures = Object.entries(serviceMap).reduce(
 		(acc, [key, service]) => {
 			acc[key as ServiceKeys] = createTrpcProcedureFromService(
-				service
+				service,
+				customTrpc
 			) as Procedures[ServiceKeys];
 			return acc;
 		},
@@ -140,9 +142,10 @@ export function createManyTrpcProceduresFromServices<
 
 export function createTrpcRouterFromServices<
 	TServiceMap extends Record<string, Service<any, any, any, any, any>>,
->(serviceMap: TServiceMap) {
-	const procedures = createManyTrpcProceduresFromServices(serviceMap);
-	return getTrpc().router(procedures);
+>(serviceMap: TServiceMap, customTrpc?: ReturnType<typeof getTrpc>) {
+	const t = customTrpc ?? getTrpc();
+	const procedures = createManyTrpcProceduresFromServices(serviceMap, t);
+	return t.router(procedures);
 }
 
 // export function createServicesRouter<
