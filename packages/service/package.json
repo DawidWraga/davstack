@@ -1,6 +1,6 @@
 {
 	"name": "@davstack/service",
-	"version": "0.1.2",
+	"version": "0.1.5",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
@@ -10,8 +10,8 @@
 		"dist/**"
 	],
 	"scripts": {
-		"build": "tsup src/index.tsx --format esm,cjs --dts --external react",
-		"dev": "tsup src/index.tsx --format esm,cjs --watch --dts --external react",
+		"build": "tsup src/index.ts --format esm,cjs --dts --dts-resolve",
+		"dev": "tsup src/index.ts --format esm,cjs --watch --dts --dts-resolve",
 		"lint": "eslint \"src/**/*.ts*\"",
 		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
 	},

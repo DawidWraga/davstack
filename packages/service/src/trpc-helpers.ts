@@ -3,7 +3,8 @@ import {
 	MutationProcedure,
 	QueryProcedure,
 } from '@trpc/server/unstable-core-do-not-import';
-import { z, infer as zInfer, ZodError, ZodTypeAny } from 'zod';
+import { z, ZodError, ZodTypeAny } from 'zod';
+import { zInfer } from './utils/type-utils';
 
 import { Resolver, Service } from './service';
 import { initTRPC, TRPCError } from '@trpc/server';

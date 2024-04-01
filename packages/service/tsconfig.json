@@ -1,5 +1,5 @@
 {
-	"extends": "@davstack/tsconfig/react-library.json",
+	"extends": "@davstack/tsconfig/node14.json",
 	"include": ["."],
 	"exclude": ["dist", "build", "node_modules"]
 }

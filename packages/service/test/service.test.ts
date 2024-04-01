@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { silentTestConsoleError, silentTestConsoleLog } from './test-utils';
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, expectTypeOf, test } from 'vitest';
 import { service } from '../src';
 const d = {
 	input: z.object({
@@ -240,6 +240,7 @@ describe('Service', () => {
 				});
 
 			const user = await createUser({ user: { id: '' } }, { name: 'test' });
+			expectTypeOf(user).toEqualTypeOf(d.defaultOutput);
 			expect(user).toStrictEqual(d.defaultOutput);
 		});
 	});
@@ -261,6 +262,7 @@ describe('Service', () => {
 		};
 
 		const db = {} as any;
+		type Headers = Record<string, string>;
 
 		const createServiceContext = async (opts: { headers: Headers }) => {
 			const session = await getServerAuthSession();
@@ -315,6 +317,8 @@ describe('Service', () => {
 				headers: {} as any,
 			});
 			expect(todo).toStrictEqual('hello');
+
+			expectTypeOf(todo).toEqualTypeOf<'hello'>();
 		});
 	});
 });

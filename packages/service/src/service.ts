@@ -1,13 +1,14 @@
 /* eslint-disable no-unused-vars */
 import {
 	z,
-	infer as zInfer,
+	// infer as _infer,
 	ZodObject,
 	ZodRawShape,
 	ZodSchema,
 	ZodTypeAny,
+	ZodType,
 } from 'zod';
-import { Simplify } from './utils/type-utils';
+import { Simplify, zInfer } from './utils/type-utils';
 
 // Generic type for resolver functions
 export type Resolver<
@@ -21,8 +22,8 @@ export type Resolver<
 
 // Define the builder interface capturing generic types for input and output
 
-type ZodSchemaOrRawShape = ZodSchema<any> | ZodRawShape;
-type InferZodSchemaOrRawShape<T extends ZodSchemaOrRawShape> =
+export type ZodSchemaOrRawShape = ZodSchema<any> | ZodRawShape;
+export type InferZodSchemaOrRawShape<T extends ZodSchemaOrRawShape> =
 	T extends ZodRawShape ? ZodObject<T> : T;
 
 export type Middleware<
