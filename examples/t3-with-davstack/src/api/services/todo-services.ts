@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { authedService, publicService } from "@/lib/service";
 
-export const getTodos = publicService.query(async ({ ctx }) => {
+export const getTodos = authedService.query(async ({ ctx }) => {
   return ctx.db.todo.findMany({
     where: {
       createdBy: { id: ctx.user?.id },
