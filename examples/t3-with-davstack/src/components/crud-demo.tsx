@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -5,18 +6,20 @@ import { useState } from "react";
 import { api } from "@/api/react";
 import { useSession } from "next-auth/react";
 import { type Todo } from "@prisma/client";
+import { useMutationState } from "@tanstack/react-query";
 
 export interface CrudDemoProps {}
 
 export function CrudDemo(props: CrudDemoProps) {
-  const { ...passThroughProps } = props;
+  const { ...passThrough } = props;
+
   const { data: session } = useSession();
   const isAuthed = !!session?.user;
 
   if (!isAuthed) return <>Sign in to see crud demo</>;
 
   return (
-    <div className="w-full max-w-xs" {...passThroughProps}>
+    <div className="w-full max-w-xs" {...passThrough}>
       <CreateTodoForm />
       <TodosList />
     </div>
@@ -31,7 +34,7 @@ export function TodosList(props: TodosListProps) {
     return (
       <div className="rounded bg-red-500 p-4 text-white">
         <p className="font-bold">Error</p>
-        <pre>{JSON.stringify(error, null, 4)}</pre>
+        <p>{error.message}</p>
       </div>
     );
   }
@@ -45,35 +48,52 @@ export function TodosList(props: TodosListProps) {
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-1 py-4">
       {todos.map((todo) => (
         <TodoItem key={todo.id} todo={todo} />
       ))}
-    </>
+    </div>
   );
 }
 
 function TodoItem({ todo }: { todo: Todo }) {
   const apiUtils = api.useUtils();
-  const apiClient = apiUtils.client;
+  const updateTodo = api.todo.updateTodo.useMutation({
+    onSettled: () => {
+      apiUtils.todo.getTodos.invalidate();
+    },
+  });
+
+  const deleteTodo = api.todo.deleteTodo.useMutation({
+    onSettled: () => {
+      apiUtils.todo.getTodos.invalidate();
+    },
+  });
+
+  if (deleteTodo.isPending || deleteTodo.variables?.id === todo.id) {
+    return null;
+  }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={"flex items-center gap-2 border border-gray-500 p-1 "}>
       <input
-        aria-label={`todo is ${todo.completed ? "completed" : "not completed"} `}
-        type="checkbox"
-        checked={todo.completed}
+        checked={updateTodo.variables?.completed ?? todo.completed}
         onChange={(e) => {
-          apiClient.todo.updateTodo.mutate({
+          updateTodo.mutate({
             id: todo.id,
             completed: e.target.checked,
           });
         }}
+        aria-label={`todo is ${todo.completed ? "completed" : "not completed"} `}
+        type="checkbox"
+        name={todo.name}
       />
-      <span>{todo.name}</span>
+      <label htmlFor={todo.name} className="flex-1">
+        {todo.name}
+      </label>
       <button
         onClick={() => {
-          apiClient.todo.deleteTodo.mutate({ id: todo.id });
+          deleteTodo.mutate({ id: todo.id });
         }}
       >
         Delete
@@ -83,7 +103,6 @@ function TodoItem({ todo }: { todo: Todo }) {
 }
 
 function CreateTodoForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
 
   const apiUtils = api.useUtils();
@@ -93,6 +112,7 @@ function CreateTodoForm() {
       apiUtils.todo.getTodos.invalidate();
       setName("");
     },
+    mutationKey: ["addTodo"],
   });
 
   return (
@@ -101,21 +121,21 @@ function CreateTodoForm() {
         e.preventDefault();
         createTodo.mutate({ name });
       }}
-      className="flex flex-col gap-2"
+      className="flex  "
     >
       <input
         type="text"
         placeholder="Title"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full rounded-full px-4 py-2 text-black"
+        className="w-full rounded-full px-2 py-1 text-black"
       />
       <button
         type="submit"
-        className="rounded-full bg-white/10 px-10 py-3 font-semibold transition hover:bg-white/20"
+        className="rounded-full bg-white/10 px-2 py-1 font-semibold transition hover:bg-white/20"
         disabled={createTodo.isPending}
       >
-        {createTodo.isPending ? "Submitting..." : "Submit"}
+        {createTodo.isPending ? "loading" : "add"}
       </button>
     </form>
   );

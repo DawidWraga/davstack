@@ -11,11 +11,8 @@ export async function ServerApiCaller(props: ServerApiCallerProps) {
   const hello = await publicHelloWorld({} as any);
 
   return (
-    <div className=" ">
-      server api caller demo:
-      <p className="text-2xl text-white">
-        {hello ? hello.greeting : "Loading tRPC query..."}
-      </p>
+    <div >
+      server api caller demo: {hello ? hello.greeting : "Loading tRPC query..."}
     </div>
   );
 }
