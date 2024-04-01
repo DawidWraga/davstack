@@ -26,54 +26,6 @@ export const getTrpc = <TContext extends object>() => {
 	});
 };
 
-// export const createRouter = t.router;
-// export const createProcedure = t.procedure;
-// export const createCallerFactory = t.createCallerFactory;
-
-// export function createTrpcProcedureFromService<
-// 	TResolver extends Resolver<any, any>,
-// 	TInputSchema extends ZodTypeAny | undefined,
-// 	TOutputSchema extends ZodTypeAny | undefined,
-// 	TType extends 'mutation' | 'query',
-// 	TContext extends unknown = unknown,
-// >(service: Service<TResolver, TInputSchema, TOutputSchema, TType, TContext>) {
-// 	if (!service.resolver) {
-// 		throw new Error('Resolver not defined');
-// 	}
-
-// 	type InputOutput = {
-// 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void;
-// 		output: ReturnType<TResolver> extends Promise<infer TOutput>
-// 			? TOutput
-// 			: never;
-// 	};
-
-// 	type ProcedureResult = TType extends 'mutation'
-// 		? MutationProcedure<InputOutput>
-// 		: QueryProcedure<InputOutput>;
-
-// 	const inputSchema = service.inputSchema ?? z.void();
-
-// 	const t = getTrpc<TContext extends object ? TContext : object>();
-
-// 	const procedure = t.procedure;
-
-// 	if (service.type === 'mutation') {
-// 		return procedure.input(inputSchema).mutation(({ ctx, input }) => {
-// 			// @ts-expect-error
-// 			return service.callerWithoutParser(ctx, input);
-// 		}) as unknown as ProcedureResult;
-// 	}
-
-// 	if (service.type === 'query')
-// 		return procedure.input(inputSchema).query(({ ctx, input }) => {
-// 			// @ts-expect-error
-// 			return service.callerWithoutParser(ctx, input);
-// 		}) as unknown as ProcedureResult;
-
-// 	throw new Error('Type not defined');
-// }
-
 export function createTrpcProcedureFromService<
 	TService extends Service<any, any, any, any, any>,
 >(service: TService, customTrpc?: ReturnType<typeof getTrpc>) {
@@ -147,6 +99,11 @@ export function createTrpcRouterFromServices<
 	const procedures = createManyTrpcProceduresFromServices(serviceMap, t);
 	return t.router(procedures);
 }
+
+/**
+ * Started working on feature to create router from nested services object.
+ * Not finished yet and currently not working so commented out.
+ */
 
 // export function createServicesRouter<
 //   TServiceObjectMap extends Record<
