@@ -22,7 +22,7 @@ npm install zod @davstack/service
 
 Visit the [DavStack Service Docs](https://davstack.com/service/overview) for more information and examples, such as this [trpc usage example](https://davstack.com/service/trpc-usage-example).
 
-### Demo Usage
+## Demo Usage
 
 - The service definition replaces tRPC procedures, but the syntax is very similar.
 - Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
