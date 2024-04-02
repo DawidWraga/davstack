@@ -24,6 +24,9 @@ Visit the [DavStack Service Docs](https://davstack.com/service/overview) for mor
 
 ### Demo Usage
 
+- The service definition replaces tRPC procedures, but the syntax is very similar.
+- Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
+
 ```ts
 // api/services/invoice.ts
 import { authedService, publicService } from '@/lib/service';
@@ -39,7 +42,7 @@ export const mailAiGeneratedInvoice = authedService
 		// The inputs / outputs are type safe and validated by Zod
 		const pdf = await generatePdf(ctx, { html: project.invoiceHtml });
 
-		// Services are just functions - so no limitaitons of content types (eg files, streams, etc, can be passed around easily)
+		// Services are just functions - so no limitaitons of content types (eg files, streams, etc)
 		await sendEmail(ctx, {
 			to: input.to,
 			subject: 'Invoice',
@@ -172,7 +175,7 @@ const getTasks = service()
 Unlike tRPC procedures, services can be called directly from anywhere in your backend, including within other services.
 
 ```typescript
-const ctx = createServiceCtx();
+const ctx = createServiceCtx(); // or get ctx from parent service
 const tasks = await getTasks(ctx, { projectId: '...' });
 ```
 
