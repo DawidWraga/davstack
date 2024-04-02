@@ -10,7 +10,7 @@ The key difference is that Davstack Service is a **service** builder, not a proc
 
 - **Full Reusability**: Services can be called directly from anywhere in your backend, including within other services, without the overhead of unnecessary API calls.
 
-- **Flexible & Portable**: Services are lightweight wrappers around typescript functions, so they can be integrated into any backend eg Next.js server components / actions and support broad range of content types (eg files, streams, etc).
+- **Flexible & Portable**: Services are lightweight wrappers around typescript functions, so they can be integrated into any backend eg Next.js server components / actions and support broad range of content types (eg files, streams).
 
 - **Seamless Integration with tRPC**: Davstack Service is built to complement tRPC. You can easily turn your services into tRPC procedures / routers with 0 boilerplate.
 
