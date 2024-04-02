@@ -34,20 +34,20 @@ export const mailAiGeneratedInvoice = authedService
 	.input(z.object({ to: z.string(), projectId: z.string() }))
 	.query(async ({ ctx, input }) => {
 		// each service is called directly, no API calls
-		await checkSufficientCredits({ amount: 10 });
+		await checkSufficientCredits(ctx, { amount: 10 });
 
 		// The inputs / outputs are type safe and validated by Zod
-		const pdf = await generatePdf({ html: project.invoiceHtml });
+		const pdf = await generatePdf(ctx, { html: project.invoiceHtml });
 
 		// Services are just functions - so no limitaitons of content types (eg files, streams, etc, can be passed around easily)
-		await sendEmail({
+		await sendEmail(ctx, {
 			to: input.to,
 			subject: 'Invoice',
 			body: 'Please find attached your invoice',
 			attachments: [{ filename: 'invoice.pdf', content: pdf }],
 		});
 
-		await deductCredits({ amount: 10 });
+		await deductCredits(ctx, { amount: 10 });
 
 		return 'Invoice sent';
 	});
@@ -126,6 +126,11 @@ export const authedService = service<AuthedServiceCtx>().use(
 		return next(ctx);
 	}
 );
+
+export function createServiceCtx() {
+	const user = auth();
+	return { user, db };
+}
 ```
 
 ### Defining a Service
@@ -167,7 +172,8 @@ const getTasks = service()
 Unlike tRPC procedures, services can be called directly from anywhere in your backend, including within other services.
 
 ```typescript
-const tasks = await getTasks({ projectId: '...' });
+const ctx = createServiceCtx();
+const tasks = await getTasks(ctx, { projectId: '...' });
 ```
 
 This allows you to build complex service logic by composing multiple services together.
@@ -183,8 +189,8 @@ const getProjectDetails = service()
 		})
 	)
 	.query(async ({ ctx, input }) => {
-		const project = await getProject(input.projectId);
-		const tasks = await getTasks({ projectId: input.projectId });
+		const project = await getProject(ctx, { projectId: input.projectId });
+		const tasks = await getTasks(ctx, { projectId: input.projectId });
 		return { ...project, tasks };
 	});
 ```
