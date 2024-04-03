@@ -4,10 +4,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { loggerLink, unstable_httpBatchStreamLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SuperJSON from "superjson";
 
 import { type ApiRouter } from "@/api/router";
+import { createStore } from "@davstack/store";
 
 const createQueryClient = () => new QueryClient();
 
@@ -51,9 +52,22 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <api.Provider client={trpcClient} queryClient={queryClient}>
         {props.children}
+        <InitApiClient />
       </api.Provider>
     </QueryClientProvider>
   );
+}
+
+export let apiUtils = null as ReturnType<typeof api.useUtils> | null;
+
+function InitApiClient() {
+  const actualApiUtils = api.useUtils();
+
+  useEffect(() => {
+    apiUtils = actualApiUtils;
+  }, [actualApiUtils]);
+
+  return null;
 }
 
 function getBaseUrl() {

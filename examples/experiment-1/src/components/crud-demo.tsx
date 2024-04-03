@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 
-import { api } from "@/api/react";
+import { api, apiUtils } from "@/api/react";
 import { type Todo } from "@prisma/client";
 import { useSession } from "next-auth/react";
 
@@ -67,16 +67,16 @@ function TodoItem({ todo }: { todo: Todo }) {
   /**
    * You may not be familiar with this way of handling optimistic updates as it is new in tanstack query v5. This is all react-query stuff, no Davstack magic here.
    */
-  const apiUtils = api.useUtils();
+
   const updateTodo = api.todo.updateTodo.useMutation({
     onSettled: () => {
-      apiUtils.todo.getTodos.invalidate();
+      apiUtils?.todo.getTodos.invalidate();
     },
   });
 
   const deleteTodo = api.todo.deleteTodo.useMutation({
     onSettled: () => {
-      apiUtils.todo.getTodos.invalidate();
+      apiUtils?.todo.getTodos.invalidate();
     },
   });
 
