@@ -1,13 +1,10 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable prettier/prettier */
 import { Draft } from 'immer';
 import React from 'react';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
 import { NamedSet } from 'zustand/middleware';
-import {
-	GetState,
-	StateSelector,
-	StoreApi as ZustandStoreApi,
-} from 'zustand/vanilla';
+import { StoreApi as ZustandStoreApi } from 'zustand/vanilla';
 
 export type StoreApiGet<
 	T extends State = {},
@@ -133,7 +130,7 @@ export type StateActions<T extends State> = SetRecord<T> & {
 	mergeState: MergeState<T>;
 };
 export type StateGetters<T extends State> = GetRecord<T> & {
-	state: GetState<T>;
+	state: ZustandStoreApi<T>['getState'];
 };
 
 export type SelectorRecord<T> = Record<string, (state: T) => any>;
@@ -168,7 +165,7 @@ export type SetImmerState<T> = (
 export type StateCreatorWithDevtools<
 	T extends State,
 	CustomSetState = NamedSet<T>,
-	CustomGetState = GetState<T>,
+	CustomGetState = ZustandStoreApi<T>['getState'],
 	CustomStoreApi extends RawStoreApi<T> = RawStoreApi<T>,
 > = (set: CustomSetState, get: CustomGetState, api: CustomStoreApi) => T;
 
@@ -181,7 +178,7 @@ export interface UseImmerStore<T extends State>
 	extends Omit<UseBoundStore<RawStoreApi<T>>, 'setState'> {
 	(): T;
 
-	<U>(selector: StateSelector<T, U>, equalityFn?: EqualityChecker<U>): U;
+	<U>(selector: (s: T) => U, equalityFn?: EqualityChecker<U>): U;
 
 	setState: SetImmerState<T>;
 }

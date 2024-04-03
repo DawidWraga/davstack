@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 0.1.5
+
+### Patch Changes
+
+- refactor types
+
 ## 0.1.2
 
 ### Patch Changes
