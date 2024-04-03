@@ -1,0 +1,82 @@
+### Options
+
+The `createStore` function accepts an optional second parameter for options,
+
+```tsx
+const counterStore = createStore(
+	{ count: 0 },
+
+	{
+		middlewares: [],
+		devtools: true,
+		persist: true,
+		immer: true,
+		name: 'counterStore',
+	}
+);
+```
+
+- `middlewares`: an array of middleware functions
+- `devtools`: a boolean to enable/disable devtools integration
+- `persist`: a boolean to enable/disable state persistence
+- `immer`: a boolean to enable/disable immer integration
+- `name`: a string to name the store, used for devtools
+
+### Persist middleware
+
+Local storage example:
+
+```tsx
+import { createJSONStorage } from 'zustand/middleware';
+
+export const todoStore = createStore(
+	{
+		// Only need to cast the default value if the type can't be inferred
+		todos: [] as Todo[],
+	},
+	{
+		persist: {
+			enabled: true,
+			name: 'todo-storage',
+			storage: createJSONStorage(() => localStorage),
+			// Add any additional persist options here
+		},
+	}
+);
+```
+
+Custom storage example:
+
+```tsx
+import { PersistStorage } from 'zustand/middleware';
+
+const customStorage: PersistStorage<{ todos: Todo[] }> = {
+	getItem: (name) => {
+		console.log(name, 'has been retrieved');
+		// custom logic
+	},
+	setItem: (name, value) => {
+		console.log(name, 'with value \n', value, '\nhas been saved');
+		// custom logic
+	},
+	removeItem: (name) => {
+		console.log(name, 'has been deleted');
+		// custom logic
+	},
+};
+
+export const todoStore = createStore(
+	{
+		// Only need to cast the default value if the type can't be inferred
+		todos: [] as Todo[],
+	},
+	{
+		persist: {
+			enabled: true,
+			name: 'todo-storage',
+			storage: customStorage,
+			// Add any additional persist options here
+		},
+	}
+);
+```
