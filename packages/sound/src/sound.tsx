@@ -2,21 +2,70 @@ import { createStore } from '@davstack/store';
 import { Howl, HowlOptions } from 'howler';
 import { useEffect } from 'react';
 import { lazyImportHowlerConstructor } from './howler-lazy';
+/**
+ * warning: if changing play options the make sure to update the custom options section in Readme.md
+ */
 
 export interface PlayOptions {
-	id?: string;
-	forceSoundEnabled?: boolean;
+	/**
+	 * The playback rate of the sound (1 is normal speed, 2 is double speed, 0.5 is half speed)
+	 * If not set, it will use the global playback rate.
+	 */
 	playbackRate?: number;
+	/**
+	 * The volume of the sound. If not set, it will use the global volume.
+	 * If both global volume and options volume are set, it will multiply them.
+	 */
 	volume?: number;
+	/**
+	 * overrides the global soundEnabled setting
+	 */
+	forceSoundEnabled?: boolean;
+	id?: string;
 }
 
+/**
+ * Will set the default options for the sound store, but can override some of them (eg volume) inside the play function, or by using the set function on the store eg soundStore.volume.set(0.5)
+ * 
+ * @example
+ ```tsx
+// lib/sound-store.ts
+const SOUND_BASE_PATH = './sounds';
+const soundStore = createSoundStore({
+	soundNameToPath: {
+		pop: `${SOUND_BASE_PATH}/pop.mp3`,
+		switchOn: `${SOUND_BASE_PATH}/switch-on.mp3`,
+		switchOff: `${SOUND_BASE_PATH}/switch-off.mp3`,
+	},
+});
+
+ */
 export type CreateSoundStoreOptions<
 	TSoundNameToPath extends Record<string, string>,
 > = {
+	/**
+	 * A map of sound names to their file paths
+	 */
 	soundNameToPath: TSoundNameToPath;
+	/**
+	 * The global volume of the sound (0 to 1)
+	 * @default 1
+	 */
 	volume?: number;
+	/**
+	 * The playback rate of the sound (1 is normal speed, 2 is double speed, 0.5 is half speed)
+	 * @default 1
+	 */
 	playbackRate?: number;
+	/**
+	 * If interrupt is true, the sound will stop and play from the beginning if it is already playing
+	 * @default false
+	 */
 	interrupt?: boolean;
+	/**
+	 * If soundEnabled is false, the sound will not play, unless forceSoundEnabled is true
+	 * @default true
+	 */
 	soundEnabled?: boolean;
 	// onload?: () => void;
 	// sprite?: SpriteMap;
@@ -150,19 +199,21 @@ export function createSoundStore<
 					await store.initializeSound(soundName);
 				}
 
-				sound?.play(options?.id);
+				if (!sound) return;
 
-				if (
-					!sound ||
-					(!store.soundEnabled.get() && !options.forceSoundEnabled)
-				) {
+				if (!store.soundEnabled.get() && !options.forceSoundEnabled) {
 					return;
 				}
 
 				if (store.interrupt.get()) sound.stop();
 
 				sound.rate?.(options.playbackRate ?? store.playbackRate.get());
-				sound.volume?.(options.volume ?? store.volume.get());
+				sound.volume?.(
+					// if global volume and options volume are set, multiply them
+					options.volume
+						? options.volume * store.volume.get()
+						: store.volume.get()
+				);
 				// if (options.playbackRate) {
 				// }
 
