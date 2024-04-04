@@ -187,6 +187,9 @@ importers:
 
   examples/nextjs:
     dependencies:
+      '@davstack/sound':
+        specifier: workspace:*
+        version: link:../../packages/sound
       '@davstack/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -398,6 +401,9 @@ importers:
       '@testing-library/react':
         specifier: ^14.2.2
         version: 14.2.2(react-dom@18.2.0)(react@18.2.0)
+      '@types/howler':
+        specifier: ^2.2.11
+        version: 2.2.11
       '@types/react':
         specifier: ^18.2.61
         version: 18.2.61
@@ -2629,6 +2635,10 @@ packages:
     dependencies:
       '@types/unist': 3.0.2
     dev: false
+
+  /@types/howler@2.2.11:
+    resolution: {integrity: sha512-7aBoUL6RbSIrqKnpEgfa1wSNUBK06mn08siP2QI0zYk7MXfEJAaORc4tohamQYqCqVESoDyRWSdQn2BOKWj2Qw==}
+    dev: true
 
   /@types/istanbul-lib-coverage@2.0.6:
     resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
