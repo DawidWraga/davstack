@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, expectTypeOf } from 'vitest';
-import { soundStore, SoundName, HowlConstructorType } from '../src/sound';
+import { soundStore, SoundName } from '../src/sound';
 import { HowlerMock, HowlMock } from './howler.mock';
+import {
+	HowlConstructorType,
+	lazyImportHowlerConstructor,
+} from '../src/howler-lazy';
 vi.mock('howler', () => ({
 	Howl: HowlMock,
 	Howler: HowlerMock,
@@ -8,7 +12,7 @@ vi.mock('howler', () => ({
 
 describe('soundStore', () => {
 	it('should initialize Howler constructor', async () => {
-		const Howler = await soundStore.getHowlerConstructor();
+		const Howler = await lazyImportHowlerConstructor();
 		expect(Howler).toBeDefined();
 
 		expectTypeOf(Howler).toEqualTypeOf<HowlConstructorType>();

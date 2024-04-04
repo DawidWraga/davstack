@@ -1,6 +1,7 @@
 import { createStore } from '@davstack/store';
 import { Howl, HowlOptions } from 'howler';
 import { useEffect } from 'react';
+import { HowlPlayOptions, lazyImportHowlerConstructor } from './howler-lazy';
 
 // Define the sound files
 const SOUND_BASE_PATH = './sounds';
@@ -17,31 +18,13 @@ const soundStoreInitial = Object.fromEntries(
 
 export type SoundName = keyof typeof soundNameToPathMap;
 
-export type PlayOptions = {
-	spriteOrId?: string | number | undefined;
-};
-
-export type HowlConstructorType = new (options: HowlOptions) => Howl;
-
-let HowlConstructor = null as HowlConstructorType | null;
+export interface PlayOptions extends HowlPlayOptions {}
 
 // Create the sound store
 export const soundStore = createStore({ sounds: soundStoreInitial })
 	.extend((store) => ({
-		async getHowlerConstructor() {
-			const currentHowler = HowlConstructor;
-			if (currentHowler) return currentHowler;
-
-			const module = await import('howler');
-			const newHowler = module.Howl ?? module.default.Howl;
-
-			HowlConstructor = newHowler;
-			return newHowler;
-		},
-	}))
-	.extend((store) => ({
 		async initializeSound(soundName: SoundName, options?: HowlOptions) {
-			const HowlerConstuctor = await store.getHowlerConstructor();
+			const HowlerConstuctor = await lazyImportHowlerConstructor();
 
 			if (!HowlerConstuctor) throw new Error('HowlerConstructor not found');
 
@@ -62,6 +45,9 @@ export const soundStore = createStore({ sounds: soundStoreInitial })
 		},
 	}))
 	.extend((store) => ({
+		/**
+		 * function to initialize all sounds in the store
+		 */
 		initAllSounds() {
 			Object.keys(soundNameToPathMap).forEach((soundName) => {
 				store.initializeSound(soundName as SoundName);
@@ -69,6 +55,10 @@ export const soundStore = createStore({ sounds: soundStoreInitial })
 		},
 	}))
 	.extend((store) => ({
+		/**
+		 * Component that initializes all sounds on mount
+		 * Place this component in the root layout of your app to ensure all sounds are loaded
+		 */
 		InitAllSounds() {
 			useEffect(() => {
 				store.initAllSounds();
