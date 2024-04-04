@@ -1,187 +1,215 @@
-# Davstack Store
+# Davstack Sound
 
-Davstack store is an intuitive and practical React state management library, built on top of [Zustand](https://github.com/pmndrs/zustand).
+Davstack sound is the simplest way to add sound FX to your React/next.js app. It's built on top of Howler.js, a popular audio library that supports all major browsers.
 
-Zustand is a small, fast and scalable state-management solution battle-tested against common pitfalls, like the dreaded [zombie child problem](https://react-redux.js.org/api/hooks#stale-props-and-zombie-children), [react concurrency](https://github.com/bvaughn/rfcs/blob/useMutableSource/text/0000-use-mutable-source.md), and [context loss](https://github.com/facebook/react/issues/13332) between mixed renderers.
+Visit the [DavStack Sound Docs](https://davstack.com/sound/overview) for more information and examples.
 
-### Why Use DavStack Store?
+## Features
 
-1. **Simple API**: Just define the initial state, getters/setters/hooks/types are automatically generated. No need to write boilerplate code.
-2. **Computed Properties and Actions**: Define derived state and actions that automatically update when dependent state changes.
-3. **Local State Management**: Scope state to a subtree of components using the `LocalProvider` component.
+- **Super Simple API**: Just call `soundStore.play('soundName')` to play a sound. No hooks required.
+- **Excellent DX**: Define all your sounds in once place and play them with full type safety.
+- **Optimized Performance**: All sounds are cached and preloaded, so they play instantly. Howler.js is lazy-loaded to keep bundle size down.
+- **Easily change global sound settings**: Change volume, mute, or stop all sounds with a single line of code.
+
+## Demo Usage
+
+```tsx
+// lib/sound-store.ts
+import { createSoundStore } from '@davstack/sound';
+
+// path relative to /public (assuming you are using next.js)
+const SOUND_BASE_PATH = './sounds';
+export const soundStore = createSoundStore({
+	soundNameToPath: {
+		switchOn: `${SOUND_BASE_PATH}/switch-on.mp3`,
+		switchOff: `${SOUND_BASE_PATH}/switch-off.mp3`,
+		// ...
+	},
+});
+
+// components/button.tsx
+import { soundStore } from '@/lib/sound-store';
+
+export const Button = () => {
+	return (
+		<button
+			onClick={() => {
+				soundStore.playSound('switchOn');
+			}}
+		>
+			Click me
+		</button>
+	);
+};
+```
 
 ### Installation
 
 ```bash
-npm install zustand @davstack/store
+npm install @davstack/sound
 ```
 
-Visit the [Davstack Store Docs](https://davstack.com/store/overview) for more information and examples, such as this [todo app example](https://davstack.com/store/todo-example).
+Note: This package is built with [Davstack Store](https://davstack.com/store/overview) and therefore [Zustand](https://github.com/pmndrs/zustand) is a peer dependency, so you will need to install it separately if you haven't already.
 
-### Creating a Store
+## Usage Guide
 
-Types are inferred from the initial state object.
+### Add sound assets into your project
 
-```tsx
-import { createStore } from '@davstack/store';
+First, Add sounds to /public eg `./public/sounds/pop.mp3` (assuming you are using next.js)
 
-const counterStore = createStore({ count: 0 });
-```
+To find a small selection of high quality sounds, check out this link (github repo)
 
-### Subscribing to State Changes
+credit to josh w comeau for the sounds and the idea (i took the sounds from his network requets)
 
-Subscribe to state changes inside React components using the auto-generated `use` hook.
+alternatively the material ui sounds library is pretty good too
 
-```tsx
-const Counter = () => {
-	const count = counterStore.count.use();
-
-	return <div>Count: {count}</div>;
-};
-```
-
-### Updating State
-
-Update state using the auto-generated `set` method. Davstack Store uses Immer under the hood, allowing you to update state immutably.
+### Define your sound store
 
 ```tsx
-counterStore.count.set(10);
-```
+// lib/sound-store.ts
 
-### Accessing the state without subscribing
-
-This will not cause the component to re-render when the state changes.
-Useful for accessing state inside callbacks.
-
-```tsx
-const handleSubmit = async () => {
-	const count = counterStore.count.get();
-	// ...
-};
-```
-
-### Store Methods
-
-Every key inside the store initial value automatically gets a `use`, `set`, and `get` method. You can also access the same methods on the store itself. Additionally, the store has a `assign` method to update multiple properties at once.
-
-```tsx
-const counterStore = createStore({
-	count: 0,
-	secondCount: 0,
+// path relative to /public (assuming you are using next.js)
+const SOUND_BASE_PATH = './sounds';
+const soundStore = createSoundStore({
+	soundNameToPath: {
+		pop: `${SOUND_BASE_PATH}/pop.mp3`,
+		switchOn: `${SOUND_BASE_PATH}/switch-on.mp3`,
+		switchOff: `${SOUND_BASE_PATH}/switch-off.mp3`,
+		// ...
+	},
 });
-
-// Subscribe inside a component
-const { count, secondCount } = counterStore.use();
-
-// Access state without subscribing, eg in callbacks
-const { count, secondCount } = counterStore.get();
-
-counterStore.set((draft) => {
-	// Uses immer under the hood to update state immutably
-	draft.count = 10;
-});
-
-// Update multiple properties at once
-counterStore.assign({ count: 10, secondCount: 20 });
 ```
 
-Note: using the `store.use()` will subscribe the component to the entire store, causing it to re-render whenever any property changes. For better performance, it is recommended to use the `store.[selector].use` method to subscribe to individual properties eg `counterStore.count.use()`.
+### Initialize sounds in app (optional)
 
-### Defining Actions and Computed Properties
+The first sound you play may have some delay. This is because the audio assets need some time to load.
+Additionally, Howler (the library we're using) is lazily loaded to keep bundle size down / prevent impacting initial page load time. However, this further delays the first sound.
 
-Use the `extend` method to define actions and computed properties. Extensions not only help to keep relevant code neatly packaged into one object but also impact the scoped store if you are using `LocalProvider`.
+To mitigate this, place the `soundStore.InitAllSounds` component in your app eg in root layout component
 
 ```tsx
-const counterStore = createStore({ count: 0 }).extend((store) => ({
-	increment() {
-		store.count.set(store.count.get() + 1);
-	},
-	decrement() {
-		store.count.set(store.count.get() - 1);
-	},
-	useDoubled() {
-		return store.count.use() * 2;
-	},
-}));
+// app/layout.tsx
+import { soundStore } from '@/lib/sound-store';
 
-const Counter = () => {
-	const count = counterStore.count.use();
-	const doubled = counterStore.useDoubled();
-
+export const Layout = ({ children }) => {
 	return (
-		<div>
-			<p>Count: {count}</p>
-			<p>Doubled: {doubled}</p>
-			<button onClick={counterStore.increment}>Increment</button>
-			<button onClick={counterStore.decrement}>Decrement</button>
-		</div>
+		<>
+			{children}
+			<soundStore.InitAllSounds />
+		</>
 	);
 };
 ```
 
-### Local State Management
+Note: The browser does not allow audio context to be loaded until a user gesture is detected. To get around this, the `InitAllSounds` component will wait for the first user interaction before initializing the audio context.
 
-By default, stores are global and work without the need for any provider. However, if you require locally scoped stores, Davstack Store makes it super easy using the `LocalProvider` component.
+### Play sounds
 
 ```tsx
-const ParentComponent = () => {
+// components/button.tsx
+import { soundStore } from '@/lib/sound-store';
+
+export const Button = () => {
 	return (
-		<counterStore.LocalProvider initialValue={{ count: 5 }}>
-			<ChildComponent />
-		</counterStore.LocalProvider>
+		<button
+			onClick={() => {
+				soundStore.playSound('pop');
+			}}
+		>
+			Click me
+		</button>
+	);
+};
+```
+
+### Play sounds with custom options
+
+<!--  warning: if making any changes to the type descriptions here ensure to keep the actual type doc stirngs updated too -->
+
+```ts
+export interface PlayOptions {
+	/**
+	 * The playback rate of the sound (1 is normal speed, 2 is double speed, 0.5 is half speed)
+	 * If not set, it will use the global playback rate.
+	 */
+	playbackRate?: number;
+	/**
+	 * The volume of the sound. If not set, it will use the global volume.
+	 * If both global volume and options volume are set, it will multiply them.
+	 */
+	volume?: number;
+	/**
+	 * overrides the global soundEnabled setting
+	 */
+	forceSoundEnabled?: boolean;
+	id?: string;
+}
+
+// example usage
+soundStore.playSound('pop', {
+	volume: 0.5,
+	playbackRate: 2,
+});
+```
+
+### Change global sound settings
+
+```tsx
+// components/sound-controls.tsx
+import { soundStore } from '@/lib/sound-store';
+
+export const VolumeControl = () => {
+	const volume = soundStore.volume.use();
+	return (
+		<input
+			title="Volume control"
+			type="range"
+			min="0"
+			max="1"
+			step="0.01"
+			value={volume}
+			onMouseUp={() => {
+				// warning: make sure you actually have "pop" sound configured in your sound store
+				soundStore.playSound('pop');
+			}}
+			onTouchEnd={() => {
+				soundStore.playSound('pop');
+			}}
+			onChange={(e) => {
+				soundStore.volume.set(parseFloat(e.target.value));
+			}}
+		/>
 	);
 };
 
-const ChildComponent = () => {
-	const localStore = counterStore.useLocalStore();
-	const count = localStore.count.use();
-
-	return <div>Count: {count}</div>;
+export const SoundToggle = () => {
+	const soundEnabled = soundStore.soundEnabled.use();
+	return (
+		<button
+			onClick={() => {
+				if (soundEnabled) {
+					soundStore.playSound('switchOff');
+					soundStore.soundEnabled.set(false);
+				} else {
+					soundStore.soundEnabled.set(true);
+					soundStore.playSound('switchOn');
+				}
+			}}
+		>
+			{soundEnabled
+				? 'sound on (press to turn off)'
+				: 'sound off (press to turn on)'}
+		</button>
+	);
 };
+
+
+Note: if the global sound is set to 0.5 and you pass in a volume of 0.5 to the playSound function, the sound will play at 0.25 volume (0.5 * 0.5)
 ```
-
-### Performance Optimizations
-
-The `useTracked` method from `react-tracked` can be used for performance optimizations by minimizing unnecessary re-renders. This uses proxies under the hood to track which properties are accessed.
-
-```tsx
-const Counter = () => {
-	// only rerenders when properties accessed using . notation have changed
-	const state = counterStore.useTracked();
-
-	// only rerenders when count has changed
-	const count = counterStore.count.useTracked();
-	// ...
-};
-```
-
-### Options
-
-The `createStore` function accepts an optional second parameter for options,
-
-```tsx
-const counterStore = createStore(
-	{ count: 0 },
-
-	{
-		middlewares: [],
-		devtools: true,
-		persist: true,
-		immer: true,
-		name: 'counterStore',
-	}
-);
-```
-
-- `middlewares`: an array of middleware functions
-- `devtools`: a boolean to enable/disable devtools integration
-- `persist`: a boolean to enable/disable state persistence
-- `immer`: a boolean to enable/disable immer integration
-- `name`: a string to name the store, used for devtools
 
 ### Acknowledgements
 
-Davstack Store wouldn't be possible without the incredible work done by the Zustand creators. We'd also like to give a shout-out to [Zustand X](https://github.com/udecode/zustand-x) for inspiring some of the code in this library.
+Davstack Sound has been heavily inspired by [use-sound](https://www.npmjs.com/package/use-sound), another great library for adding sound to your react app. A big shout-out to [Josh w Comeau](https://www.joshwcomeau.com/react/announcing-use-sound-react-hook) for his amazing work.
 
 ### Contributing
 
