@@ -1,7 +1,7 @@
 import { createStore } from '@davstack/store';
 import { Howl, HowlOptions } from 'howler';
 import { useEffect } from 'react';
-import { HowlPlayOptions, lazyImportHowlerConstructor } from './howler-lazy';
+import { lazyImportHowlerConstructor } from './howler-lazy';
 
 // Define the sound files
 const SOUND_BASE_PATH = './sounds';
@@ -18,12 +18,34 @@ const soundStoreInitial = Object.fromEntries(
 
 export type SoundName = keyof typeof soundNameToPathMap;
 
-export interface PlayOptions extends HowlPlayOptions {}
+export interface PlayOptions {
+	id?: string;
+	forceSoundEnabled?: boolean;
+	playbackRate?: number;
+	volume?: number;
+}
 
 // Create the sound store
-export const soundStore = createStore({ sounds: soundStoreInitial })
+export const soundStore = createStore({
+	sounds: soundStoreInitial,
+	volume: 1,
+	playbackRate: 1,
+	soundEnabled: true,
+	interrupt: false,
+})
 	.extend((store) => ({
-		async initializeSound(soundName: SoundName, options?: HowlOptions) {
+		/**
+		 * Loads a sound howler instance into the store
+		 *
+		 * @param soundName the name of the sound to initialize
+		 * @param options options to pass to the Howler constructor
+		 */
+		async initializeSound(
+			soundName: SoundName,
+			options?: HowlOptions & {
+				onload?: Function;
+			}
+		) {
 			const HowlerConstuctor = await lazyImportHowlerConstructor();
 
 			if (!HowlerConstuctor) throw new Error('HowlerConstructor not found');
@@ -35,11 +57,16 @@ export const soundStore = createStore({ sounds: soundStoreInitial })
 			const sound = store.sounds.get()[soundName];
 
 			if (!sound) {
+				// const onload = options?.onload ?? store.onload.get();
 				store.set((draft) => {
-					draft.sounds[soundName] = new HowlerConstuctor({
-						src: [soundNameToPathMap[soundName]],
+					const src = soundNameToPathMap[soundName];
+					const Howler = new HowlerConstuctor({
+						src: Array.isArray(src) ? src : [src],
+						volume: store.volume.get(),
+						rate: store.playbackRate.get(),
 						...options,
 					});
+					draft.sounds[soundName] = Howler;
 				});
 			}
 		},
@@ -58,29 +85,84 @@ export const soundStore = createStore({ sounds: soundStoreInitial })
 		/**
 		 * Component that initializes all sounds on mount
 		 * Place this component in the root layout of your app to ensure all sounds are loaded
+		 *
 		 */
 		InitAllSounds() {
+			/**
+			 * We need to initialize all sounds on user interaction
+			 * If we try to initialize sounds on page load, the browser will block the audio
+			 */
 			useEffect(() => {
-				store.initAllSounds();
+				let initialized = false;
+
+				// Function to initialize all sounds
+				function initAllSounds() {
+					if (initialized) return;
+					store.initAllSounds();
+					initialized = true;
+					cleanUp();
+				}
+
+				// removes the event listeners (after sounds are initialized and/or unmount)
+				function cleanUp() {
+					document.removeEventListener('touchstart', initAllSounds, true);
+					document.removeEventListener('click', initAllSounds, true);
+				}
+
+				// Attach event listeners to unlock audio on user interaction
+				document.addEventListener('touchstart', initAllSounds, true);
+				document.addEventListener('click', initAllSounds, true);
+
+				// Clean up event listeners on component unmount
+				return () => {
+					cleanUp();
+				};
 			}, []);
+
 			return null;
 		},
 	}))
 	.extend((store) => ({
-		async playSound(soundName: SoundName, playOptions?: PlayOptions) {
+		/**
+		 * Play a sound
+		 * @param soundName the name of the sound to play
+		 * @param playOptions options to pass to the play function
+		 */
+		async playSound(soundName: SoundName, options: PlayOptions = {}) {
 			const sound = store.sounds.get()[soundName];
 			if (!sound) {
 				await store.initializeSound(soundName);
 			}
 
-			sound.play(playOptions?.spriteOrId);
+			sound?.play(options?.id);
+
+			if (!sound || (!store.soundEnabled.get() && !options.forceSoundEnabled)) {
+				return;
+			}
+
+			if (store.interrupt.get()) sound.stop();
+
+			sound.rate?.(options.playbackRate ?? store.playbackRate.get());
+			sound.volume?.(options.volume ?? store.volume.get());
+			// if (options.playbackRate) {
+			// }
+
+			sound?.play(options.id);
 		},
+		/**
+		 * Stop a sound
+		 * @param soundName the name of the sound to stop
+		 */
 		stopSound(soundName: SoundName) {
 			const sound = store.sounds.get()[soundName];
 			if (sound) {
 				sound.stop();
 			}
 		},
+		/**
+		 * Pause a sound
+		 * @param soundName the name of the sound to pause
+		 */
 		pauseSound(soundName: SoundName) {
 			const sound = store.sounds.get()[soundName];
 			if (sound) {

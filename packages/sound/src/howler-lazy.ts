@@ -1,17 +1,12 @@
 import { Howl, HowlOptions } from 'howler';
-export type HowlPlayOptions = {
-	spriteOrId?: string | number | undefined;
-};
 
 export type HowlConstructorType = new (options: HowlOptions) => Howl;
 
 let HowlConstructor = null as HowlConstructorType | null;
 
-
-
 /**
- * 
- * @returns 
+ *
+ * @returns
  */
 export async function lazyImportHowlerConstructor() {
 	const currentHowler = HowlConstructor;
