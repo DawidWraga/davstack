@@ -46,6 +46,20 @@ export default defineWorkspace([
 			// setupFiles: ['./setup.happy-dom.ts'],
 		},
 	},
+	{
+		test: {
+			name: 'sound',
+			root: './packages/sound',
+			environment: 'jsdom',
+			typecheck: {
+				enabled: true,
+				include: ['**/*.test.ts'],
+			},
+			// setupFiles: ['./test-setup.ts'],
+
+			// setupFiles: ['./setup.happy-dom.ts'],
+		},
+	},
 	// {
 	// 	test: {
 	// 		name: 'node',

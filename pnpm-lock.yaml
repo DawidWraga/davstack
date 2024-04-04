@@ -365,6 +365,64 @@ importers:
         specifier: ^5.3.3
         version: 5.3.3
 
+  packages/sound:
+    dependencies:
+      howler:
+        specifier: ^2.1.3
+        version: 2.2.4
+      immer:
+        specifier: ^10.0.4
+        version: 10.0.4
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.2.0(react@18.2.0)
+      react-tracked:
+        specifier: ^1.7.14
+        version: 1.7.14(react-dom@18.2.0)(react@18.2.0)(scheduler@0.23.0)
+      zustand:
+        specifier: '>=4.3.9'
+        version: 4.5.2(@types/react@18.2.61)(immer@10.0.4)(react@18.2.0)
+    devDependencies:
+      '@davstack/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint
+      '@davstack/store':
+        specifier: workspace:*
+        version: link:../store
+      '@davstack/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/typescript
+      '@testing-library/jest-dom':
+        specifier: ^6.4.2
+        version: 6.4.2(vitest@1.4.0)
+      '@testing-library/react':
+        specifier: ^14.2.2
+        version: 14.2.2(react-dom@18.2.0)(react@18.2.0)
+      '@types/react':
+        specifier: ^18.2.61
+        version: 18.2.61
+      '@types/react-dom':
+        specifier: ^18.2.19
+        version: 18.2.19
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.0
+      happy-dom:
+        specifier: ^14.2.1
+        version: 14.2.1
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.0.0
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(typescript@5.4.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.4.3
+
   packages/store:
     dependencies:
       immer:
@@ -1479,7 +1537,7 @@ packages:
   /@manypkg/find-root@1.1.0:
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
     dependencies:
-      '@babel/runtime': 7.23.7
+      '@babel/runtime': 7.24.1
       '@types/node': 12.20.55
       find-up: 4.1.0
       fs-extra: 8.1.0
@@ -5998,6 +6056,10 @@ packages:
     resolution: {integrity: sha512-mxIDAb9Lsm6DoOJ7xH+5+X4y1LU/4Hi50L9C5sIswK3JzULS4bwk1FvjdBgvYR4bzT4tuUQiC15FE2f5HbLvYw==}
     dev: true
 
+  /howler@2.2.4:
+    resolution: {integrity: sha512-iARIBPgcQrwtEr+tALF+rapJ8qSc+Set2GJQl7xT1MQzWaVkFebdJhR3alVlSiUf5U7nAANKuj3aWpwerocD5w==}
+    dev: false
+
   /html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
     engines: {node: '>=18'}
@@ -9617,6 +9679,45 @@ packages:
       sucrase: 3.34.0
       tree-kill: 1.2.2
       typescript: 5.3.3
+    transitivePeerDependencies:
+      - supports-color
+      - ts-node
+    dev: true
+
+  /tsup@8.0.2(typescript@5.4.3):
+    resolution: {integrity: sha512-NY8xtQXdH7hDUAZwcQdY/Vzlw9johQsaqf7iwZ6g1DOUlFYQ5/AtVAjTvihhEyeRlGo4dLRVHtrRaL35M1daqQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      '@microsoft/api-extractor': ^7.36.0
+      '@swc/core': ^1
+      postcss: ^8.4.12
+      typescript: '>=4.5.0'
+    peerDependenciesMeta:
+      '@microsoft/api-extractor':
+        optional: true
+      '@swc/core':
+        optional: true
+      postcss:
+        optional: true
+      typescript:
+        optional: true
+    dependencies:
+      bundle-require: 4.0.2(esbuild@0.19.7)
+      cac: 6.7.14
+      chokidar: 3.5.3
+      debug: 4.3.4
+      esbuild: 0.19.7
+      execa: 5.1.1
+      globby: 11.1.0
+      joycon: 3.1.1
+      postcss-load-config: 4.0.2(postcss@8.4.38)
+      resolve-from: 5.0.0
+      rollup: 4.13.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.34.0
+      tree-kill: 1.2.2
+      typescript: 5.4.3
     transitivePeerDependencies:
       - supports-color
       - ts-node
