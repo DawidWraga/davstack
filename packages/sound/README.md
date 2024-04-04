@@ -17,7 +17,7 @@ Visit the [DavStack Sound Docs](https://davstack.com/sound/overview) for more in
 // lib/sound-store.ts
 import { createSoundStore } from '@davstack/sound';
 
-// path relative to /public (assuming you are using next.js)
+// path relative to /public (assuming you are using next.js) eg `./public/sounds/switch-on.mp3`
 const SOUND_BASE_PATH = './sounds';
 export const soundStore = createSoundStore({
 	soundNameToPath: {
@@ -57,11 +57,11 @@ Note: This package is built with [Davstack Store](https://davstack.com/store/ove
 
 First, Add sounds to /public eg `./public/sounds/pop.mp3` (assuming you are using next.js)
 
-To find a small selection of high quality sounds, check out this link (github repo)
+To find a small selection of high quality sounds, check out [this example project](https://github.com/DawidWraga/davstack/tree/main/examples/nextjs) in the davstack repo.
 
-credit to josh w comeau for the sounds and the idea (i took the sounds from his network requets)
+Credit to josh w comeau for the sounds and the idea (i took the sounds from his network requests)
 
-alternatively the material ui sounds library is pretty good too
+Alternatively the material ui has some good quality sounds too.
 
 ### Define your sound store
 
