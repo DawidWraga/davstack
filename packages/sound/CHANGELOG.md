@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 0.1.0
+
+### Minor Changes
+
+- initialise the library
+
 ## 0.1.5
 
 ### Patch Changes
