@@ -38,6 +38,9 @@ importers:
       '@davstack/service':
         specifier: workspace:^
         version: link:../../packages/service
+      '@davstack/sound':
+        specifier: workspace:*
+        version: link:../../packages/sound
       '@davstack/store':
         specifier: workspace:*
         version: link:../../packages/store
