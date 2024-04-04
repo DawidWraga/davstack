@@ -11,6 +11,7 @@ export default function AppPage(props: AppPageProps) {
 				<Link href="/book-store">Book Store</Link>
 				<Link href="/counter">Counter</Link>
 				<Link href="/todo">Todo</Link>
+				<Link href="/todo-with-sound">Todo with sound</Link>
 			</div>
 		</>
 	);

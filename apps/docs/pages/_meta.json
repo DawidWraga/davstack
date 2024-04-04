@@ -11,6 +11,10 @@
 		"title": "Service",
 		"type": "page"
 	},
+	"sound": {
+		"title": "Sound",
+		"type": "page"
+	},
 	"ui": {
 		"title": "UI",
 		"type": "page"
