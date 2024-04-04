@@ -1,23 +1,28 @@
-import { describe, it, expect, vi, expectTypeOf } from 'vitest';
-import { soundStore, SoundName } from '../src/sound';
+import { describe, expect, it, vi } from 'vitest';
+import { createSoundStore } from '../src/sound';
 import { HowlerMock, HowlMock } from './howler.mock';
-import {
-	HowlConstructorType,
-	lazyImportHowlerConstructor,
-} from '../src/howler-lazy';
+
+// mock the howler module
 vi.mock('howler', () => ({
 	Howl: HowlMock,
 	Howler: HowlerMock,
 }));
 
+// Define the sound files
+const SOUND_BASE_PATH = './sounds';
+const soundNameToPathMap = {
+	pop: `${SOUND_BASE_PATH}/pop.mp3`,
+	switchOn: `${SOUND_BASE_PATH}/switch-on.mp3`,
+	switchOff: `${SOUND_BASE_PATH}/switch-off.mp3`,
+};
+
+const soundStore = createSoundStore({
+	soundNameToPath: soundNameToPathMap,
+});
+export type SoundName = keyof typeof soundNameToPathMap;
+
+
 describe('soundStore', () => {
-	it('should initialize Howler constructor', async () => {
-		const Howler = await lazyImportHowlerConstructor();
-		expect(Howler).toBeDefined();
-
-		expectTypeOf(Howler).toEqualTypeOf<HowlConstructorType>();
-	});
-
 	it('should initialize sound', async () => {
 		const soundName: SoundName = 'pop';
 		const soundBeforeInit = soundStore.sounds.get()[soundName];

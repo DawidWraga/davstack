@@ -2,6 +2,8 @@ import { Howl, HowlOptions } from 'howler';
 
 export type HowlConstructorType = new (options: HowlOptions) => Howl;
 
+
+
 let HowlConstructor = null as HowlConstructorType | null;
 
 /**
