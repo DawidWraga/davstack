@@ -1,5 +1,6 @@
 'use client';
 import { createStore } from '@davstack/store';
+import { soundStore } from './sound-store';
 
 type Todo = {
 	id: number;
@@ -83,7 +84,6 @@ const todoFormStore = createStore({
 	todoText: '',
 });
 
-import { soundStore } from '@davstack/sound';
 function NewTodoForm() {
 	const todoText = todoFormStore.todoText.use();
 
