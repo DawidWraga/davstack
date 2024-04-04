@@ -1,6 +1,7 @@
 'use client';
 import { createStore } from '@davstack/store';
 import { soundStore } from './sound-store';
+import { SoundToggle, VolumeControl } from './sound-toggle';
 
 type Todo = {
 	id: number;
@@ -14,6 +15,7 @@ export const todoStore = createStore({
 }).extend((store) => ({
 	addTodo(text: string) {
 		soundStore.playSound('pop');
+
 		// .set method uses immer, so we can mutate the draft while keeping state immutable
 		store.set((draft) => {
 			draft.todos.push({
@@ -44,7 +46,9 @@ export const todoStore = createStore({
 			const exists = index !== -1;
 			if (!exists) return;
 
-			soundStore.playSound('pop');
+			soundStore.playSound('pfff', {
+				volume: 0.2,
+			});
 			draft.todos.splice(index, 1);
 		});
 	},
@@ -119,6 +123,8 @@ function NewTodoForm() {
 export default function TodoPage() {
 	return (
 		<div className="container mx-auto px-4 py-8">
+			<SoundToggle />
+			<VolumeControl />
 			<h1 className="text-4xl font-bold mb-8">Todo App</h1>
 			<NewTodoForm />
 			<TodoItems />
