@@ -169,7 +169,7 @@ export const VolumeControl = () => {
 			step="0.01"
 			value={volume}
 			onMouseUp={() => {
-				// warning: make sure you actually have "pop" sound configured in your sound store
+				// make sure you actually have "pop" sound configured in your sound store
 				soundStore.playSound('pop');
 			}}
 			onTouchEnd={() => {
@@ -202,10 +202,9 @@ export const SoundToggle = () => {
 		</button>
 	);
 };
-
-
-Note: if the global sound is set to 0.5 and you pass in a volume of 0.5 to the playSound function, the sound will play at 0.25 volume (0.5 * 0.5)
 ```
+
+Note: if the global sound is set to 0.5 and you pass in a volume of 0.5 to the playSound function, the sound will play at 0.25 volume (0.5 \* 0.5)
 
 ### Acknowledgements
 
