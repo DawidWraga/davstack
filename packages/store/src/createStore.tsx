@@ -90,25 +90,6 @@ export const createStore = <TState extends State, TName extends string>(
 
 		const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
 			immerStoreApi.setState(fnOrNewValue, actionName || `@@${name}/setState`);
-			// console.log('SETTING STATE', { fnOrNewValue, actionName });
-			// if (isFunction(fnOrNewValue)) {
-			// 	immerStoreApi.setState(
-			// 		fnOrNewValue,
-			// 		actionName || `@@${name}/setState`
-			// 	);
-			// } else {
-			// 	immerStoreApi.setState(
-			// 		(draft) => {
-			// 			console.log('SETTING STATE', { draft, fnOrNewValue });
-			// 			draft = fnOrNewValue;
-			// 			// if (isObject(fnOrNewValue)) {
-			// 			// 	Object.assign(draft as object, fnOrNewValue);
-			// 			// } else {
-			// 			// }
-			// 		},
-			// 		actionName || `@@${name}/setState`
-			// 	);
-			// }
 		};
 		const useTrackedStore = createTrackedSelector(useStore);
 		function generateInnerSelectors() {
