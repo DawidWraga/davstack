@@ -126,19 +126,34 @@ describe('createStore', () => {
 			expect(ui.doubledCount).toBe('Doubled: 0');
 		});
 	});
-	// describe('nested object store', () => {
-	// 	test('should access and update the entire state', () => {
-	// 		const countStore = createStore({ parent: { count: 2 } });
+	describe('nested object store', () => {
+		test.only('should access and update the entire state', () => {
+			const countStore = createStore({ parent: { count: 2 } });
 
-	// 		const counterValues = countStore.parent.count.get()
-	// 		expect(counterValues).toBe(2);
+			// @ts-expect-error
+			const counterValues = countStore.parent.count.get();
+			expect(counterValues).toBe(2);
 
-	// 		countStore.set(10);
-	// 		expect(countStore.get()).toBe(10);
+			// @ts-expect-error
+			countStore.parent.count.set(10);
+			// @ts-expect-error
+			expect(countStore.parent.count.get()).toBe(10);
 
-	// 		countStore.assign(20);
+			// countStore.assign({
+			// 	parent: {
+			// 		count: 20,
+			// 	},
+			// });
+			countStore.set((draft) => {
+				console.log('DRAFT', draft);
+				draft.parent.count = 20;
+			});
 
-	// 		expect(countStore.get()).toBe(20);
-	// 	});
-	// });
+			expect(countStore.get()).toStrictEqual({
+				parent: { count: 20 },
+			});
+			// // @ts-expect-error
+			// expect(countStore.parent.count.get()).toBe(20);
+		});
+	});
 });

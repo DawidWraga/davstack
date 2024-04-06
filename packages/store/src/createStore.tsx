@@ -92,49 +92,75 @@ export const createStore = <TState extends State, TName extends string>(
 			immerStoreApi.setState(fnOrNewValue, actionName || `@@${name}/setState`);
 		};
 		const useTrackedStore = createTrackedSelector(useStore);
-		function generateInnerSelectors() {
+		function generateInnerSelectors(state: unknown) {
 			if (!isObject(initialState)) {
 				return {};
 			}
+
+			const localImmerStoreApi = immerStoreApi;
+			// const localImmerStoreApi = pipeMiddlewares(() => state as TState);
 
 			type TStateButObject = TState extends object ? TState : never;
 
 			const stateActions = generateStateActions<TStateButObject>(
 				// @ts-expect-error
-				immerStoreApi,
+				localImmerStoreApi,
 				name
 			);
 			const hookSelectors = generateStateHookSelectors<TStateButObject>(
 				// @ts-expect-error
 				useStore,
-				immerStoreApi
+				localImmerStoreApi
 			);
 			const getterSelectors =
 				// @ts-expect-error
-				generateStateGetSelectors<TStateButObject>(immerStoreApi);
+				generateStateGetSelectors<TStateButObject>(localImmerStoreApi);
 
 			const trackedHooksSelectors = generateStateTrackedHooksSelectors(
 				useTrackedStore,
-				immerStoreApi
+				localImmerStoreApi
 			);
 
 			const innerSelectors = Object.fromEntries(
-				Object.entries(initialState).map(([key, value]: [string, any]) => {
-					return [
+				Object.entries(state as object).map(([key, value]: [string, any]) => {
+					console.log('HERE', {
 						key,
-						{
-							// @ts-expect-error
-							get: () => getterSelectors[key](),
-							// @ts-expect-error TODO: fix this
+						value,
+						isObject: isObject(value),
+					});
+					const currentLevelSelectors = {
+						// @ts-expect-error
+						get: () => getterSelectors[key](),
+						// @ts-expect-error TODO: fix this
 
-							set: (...args: any[]) => stateActions[key](...args),
+						set: (...args: any[]) => stateActions[key](...args),
+						// @ts-expect-error
+						use: (...args: any[]) => hookSelectors[key](...args),
+						useTracked: (...args: any[]) =>
 							// @ts-expect-error
-							use: (...args: any[]) => hookSelectors[key](...args),
-							useTracked: (...args: any[]) =>
-								// @ts-expect-error
-								trackedHooksSelectors[key](...args),
-						},
-					];
+							trackedHooksSelectors[key](...args),
+					};
+
+					// if the value is an object, then recursively generate the inner selectors
+					if (isObject(value)) {
+						const nextLevelSelectors = generateInnerSelectors(value);
+						return [
+							key,
+							Object.assign(currentLevelSelectors, nextLevelSelectors),
+						];
+					}
+
+					// if (isObject(value)) {
+					// 	return [
+					// 		key,
+					// 		Object.assign(
+					// 			currentLevelSelectors,
+					// 			generateInnerSelectors(value)
+					// 		),
+					// 	];
+					// }
+
+					return [key, currentLevelSelectors];
 				})
 			) as DynamicStateMethods<TStateButObject>;
 
@@ -156,7 +182,7 @@ export const createStore = <TState extends State, TName extends string>(
 		};
 
 		return {
-			...generateInnerSelectors(),
+			...generateInnerSelectors(initialState),
 			immerStoreApi,
 			storeName: name,
 			set: setState,
