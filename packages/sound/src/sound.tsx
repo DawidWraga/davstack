@@ -96,7 +96,6 @@ export function createSoundStore<
 		)
 	) as unknown as Record<SoundName, Howl>;
 
-	console.log('initialSounds', initialSounds);
 	// Create the sound store
 	return createStore({
 		sounds: initialSounds,
