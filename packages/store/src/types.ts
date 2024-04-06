@@ -6,6 +6,8 @@ import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
 import { NamedSet } from 'zustand/middleware';
 import { StoreApi as ZustandStoreApi } from 'zustand/vanilla';
 
+export type State = unknown;
+
 export type StoreApiGet<
 	T extends State = {},
 	TSelectors = {},
@@ -117,7 +119,6 @@ export type Simplify<T> = T extends any[] | Date
 	? T
 	: { [K in keyof T]: T[K] } & {};
 
-export type State = Record<string, any>;
 export type EqualityChecker<T> = (state: T, newState: T) => boolean;
 
 export type MergeState<T extends State> = (
@@ -158,7 +159,7 @@ export type SelectorRecord<T> = Record<string, (state: T) => any>;
 // ) => any;
 
 export type SetImmerState<T> = (
-	fn: (draft: Draft<T>) => void,
+	fnOrNewValue: ((draft: Draft<T>) => void) | Draft<T>,
 	actionName?: string
 ) => void;
 

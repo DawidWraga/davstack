@@ -18,7 +18,7 @@ import {
 	UseImmerStore,
 } from './types';
 import { CreateStoreOptions } from './types/CreateStoreOptions';
-import { generateStateActions } from './utils/generateStateActions';
+import { generateStateActions, isFunction } from './utils/generateStateActions';
 import { generateStateGetSelectors } from './utils/generateStateGetSelectors';
 import { generateStateHookSelectors } from './utils/generateStateHookSelectors';
 import { generateStateTrackedHooksSelectors } from './utils/generateStateTrackedHooksSelectors';
@@ -37,7 +37,11 @@ export const createStore = <TState extends State, TName extends string>(
 		enableMapSet();
 	}
 
-	const name = options.name ?? JSON.stringify(Object.keys(initialState));
+	const name =
+		options.name ??
+		JSON.stringify(
+			isObject(initialState) ? Object.keys(initialState) : initialState
+		);
 
 	const middlewares: any[] = [immerMiddleware, ..._middlewares];
 
@@ -84,45 +88,94 @@ export const createStore = <TState extends State, TName extends string>(
 				equalityFn as any
 			)) as UseImmerStore<TState>;
 
-		const setState: SetImmerState<TState> = (fn, actionName) => {
-			immerStoreApi.setState(fn, actionName || `@@${name}/setState`);
+		const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
+			immerStoreApi.setState(fnOrNewValue, actionName || `@@${name}/setState`);
+			// console.log('SETTING STATE', { fnOrNewValue, actionName });
+			// if (isFunction(fnOrNewValue)) {
+			// 	immerStoreApi.setState(
+			// 		fnOrNewValue,
+			// 		actionName || `@@${name}/setState`
+			// 	);
+			// } else {
+			// 	immerStoreApi.setState(
+			// 		(draft) => {
+			// 			console.log('SETTING STATE', { draft, fnOrNewValue });
+			// 			draft = fnOrNewValue;
+			// 			// if (isObject(fnOrNewValue)) {
+			// 			// 	Object.assign(draft as object, fnOrNewValue);
+			// 			// } else {
+			// 			// }
+			// 		},
+			// 		actionName || `@@${name}/setState`
+			// 	);
+			// }
 		};
-
-		const stateActions = generateStateActions(immerStoreApi, name);
-		const hookSelectors = generateStateHookSelectors(useStore, immerStoreApi);
-		const getterSelectors = generateStateGetSelectors(immerStoreApi);
 		const useTrackedStore = createTrackedSelector(useStore);
-		const trackedHooksSelectors = generateStateTrackedHooksSelectors(
-			useTrackedStore,
-			immerStoreApi
-		);
+		function generateInnerSelectors() {
+			if (!isObject(initialState)) {
+				return {};
+			}
 
-		const innerSelectors = Object.fromEntries(
-			Object.entries(initialState).map(([key, value]: [string, any]) => {
-				return [
-					key,
-					{
-						get: () => getterSelectors[key](),
-						// @ts-expect-error TODO: fix this
-						set: (...args: any[]) => stateActions[key](...args),
-						use: (...args: any[]) => hookSelectors[key](...args),
-						useTracked: (...args: any[]) => trackedHooksSelectors[key](...args),
-					},
-				];
-			})
-		) as DynamicStateMethods<TState>;
+			type TStateButObject = TState extends object ? TState : never;
+
+			const stateActions = generateStateActions<TStateButObject>(
+				// @ts-expect-error
+				immerStoreApi,
+				name
+			);
+			const hookSelectors = generateStateHookSelectors<TStateButObject>(
+				// @ts-expect-error
+				useStore,
+				immerStoreApi
+			);
+			const getterSelectors =
+				// @ts-expect-error
+				generateStateGetSelectors<TStateButObject>(immerStoreApi);
+
+			const trackedHooksSelectors = generateStateTrackedHooksSelectors(
+				useTrackedStore,
+				immerStoreApi
+			);
+
+			const innerSelectors = Object.fromEntries(
+				Object.entries(initialState).map(([key, value]: [string, any]) => {
+					return [
+						key,
+						{
+							// @ts-expect-error
+							get: () => getterSelectors[key](),
+							// @ts-expect-error TODO: fix this
+
+							set: (...args: any[]) => stateActions[key](...args),
+							// @ts-expect-error
+							use: (...args: any[]) => hookSelectors[key](...args),
+							useTracked: (...args: any[]) =>
+								// @ts-expect-error
+								trackedHooksSelectors[key](...args),
+						},
+					];
+				})
+			) as DynamicStateMethods<TStateButObject>;
+
+			return innerSelectors;
+		}
 
 		const assign: MergeState<TState> = (state, actionName) => {
 			immerStoreApi.setState(
-				(draft) => {
-					Object.assign(draft as any, state);
-				},
+				// if state is not, then just pass the value just like .set. Otherwise merge the state
+				// @ts-expect-error
+				isObject(initialState)
+					? (draft) => {
+							Object.assign(draft as any, state);
+						}
+					: state,
+
 				actionName || `@@${name}/assign`
 			);
 		};
 
 		return {
-			...innerSelectors,
+			...generateInnerSelectors(),
 			immerStoreApi,
 			storeName: name,
 			set: setState,
@@ -152,10 +205,13 @@ export const createStore = <TState extends State, TName extends string>(
 		initialValue?: Partial<TState>;
 		children: React.ReactNode;
 	}) => {
-		const mergedInitialState = {
-			...initialState,
-			...localInitialValue,
-		};
+		// if is object then merge, otherwise use the localInitialValue and fallback to initialState
+		const mergedInitialState = isObject(initialState)
+			? {
+					...initialState,
+					...localInitialValue,
+				}
+			: ((localInitialValue ?? initialState) as TState);
 
 		const localStore = createInnerStore(mergedInitialState);
 		// @ts-expect-error
@@ -193,3 +249,7 @@ export const createStore = <TState extends State, TName extends string>(
 	};
 	return api as unknown as StoreApi<TName, TState, {}>;
 };
+
+function isObject(value: any): value is Record<string, any> {
+	return value instanceof Object && !(value instanceof Array);
+}
