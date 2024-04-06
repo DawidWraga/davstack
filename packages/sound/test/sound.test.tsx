@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSoundStore } from '../src/sound';
 import { HowlerMock, HowlMock } from './howler.mock';
+import { FlattenedObject } from '../src/utils/flatten-object';
 
 // mock the howler module
 vi.mock('howler', () => ({
@@ -14,13 +15,16 @@ const soundNameToPathMap = {
 	pop: `${SOUND_BASE_PATH}/pop.mp3`,
 	switchOn: `${SOUND_BASE_PATH}/switch-on.mp3`,
 	switchOff: `${SOUND_BASE_PATH}/switch-off.mp3`,
+	ui: {
+		lock: `${SOUND_BASE_PATH}/ui/lock.mp3`,
+		unlock: `${SOUND_BASE_PATH}/ui/unlock.mp3`,
+	},
 };
 
 const soundStore = createSoundStore({
 	soundNameToPath: soundNameToPathMap,
 });
-export type SoundName = keyof typeof soundNameToPathMap;
-
+export type SoundName = keyof FlattenedObject<typeof soundNameToPathMap, true>;
 
 describe('soundStore', () => {
 	it('should initialize sound', async () => {
@@ -63,5 +67,28 @@ describe('soundStore', () => {
 		await expect(
 			soundStore.initializeSound(invalidSoundName as SoundName)
 		).rejects.toThrowError(`Sound ${invalidSoundName} not found in soundFiles`);
+	});
+
+	it('should initialize nested sound', async () => {
+		const soundName: SoundName = 'ui.lock';
+		const soundBeforeInit = soundStore.sounds.get()[soundName];
+		expect(soundBeforeInit).toBeUndefined();
+		await soundStore.initializeSound(soundName);
+		const sound = soundStore.sounds.get()[soundName];
+		const myStore = soundStore.get();
+
+		expect(sound).toBeDefined();
+		expect(sound).toEqual(myStore.sounds[soundName]);
+	});
+
+	it('should play nested sound', async () => {
+		const soundName: SoundName = 'ui.unlock';
+
+		await soundStore.initializeSound(soundName);
+
+		const playSpy = vi.spyOn(soundStore.sounds.get()[soundName], 'play');
+		soundStore.playSound(soundName);
+
+		expect(playSpy).toHaveBeenCalled();
 	});
 });

@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 0.1.1
+
+### Patch Changes
+
+- added support for nested objects inside soundNameToPath option
+
 ## 0.1.0
 
 ### Minor Changes

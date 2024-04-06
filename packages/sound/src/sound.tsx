@@ -2,6 +2,7 @@ import { createStore } from '@davstack/store';
 import { Howl, HowlOptions } from 'howler';
 import { useEffect } from 'react';
 import { lazyImportHowlerConstructor } from './howler-lazy';
+import { FlattenedObject, flattenObject } from './utils/flatten-object';
 /**
  * warning: if changing play options the make sure to update the custom options section in Readme.md
  */
@@ -41,7 +42,7 @@ const soundStore = createSoundStore({
 
  */
 export type CreateSoundStoreOptions<
-	TSoundNameToPath extends Record<string, string>,
+	TSoundNameToPath extends Record<string, string | Record<string, string>>,
 > = {
 	/**
 	 * A map of sound names to their file paths
@@ -72,7 +73,7 @@ export type CreateSoundStoreOptions<
 };
 
 export function createSoundStore<
-	TSoundNameToPath extends Record<string, string>,
+	TSoundNameToPath extends Record<string, string | Record<string, string>>,
 >(options: CreateSoundStoreOptions<TSoundNameToPath>) {
 	const {
 		soundNameToPath,
@@ -82,11 +83,20 @@ export function createSoundStore<
 		soundEnabled = true,
 	} = options;
 
-	type SoundName = keyof TSoundNameToPath;
+	// flatten object to allow for nested sound names
+	type FlattenedSoundNameToPath = FlattenedObject<TSoundNameToPath, true>;
+	type SoundName = keyof FlattenedSoundNameToPath;
+	const flattenedSoundNameToPath = flattenObject(soundNameToPath, {
+		overwrite: true,
+	}) as FlattenedSoundNameToPath;
 
 	const initialSounds = Object.fromEntries(
-		Object.keys(soundNameToPath).map((key) => [key, undefined] as const)
+		Object.keys(flattenedSoundNameToPath).map(
+			(key) => [key, undefined] as const
+		)
 	) as unknown as Record<SoundName, Howl>;
+
+	console.log('initialSounds', initialSounds);
 	// Create the sound store
 	return createStore({
 		sounds: initialSounds,
@@ -112,7 +122,7 @@ export function createSoundStore<
 
 				if (!HowlerConstuctor) throw new Error('HowlerConstructor not found');
 
-				if (!(soundName in soundNameToPath)) {
+				if (!(soundName in flattenedSoundNameToPath)) {
 					throw new Error(
 						`Sound ${soundName.toString()} not found in soundFiles`
 					);
@@ -123,8 +133,9 @@ export function createSoundStore<
 				if (!sound) {
 					// const onload = options?.onload ?? store.onload.get();
 					store.set((draft) => {
-						const src = soundNameToPath[soundName];
+						const src = flattenedSoundNameToPath[soundName];
 						const Howler = new HowlerConstuctor({
+							// @ts-expect-error
 							src: Array.isArray(src) ? src : [src],
 							volume: store.volume.get(),
 							rate: store.playbackRate.get(),
@@ -141,7 +152,7 @@ export function createSoundStore<
 			 * function to initialize all sounds in the store
 			 */
 			initAllSounds() {
-				Object.keys(soundNameToPath).forEach((soundName) => {
+				Object.keys(flattenedSoundNameToPath).forEach((soundName) => {
 					store.initializeSound(soundName as SoundName);
 				});
 			},

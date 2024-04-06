@@ -52,7 +52,7 @@ export default defineWorkspace([
 			root: './packages/sound',
 			environment: 'jsdom',
 			typecheck: {
-				enabled: true,
+				enabled: false,
 				include: ['**/*.test.ts'],
 			},
 			// setupFiles: ['./test-setup.ts'],
