@@ -42,13 +42,10 @@
 	"dependencies": {
 		"immer": "^10.0.4",
 		"react-dom": "^18.2.0",
-		"react-tracked": "^1.7.14"
+		"zustand": ">=4.3.9"
 	},
 	"publishConfig": {
 		"access": "public"
-	},
-	"peerDependencies": {
-		"zustand": ">=4.3.9"
 	},
 	"keywords": [
 		"zustand"
