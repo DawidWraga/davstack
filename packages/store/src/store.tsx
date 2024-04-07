@@ -15,7 +15,8 @@ import React from 'react';
 import type { StateCreator } from 'zustand';
 import {
 	createGlobalMethods,
-	createInnerMethods,
+	// createInnerMethods,
+	createMethods,
 } from './utils/create-methods';
 export const store = <TState extends State, TName extends string>(
 	initialState: TState,
@@ -72,20 +73,30 @@ export const store = <TState extends State, TName extends string>(
 	 */
 	const createInnerStore = (initialState: TState) => {
 		const immerStoreApi = pipeMiddlewares(() => initialState);
-		const globalMethods = createGlobalMethods({
+		// const globalMethods = createGlobalMethods({
+		// 	immerStore: immerStoreApi,
+		// 	storeName: name,
+		// });
+
+		const innerMethods = createMethods({
 			immerStore: immerStoreApi,
 			storeName: name,
 		});
 
-		const innerMethods = createInnerMethods({
-			globalMethods,
-			storeName: name,
-		});
+		// const methods = createMethods({
+		// 	immerStore: immerStoreApi,
+		// 	storeName: name,
+		// });
+
+		// return Object.assign(methods, {
+		// 	storeName: name,
+		// 	immerStoreApi,
+		// });
 
 		return {
 			storeName: name,
 			immerStoreApi,
-			...globalMethods,
+			// ...globalMethods,
 			...innerMethods,
 		};
 	};

@@ -11,12 +11,11 @@ import {
 
 import { isObject } from '../store';
 import { EqualityChecker } from '../types';
-
 export const createGlobalMethods = <TState extends State>(options: {
 	immerStore: ImmerStoreApi<TState>;
 	storeValues?: TState;
 	storeName: string;
-}) => {
+}): GlobalMethods<TState> => {
 	const { immerStore, storeValues, storeName } = options;
 
 	const useStore = ((selector, equalityFn) =>
@@ -32,19 +31,17 @@ export const createGlobalMethods = <TState extends State>(options: {
 
 	const assign: MergeState<TState> = (state, actionName) => {
 		immerStore.setState(
-			// if state is not, then just pass the value just like .set. Otherwise merge the state
 			// @ts-expect-error
 			isObject(storeValues)
 				? (draft) => {
 						Object.assign(draft as any, state);
 					}
 				: state,
-
 			actionName || `@@${storeName}/assign`
 		);
 	};
 
-	const globalMethods = {
+	const globalMethods: GlobalMethods<TState> = {
 		set: setState,
 		get: immerStore.getState,
 		use: useStore,
@@ -54,75 +51,117 @@ export const createGlobalMethods = <TState extends State>(options: {
 	return globalMethods;
 };
 
-export const createInnerMethods = <T extends State>(options: {
-	globalMethods: ReturnType<typeof createGlobalMethods<T>>;
+export type GlobalMethods<TState> = {
+	set: SetImmerState<TState>;
+	get: () => TState;
+	use: UseImmerStore<TState>;
+	assign: MergeState<TState>;
+};
+
+const createInnerMethods = <T extends State>(options: {
+	globalMethods: GlobalMethods<T>;
+	storeName: string;
+	currentPath: string[];
+	key: string;
+	value: any;
+}): InnerStateMethods<T> => {
+	const { globalMethods, storeName, currentPath, key, value } = options;
+
+	const methods = {
+		get: () => getPathValue(globalMethods.get(), currentPath),
+		set: (newValueOrFn: any) => {
+			const isCallback = isFunction(newValueOrFn);
+			const isValue = !isCallback;
+
+			const prevValue = getPathValue(globalMethods.get(), currentPath);
+			if (isValue && prevValue === newValueOrFn) {
+				return;
+			}
+
+			const actionKey = key.replace(/^\S/, (s) => s.toUpperCase());
+
+			return globalMethods.set((draft) => {
+				if (isValue) {
+					setPathValue(draft, currentPath, newValueOrFn);
+				}
+
+				if (isCallback) {
+					setPathValue(draft, currentPath, newValueOrFn(prevValue));
+				}
+			}, `@@${storeName}/set${actionKey}`);
+		},
+
+		use: (equalityFn?: EqualityChecker<any>) => {
+			return globalMethods.use((state) => {
+				return getPathValue(state, currentPath);
+			}, equalityFn);
+		},
+	};
+
+	return methods as unknown as InnerStateMethods<T>;
+};
+
+export const createMethods = <T extends State>(options: {
+	globalMethods?: GlobalMethods<T>;
+	immerStore: ImmerStoreApi<T>;
 	storeName: string;
 	storeValues?: T;
 	path?: string[];
-}): InnerStateMethods<T> => {
+}): GlobalMethods<T> | InnerStateMethods<T> => {
 	const {
-		globalMethods,
-		storeValues = globalMethods.get(),
-		path = [],
+		immerStore,
 		storeName,
+		storeValues = immerStore.getState(),
+		globalMethods = createGlobalMethods({
+			immerStore,
+			storeValues,
+			storeName,
+		}),
+		path = [],
 	} = options;
 
+	const isGlobal = path.length === 0;
+
 	if (!isObject(storeValues)) {
-		return {} as any;
+		// handle primitive values here
+		if (isGlobal) {
+			return globalMethods;
+		}
+		return {} as InnerStateMethods<T>;
 	}
 
-	return Object.fromEntries(
+	const innerMethods = Object.fromEntries(
 		Object.entries(storeValues).map(([key, value]) => {
-			const currentPath = [...path, key]; // Append the current key to the path
+			const currentPath = [...path, key];
+			const currentMethods = createInnerMethods({
+				globalMethods,
+				storeName,
+				currentPath,
+				key,
+				value,
+			});
 
-			const methods = {
-				get: () => getPathValue(globalMethods.get(), currentPath),
-				set: (newValueOrFn: any) => {
-					const isCallback = isFunction(newValueOrFn);
-					const isValue = !isCallback;
+			const nestedMethods = createMethods({
+				globalMethods,
+				immerStore,
 
-					const prevValue = getPathValue(globalMethods.get(), currentPath);
-					// if is value and the value is the same as the current value, return early
-					if (isValue) {
-						const noChange = prevValue === newValueOrFn;
-						if (noChange) return;
-					}
+				storeValues: value as T,
+				path: currentPath,
+				storeName,
+			});
 
-					const actionKey = key.replace(/^\S/, (s) => s.toUpperCase());
-
-					return globalMethods.set((draft) => {
-						if (isValue) {
-							setPathValue(draft, currentPath, newValueOrFn);
-						}
-
-						if (isCallback) {
-							setPathValue(draft, currentPath, newValueOrFn(prevValue));
-						}
-					}, `@@${storeName}/set${actionKey}`);
-				},
-
-				use: (equalityFn?: EqualityChecker<any>) => {
-					return globalMethods.use((state) => {
-						return getPathValue(state, currentPath);
-					}, equalityFn);
-				},
-			};
-
-			// Recursively handle nested objects
-			const nestedSelectors = isObject(value)
-				? createInnerMethods({
-						globalMethods,
-						storeValues: value as T,
-						path: currentPath, // Pass the updated path for nested selectors
-						storeName,
-					})
-				: {};
-
-			return [key, Object.assign(methods, nestedSelectors)];
+			return [key, Object.assign(currentMethods, nestedMethods)];
 		})
-	) as unknown as InnerStateMethods<T>;
-};
+	);
 
+	if (isGlobal) {
+		return Object.assign(globalMethods, innerMethods);
+	}
+
+	return innerMethods as InnerStateMethods<T>;
+
+	// return Object.assign(globalMethods, innerMethods);
+};
 export type InnerStateMethods<TState> = {
 	[TKey in keyof TState]: {
 		get: () => TState[TKey];
@@ -134,10 +173,24 @@ export type InnerStateMethods<TState> = {
 };
 
 function getPathValue<T>(state: T, path: string[]): any {
+	// console.log('GETTING PATH VALUE: ', {
+	// 	state,
+	// 	path,
+	// });
 	return path.reduce((acc, key) => acc[key], state as any);
 }
 
 function setPathValue<T>(draft: T, path: string[], value: any): void {
+	// console.log('INSIDE SET PATH VALUE', {
+	// 	draft,
+	// 	path,
+	// 	value,
+	// });
+	if (path.length === 0) {
+		draft = value;
+		return;
+	}
+
 	let current = draft;
 	for (let i = 0; i < path.length - 1; i++) {
 		const key = path[i];
