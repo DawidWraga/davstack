@@ -1,7 +1,13 @@
 /* eslint-disable no-unused-vars */
 import { useStoreWithEqualityFn } from 'zustand/traditional';
 
-import { ImmerStoreApi, SetImmerState, State, UseImmerStore } from '../types';
+import {
+	ImmerStoreApi,
+	MainStoreMethods,
+	SetImmerState,
+	State,
+	UseImmerStore,
+} from '../types';
 
 import { isObject } from '../store';
 import { EqualityChecker } from '../types';
@@ -177,15 +183,6 @@ export const createNestedMethods = <T extends State>(options: {
 			})
 		);
 	}
-};
-export type MainStoreMethods<TState> = {
-	[TKey in keyof TState]: {
-		get: () => TState[TKey];
-		set: (
-			newValueOrFn: TState[TKey] | ((prev: TState[TKey]) => TState[TKey])
-		) => void;
-		use: () => TState[TKey];
-	};
 };
 
 function getPathValue<T>(state: T, path: string[]): any {

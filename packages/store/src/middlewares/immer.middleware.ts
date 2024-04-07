@@ -1,15 +1,14 @@
 import { produce } from 'immer';
-import { StoreApi } from 'zustand';
-
-import { SetImmerState, State, StateCreatorWithDevtools } from '../types';
-import { isFunction } from '../utils';
+import { StoreApi as RawStoreApi, StoreApi as ZustandStoreApi } from 'zustand';
+import { NamedSet } from 'zustand/middleware';
+import { SetImmerState, State } from '../types';
 
 export const immerMiddleware =
 	<T extends State>(
 		config: StateCreatorWithDevtools<
 			T,
 			SetImmerState<T>,
-			StoreApi<T>['getState']
+			ZustandStoreApi<T>['getState']
 		>
 	): StateCreatorWithDevtools<T> =>
 	(set, get, api) => {
@@ -27,3 +26,10 @@ export const immerMiddleware =
 		api.setState = setState as any;
 		return config(setState, get, api);
 	};
+
+export type StateCreatorWithDevtools<
+	T extends State,
+	CustomSetState = NamedSet<T>,
+	CustomGetState = ZustandStoreApi<T>['getState'],
+	CustomStoreApi extends RawStoreApi<T> = RawStoreApi<T>,
+> = (set: CustomSetState, get: CustomGetState, api: CustomStoreApi) => T;
