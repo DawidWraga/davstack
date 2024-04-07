@@ -6,7 +6,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 
-import { describe, expect, it, test } from 'vitest';
+import { beforeEach, describe, expect, it, test } from 'vitest';
 import { store } from '../src';
 import { useEffect, useRef, useState } from 'react';
 const testIds = {
@@ -155,22 +155,83 @@ describe('store', () => {
 		expect(ui.doubledCount).toBe('Doubled: 0');
 	});
 
-	test('should access and update the entire state', () => {
+	describe('whole store operations', () => {
 		const counterStore = store({ count: 0 });
 
-		const counterValues = counterStore.get();
-		expect(counterValues.count).toBe(0);
-
-		counterStore.assign({ count: 10 });
-		expect(counterStore.count.get()).toBe(10);
-
-		counterStore.set((state) => {
-			state.count = 20;
+		test('get', () => {
+			const count = counterStore.count.get();
+			expect(count).toBe(0);
 		});
-		expect(counterStore.count.get()).toBe(20);
 
-		counterStore.assign({ count: 30 });
-		expect(counterStore.count.get()).toBe(30);
+		test('set', () => {
+			counterStore.count.set(10);
+			expect(counterStore.count.get()).toBe(10);
+		});
+
+		test('assign', () => {
+			counterStore.assign({ count: 20 });
+			expect(counterStore.count.get()).toBe(20);
+		});
+
+		test('update', () => {
+			counterStore.set((state) => {
+				state.count = 30;
+			});
+			expect(counterStore.count.get()).toBe(30);
+		});
+
+		describe('use', () => {
+			let ui = null as unknown as ReturnType<typeof getUi>;
+
+			beforeEach(() => {
+				const Counter = () => {
+					const count = counterStore.count.use();
+					return (
+						<div>
+							<p data-testid={testIds.count}>Count: {count}</p>
+						</div>
+					);
+				};
+
+				ui = getUi(render(<Counter />));
+			});
+
+			test('correct render', async () => {
+				await waitFor(() => {
+					console.log('ui.count', ui.count);
+					expect(ui.count).toBe('Count: 30');
+				});
+			});
+
+			test('correct render after state change', async () => {
+				counterStore.count.set(40);
+				await waitFor(() => {
+					expect(ui.count).toBe('Count: 40');
+				});
+			});
+
+			test('correct render after state change with set', async () => {
+				counterStore.set((draft) => {
+					draft.count = 50;
+				});
+				await waitFor(() => {
+					expect(ui.count).toBe('Count: 50');
+				});
+			});
+
+			test('correct render after state change with assign', async () => {
+				counterStore.assign({ count: 60 });
+				await waitFor(() => {
+					expect(ui.count).toBe('Count: 60');
+				});
+			});
+			test('correct render after state change with nested callback', async () => {
+				counterStore.count.set((prev) => prev + 1);
+				await waitFor(() => {
+					expect(ui.count).toBe('Count: 61');
+				});
+			});
+		});
 	});
 
 	// test('should use react-tracked for performance optimizations', async () => {

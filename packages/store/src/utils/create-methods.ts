@@ -9,6 +9,7 @@ import {
 	UseImmerStore,
 } from '../types';
 
+import { produce, createDraft } from 'immer';
 import { isObject } from '../store';
 import { EqualityChecker } from '../types';
 export const createInternalMethods = <TState extends State>(options: {
@@ -75,7 +76,13 @@ const createMethods = <T extends State>(options: {
 			}
 
 			if (isCallback) {
+				if (isGlobal) {
+					newValueOrFn(draft);
+					return;
+				}
+
 				setPathValue(draft, currentPath, newValueOrFn(prevValue));
+				return;
 			}
 		}, `@@${storeName}/set${actionKey}`);
 	};
@@ -184,7 +191,6 @@ export const createNestedMethods = <T extends State>(options: {
 		);
 	}
 };
-
 function getPathValue<T>(state: T, path: string[]): any {
 	return path.reduce((acc, key) => acc[key], state as any);
 }
@@ -209,6 +215,36 @@ function setPathValue<T>(draft: T, path: string[], value: any): void {
 	// @ts-expect-error
 	current[path[path.length - 1]] = value;
 }
+
+export const deepSet = (obj: any, path: string[], val: any) => {
+	// path = path.replaceAll("[", ".[");
+	// const keys = path.split(".");
+
+	const keys = path;
+
+	for (let i = 0; i < keys.length; i++) {
+		let currentKey = keys[i] as any;
+		let nextKey = keys[i + 1] as any;
+		if (currentKey.includes('[')) {
+			currentKey = parseInt(currentKey.substring(1, currentKey.length - 1));
+		}
+		if (nextKey && nextKey.includes('[')) {
+			nextKey = parseInt(nextKey.substring(1, nextKey.length - 1));
+		}
+
+		if (typeof nextKey !== 'undefined') {
+			obj[currentKey] = obj[currentKey]
+				? obj[currentKey]
+				: isNaN(nextKey)
+					? {}
+					: [];
+		} else {
+			obj[currentKey] = val;
+		}
+
+		obj = obj[currentKey];
+	}
+};
 
 export function isFunction<T extends Function = Function>(
 	value: any
