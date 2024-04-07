@@ -140,7 +140,7 @@ export function createSoundStore<
 							rate: store.playbackRate.get(),
 							...options,
 						});
-						// @ts-expect-error
+
 						draft.sounds[soundName] = Howler;
 					});
 				}
