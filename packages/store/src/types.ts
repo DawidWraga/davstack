@@ -5,7 +5,7 @@ import React from 'react';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
 import { NamedSet } from 'zustand/middleware';
 import { StoreApi as ZustandStoreApi } from 'zustand/vanilla';
-import { InnerStateMethods } from './utils/create-methods';
+import { MainStoreMethods } from './utils/create-methods';
 
 export type State = unknown;
 
@@ -25,7 +25,7 @@ export type StoreApi<
 	TName extends string,
 	T extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = InnerStateMethods<T> &
+> = MainStoreMethods<T> &
 	TExtendedProps & {
 		immerStoreApi: ImmerStoreApi<T>;
 		/**

@@ -14,13 +14,15 @@ export const immerMiddleware =
 	): StateCreatorWithDevtools<T> =>
 	(set, get, api) => {
 		const setState: SetImmerState<T> = (fnOrValue, actionName) => {
-			if (isFunction(fnOrValue)) {
-				// @ts-expect-error
-				set(produce<T>(fnOrValue, true, actionName));
-			} else {
-				// @ts-expect-error
-				set(() => fnOrValue, actionName);
-			}
+			// @ts-expect-error
+			return set(produce<T>(fnOrValue, true, actionName));
+			// if (isFunction(fnOrValue)) {
+			// 	// @ts-expect-error
+			// 	set(produce<T>(fnOrValue, true, actionName));
+			// } else {
+			// 	// @ts-expect-error
+			// 	set(() => fnOrValue, actionName);
+			// }
 		};
 		api.setState = setState as any;
 		return config(setState, get, api);
