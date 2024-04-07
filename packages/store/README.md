@@ -13,10 +13,78 @@ Zustand is a small, fast and scalable state-management solution battle-tested ag
 ### Installation
 
 ```bash
-npm install zustand @davstack/store
+npm install @davstack/store
 ```
 
 Visit the [Davstack Store Docs](https://davstack.com/store/overview) for more information and examples, such as this [todo app example](https://davstack.com/store/todo-example).
+
+## Demo Usage
+
+### Simple primitive store example:
+
+```tsx
+import { store } from '@davstack/store';
+
+const counterStore = store(0);
+
+function Counter() {
+	const count = counterStore.use();
+	return <div>Count: {count}</div>;
+}
+
+function IncrementButton() {
+	return (
+		<button onClick={() => counterStore.set((state) => state + 1)}>
+			Increment
+		</button>
+	);
+}
+```
+
+### Nested object store example:
+
+```tsx
+import { store } from '@davstack/store';
+
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
+
+function UserProfile() {
+	// only re-renders when name changes
+	const name = userStore.name.use();
+
+	return (
+		<div>
+			<p>Name: {name}</p>
+		</div>
+	);
+}
+
+function AddressForm() {
+	const userAddress = userStore.address.use();
+
+	return (
+		<form>
+			<input
+				value={userAddress.street}
+				onChange={(e) => userStore.address.street.set(e.target.value)}
+			/>
+			<input
+				value={userAddress.city}
+				onChange={(e) => userStore.address.city.set(e.target.value)}
+			/>
+		</form>
+	);
+}
+```
+
+## Usage guide
 
 ### Creating a Store
 
@@ -25,27 +93,88 @@ Types are inferred from the initial state object.
 ```tsx
 import { store } from '@davstack/store';
 
-const counterStore = store({ count: 0 });
+// Primitive store
+const counterStore = store(0);
+
+// Nested object store
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
 ```
+
+Note: Davstack Store currently supports auto-generated methods (get, set, use, assign) for up to 2 levels of nesting eg userStore.address.street will have auto-generated methods, but userStore.address.street.deeper will not.
 
 ### Subscribing to State Changes
 
 Subscribe to state changes inside React components using the auto-generated `use` hook.
 
 ```tsx
+// Primitive store
 const Counter = () => {
-	const count = counterStore.count.use();
-
+	const count = counterStore.use();
 	return <div>Count: {count}</div>;
 };
+
+// Nested object store
+const UserProfile = () => {
+	const name = userStore.name.use();
+	const age = userStore.age.use();
+	const street = userStore.address.street.use();
+	const city = userStore.address.city.use();
+
+	return (
+		<div>
+			<p>Name: {name}</p>
+			<p>Age: {age}</p>
+			<p>
+				Address: {street}, {city}
+			</p>
+		</div>
+	);
+};
 ```
+
+Note: You can subscribe to changes at any level using the `use` method. For example, `userStore.address.use()` will subscribe to all changes within the `address` object, while `userStore.use()` will subscribe to changes in the entire store.
+
+If you subscribe to specific properties, only changes to those specific properties will trigger re-renders. For example, if you only use `userStore.name.use()`, changes to `userStore.age` will not trigger re-renders in the component.
+
+in this case, you could use `userStore.use()` to subscribe to the entire store, since all properties are used in the component. However, it is generally recommended to subscribe to specific properties to minimize re-renders and improve performance.
 
 ### Updating State
 
 Update state using the auto-generated `set` method. Davstack Store uses Immer under the hood, allowing you to update state immutably.
 
 ```tsx
-counterStore.count.set(10);
+// Primitive store
+counterStore.set(10);
+
+// Nested object store
+userStore.name.set('Jane');
+userStore.age.set(30);
+userStore.address.street.set('456 Oak St');
+```
+
+The `assign` method uses `Object.assign` under the hood to only set changed values. If the value is not an object, `assign` behaves the same as `set`.
+
+```tsx
+co;
+
+// will set name & age, but not address
+userStore.assign({
+	name: 'Jane',
+	age: 30,
+});
+
+// Assign also works on nested properties
+userStore.address.assign({
+	street: '456 Oak St',
+	city: 'Newtown',
+});
 ```
 
 ### Accessing the state without subscribing
@@ -55,65 +184,39 @@ Useful for accessing state inside callbacks.
 
 ```tsx
 const handleSubmit = async () => {
-	const count = counterStore.count.get();
+	const count = counterStore.get();
 	// ...
 };
 ```
-
-### Store Methods
-
-Every key inside the store initial value automatically gets a `use`, `set`, and `get` method. You can also access the same methods on the store itself. Additionally, the store has a `assign` method to update multiple properties at once.
-
-```tsx
-const counterStore = store({
-	count: 0,
-	secondCount: 0,
-});
-
-// Subscribe inside a component
-const { count, secondCount } = counterStore.use();
-
-// Access state without subscribing, eg in callbacks
-const { count, secondCount } = counterStore.get();
-
-counterStore.set((draft) => {
-	// Uses immer under the hood to update state immutably
-	draft.count = 10;
-});
-
-// Update multiple properties at once
-counterStore.assign({ count: 10, secondCount: 20 });
-```
-
-Note: using the `store.use()` will subscribe the component to the entire store, causing it to re-render whenever any property changes. For better performance, it is recommended to use the `store.[selector].use` method to subscribe to individual properties eg `counterStore.count.use()`.
 
 ### Defining Actions and Computed Properties
 
 Use the `extend` method to define actions and computed properties. Extensions not only help to keep relevant code neatly packaged into one object but also impact the scoped store if you are using `LocalProvider`.
 
 ```tsx
-const counterStore = store({ count: 0 }).extend((store) => ({
-	increment() {
-		store.count.set(store.count.get() + 1);
+const userStore = store({
+	name: 'John',
+	age: 25,
+}).extend((store) => ({
+	incrementAge() {
+		store.age.set(store.age.get() + 1);
 	},
-	decrement() {
-		store.count.set(store.count.get() - 1);
-	},
-	useDoubled() {
-		return store.count.use() * 2;
+	useFullName() {
+		return `${store.name.use()} Doe`;
 	},
 }));
 
-const Counter = () => {
-	const count = counterStore.count.use();
-	const doubled = counterStore.useDoubled();
+const UserProfile = () => {
+	const name = userStore.name.use();
+	const age = userStore.age.use();
+	const fullName = userStore.useFullName();
 
 	return (
 		<div>
-			<p>Count: {count}</p>
-			<p>Doubled: {doubled}</p>
-			<button onClick={counterStore.increment}>Increment</button>
-			<button onClick={counterStore.decrement}>Decrement</button>
+			<p>Name: {name}</p>
+			<p>Age: {age}</p>
+			<p>Full Name: {fullName}</p>
+			<button onClick={userStore.incrementAge}>Increment Age</button>
 		</div>
 	);
 };
@@ -126,36 +229,40 @@ By default, stores are global and work without the need for any provider. Howeve
 ```tsx
 const ParentComponent = () => {
 	return (
-		<counterStore.LocalProvider initialValue={{ count: 5 }}>
+		<userStore.LocalProvider initialValue={{ name: 'Jane', age: 30 }}>
 			<ChildComponent />
-		</counterStore.LocalProvider>
+		</userStore.LocalProvider>
 	);
 };
 
 const ChildComponent = () => {
-	const localStore = counterStore.useLocalStore();
-	const count = localStore.count.use();
+	const localStore = userStore.useLocalStore();
+	const name = localStore.name.use();
+	const age = localStore.age.use();
 
-	return <div>Count: {count}</div>;
+	return (
+		<div>
+			<p>Name: {name}</p>
+			<p>Age: {age}</p>
+		</div>
+	);
 };
 ```
+
+Note: the store definition initial value will be merged the local provider initial value, which is optional.
 
 ### Options
 
 The `store` function accepts an optional second parameter for options,
 
 ```tsx
-const counterStore = store(
-	{ count: 0 },
-
-	{
-		middlewares: [],
-		devtools: true,
-		persist: true,
-		immer: true,
-		name: 'counterStore',
-	}
-);
+const counterStore = store(0, {
+	middlewares: [],
+	devtools: true,
+	persist: true,
+	immer: true,
+	name: 'counterStore',
+});
 ```
 
 - `middlewares`: an array of middleware functions
