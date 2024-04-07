@@ -1,6 +1,13 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+	render,
+	screen,
+	fireEvent,
+	waitFor,
+	act,
+} from '@testing-library/react';
 import { describe, expect, it, beforeEach, test } from 'vitest';
 import { createStore } from '../src';
+import { useRef } from 'react';
 
 // Define testIds only once, avoiding repetition
 const testIds = {
@@ -125,6 +132,51 @@ describe('createStore', () => {
 			expect(ui.count).toBe('Count: 0');
 			expect(ui.doubledCount).toBe('Doubled: 0');
 		});
+
+		test('should update only the component using the primitive store when the value changes', () => {
+			const countStore = createStore(0);
+
+			const ComponentUsingGet = () => {
+				const renderCount = useRef(0);
+				const _count = countStore.get();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingGetRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ComponentUsingUse = () => {
+				const renderCount = useRef(0);
+				const _count = countStore.use();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingUseRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ui = getUi(
+				render(
+					<>
+						<ComponentUsingGet />
+						<ComponentUsingUse />
+					</>
+				)
+			);
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('1');
+
+			act(() => {
+				countStore.set(10);
+			});
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('2');
+		});
 	});
 	describe('nested object store', () => {
 		test('should access and update the entire state', () => {
@@ -145,7 +197,6 @@ describe('createStore', () => {
 				},
 			});
 			countStore.set((draft) => {
-				console.log('DRAFT', draft);
 				draft.parent.count = 30;
 			});
 
@@ -154,6 +205,62 @@ describe('createStore', () => {
 			});
 			// // @ts-expect-error
 			// expect(countStore.parent.count.get()).toBe(20);
+		});
+
+		test('should update only the component using the nested store when a nested value changes', () => {
+			const userStore = createStore({ user: { name: 'John', age: 25 } });
+
+			const ComponentUsingGet = () => {
+				const renderCount = useRef(0);
+				// @ts-expect-error
+				const _name = userStore.user.name.get();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingGetRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ComponentUsingUse = () => {
+				const renderCount = useRef(0);
+				// @ts-expect-error
+				const _name = userStore.user.name.use();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingUseRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ui = getUi(
+				render(
+					<>
+						<ComponentUsingGet />
+						<ComponentUsingUse />
+					</>
+				)
+			);
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('1');
+
+			act(() => {
+				// @ts-expect-error
+				userStore.user.name.set('Jane');
+			});
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('2');
+
+			act(() => {
+				// @ts-expect-error
+				userStore.user.age.set(30);
+			});
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('2');
 		});
 	});
 });
