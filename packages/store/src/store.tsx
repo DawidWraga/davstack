@@ -15,8 +15,8 @@ import React from 'react';
 import type { StateCreator } from 'zustand';
 import {
 	createGlobalMethods,
-	generateInnerSelectors,
-} from './utils/generate-inner-selectors';
+	createInnerMethods,
+} from './utils/create-methods';
 export const store = <TState extends State, TName extends string>(
 	initialState: TState,
 	options: storeOptions<TState, TName> = {}
@@ -77,7 +77,7 @@ export const store = <TState extends State, TName extends string>(
 			storeName: name,
 		});
 
-		const innerMethods = generateInnerSelectors({
+		const innerMethods = createInnerMethods({
 			globalMethods,
 			storeName: name,
 		});

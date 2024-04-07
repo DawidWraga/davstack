@@ -5,6 +5,7 @@ import React from 'react';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
 import { NamedSet } from 'zustand/middleware';
 import { StoreApi as ZustandStoreApi } from 'zustand/vanilla';
+import { InnerStateMethods } from './utils/create-methods';
 
 export type State = unknown;
 
@@ -20,23 +21,11 @@ export type StoreApiUseTracked<
 > = GetRecord<T> & TSelectors;
 export type StoreApiSet<TActions = {}> = TActions;
 
-export type DynamicStateMethods<TState> = {
-	[TKey in keyof TState]: {
-		get: () => TState[TKey];
-
-		set: (
-			newValueOrFn: TState[TKey] | ((prev: TState[TKey]) => TState[TKey])
-		) => void;
-		use: () => TState[TKey];
-		useTracked: () => TState[TKey];
-	};
-};
-
 export type StoreApi<
 	TName extends string,
 	T extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = DynamicStateMethods<T> &
+> = InnerStateMethods<T> &
 	TExtendedProps & {
 		immerStoreApi: ImmerStoreApi<T>;
 		/**

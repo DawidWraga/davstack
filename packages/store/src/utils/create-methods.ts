@@ -54,12 +54,12 @@ export const createGlobalMethods = <TState extends State>(options: {
 	return globalMethods;
 };
 
-export const generateInnerSelectors = <T extends State>(options: {
+export const createInnerMethods = <T extends State>(options: {
 	globalMethods: ReturnType<typeof createGlobalMethods<T>>;
 	storeName: string;
 	storeValues?: T;
 	path?: string[];
-}): DynamicStateMethods<T> => {
+}): InnerStateMethods<T> => {
 	const {
 		globalMethods,
 		storeValues = globalMethods.get(),
@@ -110,7 +110,7 @@ export const generateInnerSelectors = <T extends State>(options: {
 
 			// Recursively handle nested objects
 			const nestedSelectors = isObject(value)
-				? generateInnerSelectors({
+				? createInnerMethods({
 						globalMethods,
 						storeValues: value as T,
 						path: currentPath, // Pass the updated path for nested selectors
@@ -120,10 +120,10 @@ export const generateInnerSelectors = <T extends State>(options: {
 
 			return [key, Object.assign(methods, nestedSelectors)];
 		})
-	) as unknown as DynamicStateMethods<T>;
+	) as unknown as InnerStateMethods<T>;
 };
 
-export type DynamicStateMethods<TState> = {
+export type InnerStateMethods<TState> = {
 	[TKey in keyof TState]: {
 		get: () => TState[TKey];
 		set: (
