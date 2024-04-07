@@ -127,7 +127,7 @@ describe('createStore', () => {
 		});
 	});
 	describe('nested object store', () => {
-		test.only('should access and update the entire state', () => {
+		test('should access and update the entire state', () => {
 			const countStore = createStore({ parent: { count: 2 } });
 
 			// @ts-expect-error
@@ -139,18 +139,18 @@ describe('createStore', () => {
 			// @ts-expect-error
 			expect(countStore.parent.count.get()).toBe(10);
 
-			// countStore.assign({
-			// 	parent: {
-			// 		count: 20,
-			// 	},
-			// });
+			countStore.assign({
+				parent: {
+					count: 20,
+				},
+			});
 			countStore.set((draft) => {
 				console.log('DRAFT', draft);
-				draft.parent.count = 20;
+				draft.parent.count = 30;
 			});
 
 			expect(countStore.get()).toStrictEqual({
-				parent: { count: 20 },
+				parent: { count: 30 },
 			});
 			// // @ts-expect-error
 			// expect(countStore.parent.count.get()).toBe(20);

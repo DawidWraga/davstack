@@ -1,5 +1,5 @@
+/* eslint-disable no-unused-vars */
 import { enableMapSet, setAutoFreeze } from 'immer';
-import { createTrackedSelector } from 'react-tracked';
 import {
 	devtools as devtoolsMiddleware,
 	persist as persistMiddleware,
@@ -9,7 +9,6 @@ import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from './middlewares/immer.middleware';
 import {
-	DynamicStateMethods,
 	ImmerStoreApi,
 	MergeState,
 	SetImmerState,
@@ -18,14 +17,11 @@ import {
 	UseImmerStore,
 } from './types';
 import { CreateStoreOptions } from './types/CreateStoreOptions';
-import { generateStateActions, isFunction } from './utils/generateStateActions';
-import { generateStateGetSelectors } from './utils/generateStateGetSelectors';
-import { generateStateHookSelectors } from './utils/generateStateHookSelectors';
-import { generateStateTrackedHooksSelectors } from './utils/generateStateTrackedHooksSelectors';
 import { pipe } from './utils/pipe';
 
 import React from 'react';
 import type { StateCreator } from 'zustand';
+import { generateInnerSelectors } from './utils/generate-inner-selectors';
 export const createStore = <TState extends State, TName extends string>(
 	initialState: TState,
 	options: CreateStoreOptions<TState, TName> = {}
@@ -91,81 +87,6 @@ export const createStore = <TState extends State, TName extends string>(
 		const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
 			immerStoreApi.setState(fnOrNewValue, actionName || `@@${name}/setState`);
 		};
-		const useTrackedStore = createTrackedSelector(useStore);
-		function generateInnerSelectors(state: unknown) {
-			if (!isObject(initialState)) {
-				return {};
-			}
-
-			const localImmerStoreApi = immerStoreApi;
-			// const localImmerStoreApi = pipeMiddlewares(() => state as TState);
-
-			type TStateButObject = TState extends object ? TState : never;
-
-			const stateActions = generateStateActions<TStateButObject>(
-				// @ts-expect-error
-				localImmerStoreApi,
-				name
-			);
-			const hookSelectors = generateStateHookSelectors<TStateButObject>(
-				// @ts-expect-error
-				useStore,
-				localImmerStoreApi
-			);
-			const getterSelectors =
-				// @ts-expect-error
-				generateStateGetSelectors<TStateButObject>(localImmerStoreApi);
-
-			const trackedHooksSelectors = generateStateTrackedHooksSelectors(
-				useTrackedStore,
-				localImmerStoreApi
-			);
-
-			const innerSelectors = Object.fromEntries(
-				Object.entries(state as object).map(([key, value]: [string, any]) => {
-					console.log('HERE', {
-						key,
-						value,
-						isObject: isObject(value),
-					});
-					const currentLevelSelectors = {
-						// @ts-expect-error
-						get: () => getterSelectors[key](),
-						// @ts-expect-error TODO: fix this
-
-						set: (...args: any[]) => stateActions[key](...args),
-						// @ts-expect-error
-						use: (...args: any[]) => hookSelectors[key](...args),
-						useTracked: (...args: any[]) =>
-							// @ts-expect-error
-							trackedHooksSelectors[key](...args),
-					};
-
-					// if the value is an object, then recursively generate the inner selectors
-					if (isObject(value)) {
-						const nextLevelSelectors = generateInnerSelectors(value);
-						return [
-							key,
-							Object.assign(currentLevelSelectors, nextLevelSelectors),
-						];
-					}
-
-					// if (isObject(value)) {
-					// 	return [
-					// 		key,
-					// 		Object.assign(
-					// 			currentLevelSelectors,
-					// 			generateInnerSelectors(value)
-					// 		),
-					// 	];
-					// }
-
-					return [key, currentLevelSelectors];
-				})
-			) as DynamicStateMethods<TStateButObject>;
-
-			return innerSelectors;
-		}
 
 		const assign: MergeState<TState> = (state, actionName) => {
 			immerStoreApi.setState(
@@ -181,15 +102,24 @@ export const createStore = <TState extends State, TName extends string>(
 			);
 		};
 
-		return {
-			...generateInnerSelectors(initialState),
-			immerStoreApi,
-			storeName: name,
+		const globalMethods = {
 			set: setState,
 			get: immerStoreApi.getState,
 			use: useStore,
-			useTracked: useTrackedStore,
-			assign,
+			assign: assign,
+		};
+
+		const innerMethods = generateInnerSelectors({
+			immerStore: immerStoreApi,
+			useStore,
+			storeName: name,
+		});
+
+		return {
+			storeName: name,
+			immerStoreApi,
+			...globalMethods,
+			...innerMethods,
 		};
 	};
 
@@ -257,6 +187,6 @@ export const createStore = <TState extends State, TName extends string>(
 	return api as unknown as StoreApi<TName, TState, {}>;
 };
 
-function isObject(value: any): value is Record<string, any> {
+export function isObject(value: any): value is Record<string, any> {
 	return value instanceof Object && !(value instanceof Array);
 }
