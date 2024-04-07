@@ -183,20 +183,18 @@ describe('store', () => {
 			const countStore = store({ parent: { count: 2 } });
 
 			test('get', () => {
-				// @ts-expect-error
 				const counterValues = countStore.parent.count.get();
 				expect(counterValues).toBe(2);
 			});
 
 			test('set', () => {
-				// @ts-expect-error
 				countStore.parent.count.set(10);
-				// @ts-expect-error
+
 				expect(countStore.parent.count.get()).toBe(10);
 			});
 
 			test('assign', () => {
-				console.log('INSIDE ASSIGN NESTED OBJ: ', countStore);
+				// console.log('INSIDE ASSIGN NESTED OBJ: ', countStore);
 				countStore.assign({
 					parent: {
 						count: 30,
@@ -216,7 +214,7 @@ describe('store', () => {
 
 			const ComponentUsingGet = () => {
 				const renderCount = useRef(0);
-				// @ts-expect-error
+
 				const _name = userStore.user.name.get();
 				renderCount.current++;
 				return (
@@ -228,7 +226,7 @@ describe('store', () => {
 
 			const ComponentUsingUse = () => {
 				const renderCount = useRef(0);
-				// @ts-expect-error
+
 				const _name = userStore.user.name.use();
 				renderCount.current++;
 				return (
@@ -251,7 +249,6 @@ describe('store', () => {
 			expect(ui.componentUsingUseRenderCount).toBe('1');
 
 			act(() => {
-				// @ts-expect-error
 				userStore.user.name.set('Jane');
 			});
 
@@ -259,7 +256,6 @@ describe('store', () => {
 			expect(ui.componentUsingUseRenderCount).toBe('2');
 
 			act(() => {
-				// @ts-expect-error
 				userStore.user.age.set(30);
 			});
 
@@ -279,18 +275,18 @@ describe('store', () => {
 		});
 
 		test('get', () => {
-			// @ts-expect-error
 			const counterValues = countStore.level1.level2.get();
 			expect(counterValues).toStrictEqual({ count2: 2 });
+
 			// @ts-expect-error
 			expect(() => countStore.level1.level2.level3.get()).toThrow();
 		});
 
 		test('set', () => {
-			// @ts-expect-error
 			countStore.level1.level2.set((prev) => ({ count2: prev.count2 + 8 }));
-			// @ts-expect-error
+
 			expect(countStore.level1.level2.get()).toStrictEqual({ count2: 10 });
+
 			// @ts-expect-error
 			expect(() => countStore.level1.level2.level3.set(20)).toThrow();
 		});
