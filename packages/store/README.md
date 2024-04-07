@@ -140,21 +140,6 @@ const ChildComponent = () => {
 };
 ```
 
-### Performance Optimizations
-
-The `useTracked` method from `react-tracked` can be used for performance optimizations by minimizing unnecessary re-renders. This uses proxies under the hood to track which properties are accessed.
-
-```tsx
-const Counter = () => {
-	// only rerenders when properties accessed using . notation have changed
-	const state = counterStore.useTracked();
-
-	// only rerenders when count has changed
-	const count = counterStore.count.useTracked();
-	// ...
-};
-```
-
 ### Options
 
 The `store` function accepts an optional second parameter for options,
