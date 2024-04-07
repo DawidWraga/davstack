@@ -8,7 +8,7 @@ import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from './middlewares/immer.middleware';
 import { ImmerStoreApi, SetImmerState, State, StoreApi } from './types';
-import { CreateStoreOptions } from './types/CreateStoreOptions';
+import { storeOptions } from './types/CreateStoreOptions';
 import { pipe } from './utils/pipe';
 
 import React from 'react';
@@ -17,9 +17,9 @@ import {
 	createGlobalMethods,
 	generateInnerSelectors,
 } from './utils/generate-inner-selectors';
-export const createStore = <TState extends State, TName extends string>(
+export const store = <TState extends State, TName extends string>(
 	initialState: TState,
-	options: CreateStoreOptions<TState, TName> = {}
+	options: storeOptions<TState, TName> = {}
 ): StoreApi<TName, TState, {}> => {
 	const { middlewares: _middlewares = [], devtools, persist, immer } = options;
 

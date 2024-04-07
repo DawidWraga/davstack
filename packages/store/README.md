@@ -23,9 +23,9 @@ Visit the [Davstack Store Docs](https://davstack.com/store/overview) for more in
 Types are inferred from the initial state object.
 
 ```tsx
-import { createStore } from '@davstack/store';
+import { store } from '@davstack/store';
 
-const counterStore = createStore({ count: 0 });
+const counterStore = store({ count: 0 });
 ```
 
 ### Subscribing to State Changes
@@ -65,7 +65,7 @@ const handleSubmit = async () => {
 Every key inside the store initial value automatically gets a `use`, `set`, and `get` method. You can also access the same methods on the store itself. Additionally, the store has a `assign` method to update multiple properties at once.
 
 ```tsx
-const counterStore = createStore({
+const counterStore = store({
 	count: 0,
 	secondCount: 0,
 });
@@ -92,7 +92,7 @@ Note: using the `store.use()` will subscribe the component to the entire store, 
 Use the `extend` method to define actions and computed properties. Extensions not only help to keep relevant code neatly packaged into one object but also impact the scoped store if you are using `LocalProvider`.
 
 ```tsx
-const counterStore = createStore({ count: 0 }).extend((store) => ({
+const counterStore = store({ count: 0 }).extend((store) => ({
 	increment() {
 		store.count.set(store.count.get() + 1);
 	},
@@ -157,10 +157,10 @@ const Counter = () => {
 
 ### Options
 
-The `createStore` function accepts an optional second parameter for options,
+The `store` function accepts an optional second parameter for options,
 
 ```tsx
-const counterStore = createStore(
+const counterStore = store(
 	{ count: 0 },
 
 	{

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import SuperJSON from "superjson";
 
 import { type ApiRouter } from "@/api/router";
-import { createStore } from "@davstack/store";
+import { store } from "@davstack/store";
 
 const createQueryClient = () => new QueryClient();
 

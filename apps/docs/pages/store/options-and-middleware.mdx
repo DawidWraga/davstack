@@ -1,9 +1,9 @@
 ### Options
 
-The `createStore` function accepts an optional second parameter for options,
+The `store` function accepts an optional second parameter for options,
 
 ```tsx
-const counterStore = createStore(
+const counterStore = store(
 	{ count: 0 },
 
 	{
@@ -29,7 +29,7 @@ Local storage example:
 ```tsx
 import { createJSONStorage } from 'zustand/middleware';
 
-export const todoStore = createStore(
+export const todoStore = store(
 	{
 		// Only need to cast the default value if the type can't be inferred
 		todos: [] as Todo[],
@@ -65,7 +65,7 @@ const customStorage: PersistStorage<{ todos: Todo[] }> = {
 	},
 };
 
-export const todoStore = createStore(
+export const todoStore = store(
 	{
 		// Only need to cast the default value if the type can't be inferred
 		todos: [] as Todo[],

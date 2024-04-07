@@ -21,9 +21,9 @@ A simple todo app using @davstack/store, using React, typescript, tailwind.
 Incase the codesandbox doesn't load, here is the code for the todo store:
 
 ```ts filename="todo-store.ts"
-import { createStore } from '@davstack/store';
+import { store } from '@davstack/store';
 
-export const todoStore = createStore({
+export const todoStore = store({
 	// Only need to cast the default value if the type can't be inferred
 	todos: [] as Todo[],
 }).extend((store) => ({

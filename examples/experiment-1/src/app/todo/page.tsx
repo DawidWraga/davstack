@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 "use client";
 import { apiUtils } from "@/api/react";
-import { createStore } from "@davstack/store";
+import { store } from "@davstack/store";
 import { PersistStorage } from "zustand/middleware";
 
 type Todo = {
@@ -38,7 +38,7 @@ const customStorage: PersistStorage<{ todos: Todo[] }> = {
     console.log(name, "has been deleted");
   },
 };
-export const todoStore = createStore(
+export const todoStore = store(
   {
     // Only need to cast the default value if the type can't be inferred
     todos: [] as Todo[],
@@ -111,7 +111,7 @@ function TodoItems() {
   );
 }
 
-const todoFormStore = createStore({
+const todoFormStore = store({
   todoText: "",
 });
 

@@ -6,7 +6,7 @@ import {
 	act,
 } from '@testing-library/react';
 import { describe, expect, it, beforeEach, test } from 'vitest';
-import { createStore } from '../src';
+import { store } from '../src';
 import { useRef } from 'react';
 
 // Define testIds only once, avoiding repetition
@@ -43,10 +43,10 @@ const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 	};
 };
 
-describe('createStore', () => {
+describe('store', () => {
 	describe('primative values store', () => {
 		test('should access and update the entire state', () => {
-			const countStore = createStore(2);
+			const countStore = store(2);
 
 			const counterValues = countStore.get();
 			expect(counterValues).toBe(2);
@@ -60,7 +60,7 @@ describe('createStore', () => {
 		});
 
 		test('should subscribe to state changes and update the state', () => {
-			const countStore = createStore(0);
+			const countStore = store(0);
 
 			const Counter = () => {
 				const count = countStore.use();
@@ -86,7 +86,7 @@ describe('createStore', () => {
 		});
 
 		test('should be able to extend store to define actions and computed properties', () => {
-			const countStore = createStore(0).extend((store) => ({
+			const countStore = store(0).extend((store) => ({
 				getDoubled() {
 					return store.get() * 2;
 				},
@@ -134,7 +134,7 @@ describe('createStore', () => {
 		});
 
 		test('should update only the component using the primitive store when the value changes', () => {
-			const countStore = createStore(0);
+			const countStore = store(0);
 
 			const ComponentUsingGet = () => {
 				const renderCount = useRef(0);
@@ -180,7 +180,7 @@ describe('createStore', () => {
 	});
 	describe('nested object store', () => {
 		test('should access and update the entire state', () => {
-			const countStore = createStore({ parent: { count: 2 } });
+			const countStore = store({ parent: { count: 2 } });
 
 			// @ts-expect-error
 			const counterValues = countStore.parent.count.get();
@@ -208,7 +208,7 @@ describe('createStore', () => {
 		});
 
 		test('should update only the component using the nested store when a nested value changes', () => {
-			const userStore = createStore({ user: { name: 'John', age: 25 } });
+			const userStore = store({ user: { name: 'John', age: 25 } });
 
 			const ComponentUsingGet = () => {
 				const renderCount = useRef(0);

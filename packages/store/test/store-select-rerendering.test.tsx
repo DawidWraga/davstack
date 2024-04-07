@@ -3,7 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react';
 import { act } from 'react-dom/test-utils';
 import { create as createZustandStore } from 'zustand';
 
-import { createStore } from '../src/createStore';
+import { store } from '../src/store';
 
 import { describe, expect, test } from 'vitest';
 
@@ -258,7 +258,7 @@ describe('store performance', () => {
 		});
 
 		test('davstack store: selective rerendering', async () => {
-			const myStore = createStore({
+			const myStore = store({
 				countA: 0,
 				countB: 0,
 			}).extend((store) => ({

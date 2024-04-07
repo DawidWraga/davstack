@@ -9,7 +9,7 @@ import {
 	UseImmerStore,
 } from '../types';
 
-import { isObject } from '../createStore';
+import { isObject } from '../store';
 import { EqualityChecker } from '../types';
 
 export const createGlobalMethods = <TState extends State>(options: {

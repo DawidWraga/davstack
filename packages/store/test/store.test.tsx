@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 
 import { describe, expect, it, test } from 'vitest';
-import { createStore } from '../src';
+import { store } from '../src';
 import { useEffect, useRef, useState } from 'react';
 const testIds = {
 	count: 'count',
@@ -64,14 +64,14 @@ const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 	};
 };
 
-describe('createStore', () => {
+describe('store', () => {
 	test('should create a store with the correct initial state', () => {
-		const counterStore = createStore({ count: 0 });
+		const counterStore = store({ count: 0 });
 		expect(counterStore.count.get()).toBe(0);
 	});
 
 	test('should subscribe to state changes and update the state', () => {
-		const counterStore = createStore({ count: 0 });
+		const counterStore = store({ count: 0 });
 
 		const Counter = () => {
 			const count = counterStore.count.use();
@@ -97,7 +97,7 @@ describe('createStore', () => {
 	});
 
 	test('should access state outside components', () => {
-		const counterStore = createStore({ count: 0 });
+		const counterStore = store({ count: 0 });
 
 		const handleSubmit = () => {
 			const count = counterStore.count.get();
@@ -108,7 +108,7 @@ describe('createStore', () => {
 	});
 
 	test('should be able to extend store to define actions and computed properties', () => {
-		const counterStore = createStore({ count: 0 }).extend((store) => ({
+		const counterStore = store({ count: 0 }).extend((store) => ({
 			getDoubled() {
 				return store.count.get() * 2;
 			},
@@ -156,7 +156,7 @@ describe('createStore', () => {
 	});
 
 	test('should access and update the entire state', () => {
-		const counterStore = createStore({ count: 0 });
+		const counterStore = store({ count: 0 });
 
 		const counterValues = counterStore.get();
 		expect(counterValues.count).toBe(0);
@@ -174,7 +174,7 @@ describe('createStore', () => {
 	});
 
 	// test('should use react-tracked for performance optimizations', async () => {
-	// 	const counterStore = createStore({ count: 0, name: 'Counter' });
+	// 	const counterStore = store({ count: 0, name: 'Counter' });
 
 	// 	const Counter = () => {
 	// 		const state = counterStore.useTracked();
@@ -206,7 +206,7 @@ describe('createStore', () => {
 	// });
 
 	describe('Should be able to extend hooks and rerender when the store changes', () => {
-		const altStore = createStore({
+		const altStore = store({
 			name: 'zustandX',
 			stars: 0,
 		})
@@ -275,7 +275,7 @@ describe('createStore', () => {
 			{ title: 'Book 4', category: 'History' },
 		];
 
-		const altStore = createStore({
+		const altStore = store({
 			searchTerm: '',
 		}).extend((store) => ({
 			useSearchBooks: (category: string) => {
@@ -352,7 +352,7 @@ describe('createStore', () => {
 
 	describe('local component store', () => {
 		test('should create local stores with different initial values', async () => {
-			const counterStore = createStore({ count: 0 });
+			const counterStore = store({ count: 0 });
 
 			const Counter = () => {
 				const localCounterStore = counterStore.useLocalStore();
@@ -395,7 +395,7 @@ describe('createStore', () => {
 		});
 
 		test('should be able to create and use local stores independently', async () => {
-			const userStore = createStore({
+			const userStore = store({
 				name: '',
 				age: 25,
 			}).extend((store) => ({
@@ -485,7 +485,7 @@ describe('createStore', () => {
 	});
 
 	describe("should be able to use the store's state in a callback", () => {
-		const countStore = createStore({ count: 0 }).extend((store) => ({
+		const countStore = store({ count: 0 }).extend((store) => ({
 			incrementUsingCalback: () => {
 				store.count.set((prev) => prev + 1);
 			},

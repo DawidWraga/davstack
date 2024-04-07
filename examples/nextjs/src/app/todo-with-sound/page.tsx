@@ -1,5 +1,5 @@
 'use client';
-import { createStore } from '@davstack/store';
+import { store } from '@davstack/store';
 import { soundStore } from './sound-store';
 import { SoundToggle, VolumeControl } from './sound-toggle';
 
@@ -9,7 +9,7 @@ type Todo = {
 	completed: boolean;
 };
 
-export const todoStore = createStore({
+export const todoStore = store({
 	// Only need to cast the default value if the type can't be inferred
 	todos: [] as Todo[],
 }).extend((store) => ({
@@ -84,7 +84,7 @@ function TodoItems() {
 	);
 }
 
-const todoFormStore = createStore({
+const todoFormStore = store({
 	todoText: '',
 });
 

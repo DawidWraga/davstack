@@ -1,6 +1,6 @@
 'use client';
 
-import { createStore } from '@davstack/store';
+import { store } from '@davstack/store';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export default function Page() {
@@ -20,7 +20,7 @@ const books = [
 	{ title: 'The Lord of the Rings', author: 'J.R.R. Tolkien' },
 ];
 
-const altStore = createStore({
+const altStore = store({
 	searchTerm: '',
 }).extend((store) => ({
 	useFilteredBooks: () => {

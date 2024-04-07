@@ -1,4 +1,4 @@
-import { createStore } from '@davstack/store';
+import { store } from '@davstack/store';
 import { Howl, HowlOptions } from 'howler';
 import { useEffect } from 'react';
 import { lazyImportHowlerConstructor } from './howler-lazy';
@@ -97,7 +97,7 @@ export function createSoundStore<
 	) as unknown as Record<SoundName, Howl>;
 
 	// Create the sound store
-	return createStore({
+	return store({
 		sounds: initialSounds,
 		volume,
 		playbackRate,

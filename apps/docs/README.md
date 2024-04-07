@@ -23,12 +23,12 @@ npm install zustand-x
 
 ### Creating a Store
 
-To create a store, use the `createStore` function and define your initial state:
+To create a store, use the `store` function and define your initial state:
 
 ```tsx
-import { createStore } from 'zustand-x';
+import { store } from 'zustand-x';
 
-const counterStore = createStore({
+const counterStore = store({
 	count: 0,
 });
 ```
@@ -38,7 +38,7 @@ const counterStore = createStore({
 Use the `extend` method to define actions and computed properties:
 
 ```tsx
-const counterStore = createStore({ count: 0 }).extend((store) => ({
+const counterStore = store({ count: 0 }).extend((store) => ({
 	increment() {
 		store.count.set(store.count.get() + 1);
 	},
@@ -120,7 +120,7 @@ const ChildComponent = () => {
 
 ## Best Practices
 
-- Always call `createStore` first to define the initial state before chaining other methods.
+- Always call `store` first to define the initial state before chaining other methods.
 - Use `extend` to define actions and computed properties. Multiple calls to `extend` will merge the properties.
 - Access state, computed properties, and actions using the `use`, `get`, and direct property access methods.
 - Avoid overwriting the store instance directly, as it will break the reactivity.
