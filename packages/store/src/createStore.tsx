@@ -4,24 +4,19 @@ import {
 	devtools as devtoolsMiddleware,
 	persist as persistMiddleware,
 } from 'zustand/middleware';
-import { useStoreWithEqualityFn } from 'zustand/traditional';
 import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from './middlewares/immer.middleware';
-import {
-	ImmerStoreApi,
-	MergeState,
-	SetImmerState,
-	State,
-	StoreApi,
-	UseImmerStore,
-} from './types';
+import { ImmerStoreApi, SetImmerState, State, StoreApi } from './types';
 import { CreateStoreOptions } from './types/CreateStoreOptions';
 import { pipe } from './utils/pipe';
 
 import React from 'react';
 import type { StateCreator } from 'zustand';
-import { generateInnerSelectors } from './utils/generate-inner-selectors';
+import {
+	createGlobalMethods,
+	generateInnerSelectors,
+} from './utils/generate-inner-selectors';
 export const createStore = <TState extends State, TName extends string>(
 	initialState: TState,
 	options: CreateStoreOptions<TState, TName> = {}
@@ -77,41 +72,13 @@ export const createStore = <TState extends State, TName extends string>(
 	 */
 	const createInnerStore = (initialState: TState) => {
 		const immerStoreApi = pipeMiddlewares(() => initialState);
-		const useStore = ((selector, equalityFn) =>
-			useStoreWithEqualityFn(
-				immerStoreApi as any,
-				selector as any,
-				equalityFn as any
-			)) as UseImmerStore<TState>;
-
-		const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
-			immerStoreApi.setState(fnOrNewValue, actionName || `@@${name}/setState`);
-		};
-
-		const assign: MergeState<TState> = (state, actionName) => {
-			immerStoreApi.setState(
-				// if state is not, then just pass the value just like .set. Otherwise merge the state
-				// @ts-expect-error
-				isObject(initialState)
-					? (draft) => {
-							Object.assign(draft as any, state);
-						}
-					: state,
-
-				actionName || `@@${name}/assign`
-			);
-		};
-
-		const globalMethods = {
-			set: setState,
-			get: immerStoreApi.getState,
-			use: useStore,
-			assign: assign,
-		};
+		const globalMethods = createGlobalMethods({
+			immerStore: immerStoreApi,
+			storeName: name,
+		});
 
 		const innerMethods = generateInnerSelectors({
-			immerStore: immerStoreApi,
-			useStore,
+			globalMethods,
 			storeName: name,
 		});
 

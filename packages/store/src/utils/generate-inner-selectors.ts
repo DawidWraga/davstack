@@ -1,23 +1,68 @@
-import { isObject } from '../createStore';
+/* eslint-disable no-unused-vars */
+import { useStoreWithEqualityFn } from 'zustand/traditional';
+
 import {
-	EqualityChecker,
-	GetRecord,
 	ImmerStoreApi,
+	MergeState,
+	SetImmerState,
 	State,
 	UseImmerStore,
 } from '../types';
 
+import { isObject } from '../createStore';
+import { EqualityChecker } from '../types';
+
+export const createGlobalMethods = <TState extends State>(options: {
+	immerStore: ImmerStoreApi<TState>;
+	storeValues?: TState;
+	storeName: string;
+}) => {
+	const { immerStore, storeValues, storeName } = options;
+
+	const useStore = ((selector, equalityFn) =>
+		useStoreWithEqualityFn(
+			immerStore as any,
+			selector as any,
+			equalityFn as any
+		)) as UseImmerStore<TState>;
+
+	const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
+		immerStore.setState(fnOrNewValue, actionName || `@@${storeName}/setState`);
+	};
+
+	const assign: MergeState<TState> = (state, actionName) => {
+		immerStore.setState(
+			// if state is not, then just pass the value just like .set. Otherwise merge the state
+			// @ts-expect-error
+			isObject(storeValues)
+				? (draft) => {
+						Object.assign(draft as any, state);
+					}
+				: state,
+
+			actionName || `@@${storeName}/assign`
+		);
+	};
+
+	const globalMethods = {
+		set: setState,
+		get: immerStore.getState,
+		use: useStore,
+		assign: assign,
+	};
+
+	return globalMethods;
+};
+
 export const generateInnerSelectors = <T extends State>(options: {
-	useStore: UseImmerStore<T>;
-	immerStore: ImmerStoreApi<T>;
+	globalMethods: ReturnType<typeof createGlobalMethods<T>>;
 	storeName: string;
 	storeValues?: T;
 	path?: string[];
 }): DynamicStateMethods<T> => {
 	const {
-		useStore,
-		immerStore,
-		storeValues = immerStore.getState(),
+		globalMethods,
+		storeValues = globalMethods.get(),
 		path = [],
 		storeName,
 	} = options;
@@ -31,12 +76,12 @@ export const generateInnerSelectors = <T extends State>(options: {
 			const currentPath = [...path, key]; // Append the current key to the path
 
 			const methods = {
-				get: () => getPathValue(immerStore.getState(), currentPath),
+				get: () => getPathValue(globalMethods.get(), currentPath),
 				set: (newValueOrFn: any) => {
 					const isCallback = isFunction(newValueOrFn);
 					const isValue = !isCallback;
 
-					const prevValue = getPathValue(immerStore.getState(), currentPath);
+					const prevValue = getPathValue(globalMethods.get(), currentPath);
 					// if is value and the value is the same as the current value, return early
 					if (isValue) {
 						const noChange = prevValue === newValueOrFn;
@@ -44,7 +89,8 @@ export const generateInnerSelectors = <T extends State>(options: {
 					}
 
 					const actionKey = key.replace(/^\S/, (s) => s.toUpperCase());
-					return immerStore.setState((draft) => {
+
+					return globalMethods.set((draft) => {
 						if (isValue) {
 							setPathValue(draft, currentPath, newValueOrFn);
 						}
@@ -56,7 +102,7 @@ export const generateInnerSelectors = <T extends State>(options: {
 				},
 
 				use: (equalityFn?: EqualityChecker<any>) => {
-					return useStore((state) => {
+					return globalMethods.use((state) => {
 						return getPathValue(state, currentPath);
 					}, equalityFn);
 				},
@@ -65,8 +111,7 @@ export const generateInnerSelectors = <T extends State>(options: {
 			// Recursively handle nested objects
 			const nestedSelectors = isObject(value)
 				? generateInnerSelectors({
-						useStore,
-						immerStore,
+						globalMethods,
 						storeValues: value as T,
 						path: currentPath, // Pass the updated path for nested selectors
 						storeName,
