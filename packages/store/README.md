@@ -162,8 +162,6 @@ userStore.address.street.set('456 Oak St');
 The `assign` method uses `Object.assign` under the hood to only set changed values. If the value is not an object, `assign` behaves the same as `set`.
 
 ```tsx
-co;
-
 // will set name & age, but not address
 userStore.assign({
 	name: 'Jane',
