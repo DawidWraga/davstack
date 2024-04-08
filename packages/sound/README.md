@@ -57,11 +57,7 @@ Note: This package is built with [Davstack Store](https://davstack.com/store/ove
 
 First, Add sounds to /public eg `./public/sounds/pop.mp3` (assuming you are using next.js)
 
-To find a small selection of high quality sounds, check out [this example project](https://github.com/DawidWraga/davstack/tree/main/examples/nextjs) in the davstack repo.
-
-Credit to josh w comeau for the sounds and the idea (i took the sounds from his network requests)
-
-Alternatively the material ui has some good quality sounds too.
+For a small selection of high quality sounds, I recommend [material design sound assets](https://m2.material.io/design/sound/sound-resources.html#)
 
 ### Define your sound store
 
