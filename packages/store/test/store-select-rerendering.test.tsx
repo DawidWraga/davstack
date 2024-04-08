@@ -314,5 +314,64 @@ describe('store performance', () => {
 				expect(myStore.countB.get()).toBe(1);
 			});
 		});
+		test('davstack store: selective rerendering: nested', async () => {
+			const myStore = store({
+				parent: {
+					countA: 0,
+					countB: 0,
+				},
+			}).extend((store) => ({
+				incrementB: () => {
+					store.parent.countB.set(store.parent.countB.get() + 1);
+				},
+			}));
+			const ComponentA = () => {
+				const renderCount = useRef(0);
+
+				renderCount.current++;
+				return (
+					<span data-testid={testId.componentARenderCount}>
+						{renderCount.current}
+					</span>
+				);
+			};
+
+			const ComponentB = () => {
+				const renderCount = useRef(0);
+				const countB = myStore.parent.countB.use();
+				renderCount.current++;
+				return (
+					<span data-testid={testId.componentBRenderCount}>
+						{renderCount.current}
+					</span>
+				);
+			};
+
+			const renderResult = render(
+				<>
+					<ComponentA />
+					<ComponentB />
+				</>
+			);
+			const ui = getUi(renderResult);
+
+			// Initial render
+			expect(myStore.parent.countA.get()).toBe(0);
+			expect(myStore.parent.countB.get()).toBe(0);
+			expect(ui.componentARenderCount).toBe('1');
+			expect(ui.componentBRenderCount).toBe('1');
+
+			act(() => {
+				// myStore.set.incrementB();
+				myStore.parent.countB.set(myStore.parent.countB.get() + 1);
+			});
+
+			await waitFor(() => {
+				// Only ComponentB should re-render
+				expect(ui.componentARenderCount).toBe('1');
+				expect(ui.componentBRenderCount).toBe('2');
+				expect(myStore.parent.countB.get()).toBe(1);
+			});
+		});
 	});
 });
