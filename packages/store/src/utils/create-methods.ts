@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import { useStoreWithEqualityFn } from 'zustand/traditional';
-
 import {
 	ImmerStoreApi,
 	MainStoreMethods,
@@ -8,66 +7,45 @@ import {
 	State,
 	UseImmerStore,
 } from '../types';
-
-import { produce, createDraft } from 'immer';
-import { isObject } from '../store';
 import { EqualityChecker } from '../types';
-export const createInternalMethods = <TState extends State>(options: {
-	immerStore: ImmerStoreApi<TState>;
+import { isObject } from '../store';
+
+export const createMethods = <T extends State>(options: {
+	immerStore: ImmerStoreApi<T>;
 	storeName: string;
-}): InternalMethods<TState> => {
-	const { immerStore, storeName } = options;
+	currentPath: string[];
+	key: string;
+	value: any;
+}): MainStoreMethods<T> => {
+	const { immerStore, storeName, currentPath, key, value } = options;
+
+	const isGlobal = currentPath.length === 0;
 
 	const useStore = ((selector, equalityFn) =>
 		useStoreWithEqualityFn(
 			immerStore as any,
 			selector as any,
 			equalityFn as any
-		)) as UseImmerStore<TState>;
+		)) as UseImmerStore<T>;
 
-	const setState: SetImmerState<TState> = (fnOrNewValue, actionName) => {
+	const setState: SetImmerState<T> = (fnOrNewValue, actionName) => {
 		immerStore.setState(fnOrNewValue, actionName || `@@${storeName}/setState`);
 	};
-
-	return {
-		get: immerStore.getState,
-		set: setState,
-		use: useStore,
-	};
-};
-
-export type InternalMethods<TState> = {
-	set: SetImmerState<TState>;
-	get: () => TState;
-	use: UseImmerStore<TState>;
-};
-
-const createMethods = <T extends State>(options: {
-	internalMethods: InternalMethods<T>;
-	storeName: string;
-	currentPath: string[];
-	key: string;
-	value: any;
-}): MainStoreMethods<T> => {
-	const { internalMethods, storeName, currentPath, key, value } = options;
-
-	const isGlobal = currentPath.length === 0;
 
 	const set = (newValueOrFn: any) => {
 		const isCallback = isFunction(newValueOrFn);
 		const isValue = !isCallback;
 
-		const prevValue = getPathValue(internalMethods.get(), currentPath);
+		const prevValue = getPathValue(immerStore.getState(), currentPath);
 		if (isValue && prevValue === newValueOrFn) {
 			return;
 		}
 
 		const actionKey = key.replace(/^\S/, (s) => s.toUpperCase());
 
-		return internalMethods.set((draft) => {
+		return setState((draft) => {
 			if (isGlobal && isValue) {
 				draft = newValueOrFn;
-
 				return draft;
 			}
 
@@ -89,9 +67,9 @@ const createMethods = <T extends State>(options: {
 
 	const methods = {
 		set,
-		get: () => getPathValue(internalMethods.get(), currentPath),
+		get: () => getPathValue(immerStore.getState(), currentPath),
 		use: (equalityFn?: EqualityChecker<any>) => {
-			return internalMethods.use((state) => {
+			return useStore((state) => {
 				return getPathValue(state, currentPath);
 			}, equalityFn);
 		},
@@ -110,7 +88,6 @@ const createMethods = <T extends State>(options: {
 };
 
 export const createNestedMethods = <T extends State>(options: {
-	internalMethods?: InternalMethods<T>;
 	immerStore: ImmerStoreApi<T>;
 	storeName: string;
 	storeValues?: T;
@@ -120,10 +97,6 @@ export const createNestedMethods = <T extends State>(options: {
 		immerStore,
 		storeName,
 		storeValues = immerStore.getState(),
-		internalMethods = createInternalMethods({
-			immerStore,
-			storeName,
-		}),
 		path = [],
 	} = options;
 
@@ -131,18 +104,17 @@ export const createNestedMethods = <T extends State>(options: {
 	const valueIsObject = isObject(storeValues);
 	const valueIsPrimitive = !valueIsObject;
 
-	// STOP RECURSION AT 2 levels deep. This is temporary solution to avoid damaging parformance with deeply nested objects. Long term solution is to implement proxies. I have tried for a long time and have to move on for now.
+	// STOP RECURSION AT 2 levels deep. This is temporary solution to avoid damaging performance with deeply nested objects. Long term solution is to implement proxies. I have tried for a long time and have to move on for now.
 	if (path.length > 1) {
-		// console.log('PATH:', path);
 		return {} as MainStoreMethods<T>;
 	}
 
-	// support parent primative values
+	// support parent primitive values
 	if (valueIsPrimitive && isParent) {
 		return createParentMethods();
 	}
 
-	// if not global primative, then must be the deepest level, so stop recursive loop
+	// if not global primitive, then must be the deepest level, so stop recursive loop
 	if (!isParent && valueIsPrimitive) {
 		return {} as MainStoreMethods<T>;
 	}
@@ -157,7 +129,7 @@ export const createNestedMethods = <T extends State>(options: {
 
 	function createParentMethods() {
 		return createMethods({
-			internalMethods,
+			immerStore,
 			storeName,
 			currentPath: [],
 			key: '',
@@ -170,7 +142,7 @@ export const createNestedMethods = <T extends State>(options: {
 			Object.entries(storeValues as object).map(([key, value]) => {
 				const currentPath = [...path, key];
 				const currentMethods = createMethods({
-					internalMethods: internalMethods,
+					immerStore,
 					storeName,
 					currentPath,
 					key,
@@ -178,9 +150,7 @@ export const createNestedMethods = <T extends State>(options: {
 				});
 
 				const nestedMethods = createNestedMethods({
-					internalMethods,
 					immerStore,
-
 					storeValues: value as T,
 					path: currentPath,
 					storeName,
@@ -191,10 +161,19 @@ export const createNestedMethods = <T extends State>(options: {
 		);
 	}
 };
+
+// UTILS
+
+/**
+ * Get a value from a nested object using a path array
+ */
 function getPathValue<T>(state: T, path: string[]): any {
 	return path.reduce((acc, key) => acc[key], state as any);
 }
 
+/**
+ * Set a value in a nested object using a path array
+ */
 function setPathValue<T>(draft: T, path: string[], value: any): void {
 	if (path.length === 0) {
 		draft = value;
@@ -216,41 +195,14 @@ function setPathValue<T>(draft: T, path: string[], value: any): void {
 	current[path[path.length - 1]] = value;
 }
 
-export const deepSet = (obj: any, path: string[], val: any) => {
-	// path = path.replaceAll("[", ".[");
-	// const keys = path.split(".");
-
-	const keys = path;
-
-	for (let i = 0; i < keys.length; i++) {
-		let currentKey = keys[i] as any;
-		let nextKey = keys[i + 1] as any;
-		if (currentKey.includes('[')) {
-			currentKey = parseInt(currentKey.substring(1, currentKey.length - 1));
-		}
-		if (nextKey && nextKey.includes('[')) {
-			nextKey = parseInt(nextKey.substring(1, nextKey.length - 1));
-		}
-
-		if (typeof nextKey !== 'undefined') {
-			obj[currentKey] = obj[currentKey]
-				? obj[currentKey]
-				: isNaN(nextKey)
-					? {}
-					: [];
-		} else {
-			obj[currentKey] = val;
-		}
-
-		obj = obj[currentKey];
-	}
-};
-
 export function isFunction<T extends Function = Function>(
 	value: any
 ): value is T {
 	return typeof value === 'function';
 }
+
+// OLD ATTMEPTS TO CREATE PROXY STORE METHODS
+
 // // export const createProxyStoreMethods = <T extends State>(options: {
 // // 	internalMethods?: InternalMethods<T>;
 // // 	immerStore: ImmerStoreApi<T>;
@@ -488,88 +440,88 @@ export function isFunction<T extends Function = Function>(
 // 	// return createMethodsProxy([]);
 // };
 
-export const createProxyStoreMethods = <T extends State>(options: {
-	internalMethods?: InternalMethods<T>;
-	immerStore: ImmerStoreApi<T>;
-	storeName: string;
-	storeValues?: T;
-	path?: string[];
-}): MainStoreMethods<T> => {
-	const {
-		immerStore,
-		storeName,
-		storeValues = immerStore.getState(),
-		internalMethods = createInternalMethods({ immerStore, storeName }),
-		path = [],
-	} = options;
+// export const createProxyStoreMethods = <T extends State>(options: {
+// 	internalMethods?: InternalMethods<T>;
+// 	immerStore: ImmerStoreApi<T>;
+// 	storeName: string;
+// 	storeValues?: T;
+// 	path?: string[];
+// }): MainStoreMethods<T> => {
+// 	const {
+// 		immerStore,
+// 		storeName,
+// 		storeValues = immerStore.getState(),
+// 		internalMethods = createInternalMethods({ immerStore, storeName }),
+// 		path = [],
+// 	} = options;
 
-	// This proxy handler will intercept get operations on any nested path
-	const proxyHandler: ProxyHandler<any> = {
-		get(target: any, key: PropertyKey, receiver: any): any {
-			// Convert key to string to handle cases where it might not be (e.g., Symbols)
-			if (typeof key !== 'string') return Reflect.get(target, key, receiver);
+// 	// This proxy handler will intercept get operations on any nested path
+// 	const proxyHandler: ProxyHandler<any> = {
+// 		get(target: any, key: PropertyKey, receiver: any): any {
+// 			// Convert key to string to handle cases where it might not be (e.g., Symbols)
+// 			if (typeof key !== 'string') return Reflect.get(target, key, receiver);
 
-			// Construct the new path for nested properties
-			const newPath = path.concat(key);
-			const newPathValue = getPathValue(storeValues, newPath);
+// 			// Construct the new path for nested properties
+// 			const newPath = path.concat(key);
+// 			const newPathValue = getPathValue(storeValues, newPath);
 
-			console.log('INSIDE PROXY:', {
-				target,
-				key,
-				newPath,
-				newPathValue,
-				storeValues,
-				path,
-			});
-			// If accessing a method directly on the store, return it
-			if (
-				path.length === 0 &&
-				internalMethods[key as keyof InternalMethods<T>]
-			) {
-				return (...args: any[]) =>
-					(internalMethods[key as keyof InternalMethods<T>] as any)(...args);
-			}
+// 			console.log('INSIDE PROXY:', {
+// 				target,
+// 				key,
+// 				newPath,
+// 				newPathValue,
+// 				storeValues,
+// 				path,
+// 			});
+// 			// If accessing a method directly on the store, return it
+// 			if (
+// 				path.length === 0 &&
+// 				internalMethods[key as keyof InternalMethods<T>]
+// 			) {
+// 				return (...args: any[]) =>
+// 					(internalMethods[key as keyof InternalMethods<T>] as any)(...args);
+// 			}
 
-			// Create methods for this path if it's not a nested object (end of recursion)
-			if (!isObject(newPathValue)) {
-				// @ts-expect-error
-				return createMethods({
-					internalMethods,
-					storeName,
-					currentPath: newPath,
-					key,
-					value: newPathValue,
-				})[key];
-			}
+// 			// Create methods for this path if it's not a nested object (end of recursion)
+// 			if (!isObject(newPathValue)) {
+// 				// @ts-expect-error
+// 				return createMethods({
+// 					internalMethods,
+// 					storeName,
+// 					currentPath: newPath,
+// 					key,
+// 					value: newPathValue,
+// 				})[key];
+// 			}
 
-			// If the new path value is an object, return a new proxy for it (recursion)
-			return new Proxy({}, createProxyHandler(newPath, newPathValue));
-		},
-	};
+// 			// If the new path value is an object, return a new proxy for it (recursion)
+// 			return new Proxy({}, createProxyHandler(newPath, newPathValue));
+// 		},
+// 	};
 
-	// Creates a proxy handler for a given path and its value
-	const createProxyHandler = (
-		path: string[],
-		value: any
-	): ProxyHandler<any> => {
-		return {
-			...proxyHandler, // Spread the original handler to inherit its behavior
-			get(target: any, key: PropertyKey, receiver: any): any {
-				// Override or extend behavior here if needed for nested paths
+// 	// Creates a proxy handler for a given path and its value
+// 	const createProxyHandler = (
+// 		path: string[],
+// 		value: any
+// 	): ProxyHandler<any> => {
+// 		return {
+// 			...proxyHandler, // Spread the original handler to inherit its behavior
+// 			get(target: any, key: PropertyKey, receiver: any): any {
+// 				// Override or extend behavior here if needed for nested paths
 
-				console.log('INSIDE PROXY HANDLER:', {
-					target,
-					key,
-					path,
-					value,
-				});
+// 				console.log('INSIDE PROXY HANDLER:', {
+// 					target,
+// 					key,
+// 					path,
+// 					value,
+// 				});
 
-				// @ts-expect-error
-				return proxyHandler.get(target, key, receiver);
-			},
-		};
-	};
+// 				// @ts-expect-error
+// 				return proxyHandler.get(target, key, receiver);
+// 			},
+// 		};
+// 	};
 
-	// Start with a proxy at the root of the store
-	return new Proxy({}, createProxyHandler(path, storeValues));
-};
+// 	// Start with a proxy at the root of the store
+// 	return new Proxy({}, createProxyHandler(path, storeValues));
+// };
