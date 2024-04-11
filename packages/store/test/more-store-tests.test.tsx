@@ -310,23 +310,4 @@ describe('store', () => {
 			});
 		});
 	});
-
-	// CURRENTLY NOT WORKING. easy solution is to just use store({items: []}) instead of store([]) for arrays.
-
-	// describe('should work with array state', () => {
-	// 	const listStore = store([1, 2, 3]);
-
-	// 	test('get', () => {
-	// 		const counterValues = listStore.get();
-
-	// 		expect(counterValues).toStrictEqual([1, 2, 3]);
-	// 	});
-
-	// 	test('set', () => {
-	// 		listStore.set((draft) => {
-	// 			draft.push(4);
-	// 		});
-	// 		expect(listStore.get()).toStrictEqual([1, 2, 3, 4]);
-	// 	});
-	// });
 });
