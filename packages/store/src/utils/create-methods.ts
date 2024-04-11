@@ -68,6 +68,18 @@ export const createMethods = <T extends State>(options: {
 	const methods = {
 		set,
 		get: () => getPathValue(immerStore.getState(), currentPath),
+		subscribe: (listener: any) =>
+			immerStore.subscribe(
+				(state) => {
+					return getPathValue(state, currentPath);
+				},
+				// @ts-expect-error
+				(...args) => {
+					console.log('INSIDE SUBSCRIBE:', { args });
+					return listener(...args);
+				}
+				// equality fn
+			),
 		use: (equalityFn?: EqualityChecker<any>) => {
 			return useStore((state) => {
 				return getPathValue(state, currentPath);

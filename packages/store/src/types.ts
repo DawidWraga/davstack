@@ -38,6 +38,13 @@ export type StoreMethods<TState> = {
 	use: () => TState;
 
 	/**
+	 * Subscribe to changes in the store
+	 * @param listener A callback that is called whenever the store changes
+	 * @returns A function to unsubscribe from the store
+	 */
+	subscribe: (listener: (state: TState) => void) => () => void;
+
+	/**
 		 * Assign a partial state to the store using Immer
 		 * @param state The partial state to assign
 		 * @example ts

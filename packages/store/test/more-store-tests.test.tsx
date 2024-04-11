@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import { useRef } from 'react';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { store } from '../src';
 
 // Define testIds only once, avoiding repetition
@@ -55,6 +55,15 @@ describe('store', () => {
 			test('assign', () => {
 				countStore.assign(20);
 				expect(countStore.get()).toBe(20);
+			});
+
+			test('subscribe', () => {
+				const cb = vi.fn();
+				countStore.set(11);
+				countStore.subscribe(cb);
+				countStore.set(12);
+				expect(cb).toHaveBeenCalledTimes(1);
+				expect(cb).toHaveBeenCalledWith(12, 11);
 			});
 		});
 
@@ -205,6 +214,17 @@ describe('store', () => {
 					parent: { count: 30 },
 				});
 			});
+
+			test('subscribe', () => {
+				const cb = vi.fn();
+				countStore.parent.count.set(8);
+				countStore.parent.count.subscribe(cb);
+				countStore.parent.count.set(9);
+				expect(cb).toHaveBeenCalledTimes(1);
+				// 1st = current; 2 = prev
+				expect(cb).toHaveBeenCalledWith(9, 8);
+			});
+
 			// // @ts-expect-error
 			// expect(countStore.parent.count.get()).toBe(20);
 		});
@@ -261,6 +281,36 @@ describe('store', () => {
 
 			expect(ui.componentUsingGetRenderCount).toBe('1');
 			expect(ui.componentUsingUseRenderCount).toBe('2');
+		});
+	});
+
+	describe('subscribe should not fire other subscribes', () => {
+		const countStore = store({ parent1: { count: 1 }, parent2: { count: 2 } });
+
+		test('v1', () => {
+			const cb1 = vi.fn();
+			const cb2 = vi.fn();
+
+			countStore.parent1.count.subscribe(cb1);
+			countStore.parent2.count.subscribe(cb2);
+
+			countStore.parent1.count.set(10);
+
+			expect(cb1).toHaveBeenCalledTimes(1);
+			expect(cb2).toHaveBeenCalledTimes(0);
+		});
+
+		test('v2', () => {
+			const cb1 = vi.fn();
+			const cb2 = vi.fn();
+
+			countStore.parent1.subscribe(cb1);
+			countStore.parent2.subscribe(cb2);
+
+			countStore.parent2.count.set(20);
+
+			expect(cb1).toHaveBeenCalledTimes(0);
+			expect(cb2).toHaveBeenCalledTimes(1);
 		});
 	});
 

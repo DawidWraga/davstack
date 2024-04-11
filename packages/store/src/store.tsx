@@ -19,6 +19,8 @@ import {
 	ComputedBuilder,
 	ComputedProps,
 } from './utils/create-computed-methods';
+
+import { subscribeWithSelector } from 'zustand/middleware';
 export const store = <TState extends State>(
 	initialState: TState,
 	options: StoreOptions<TState> = {}
@@ -59,6 +61,7 @@ export const store = <TState extends State>(
 			);
 		}
 
+		middlewares.push(subscribeWithSelector);
 		middlewares.push(createVanillaStore);
 
 		const immerStoreApi = pipeMiddlewares(() => initialState);
