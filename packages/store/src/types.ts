@@ -58,24 +58,9 @@ export type StoreApi<
 		 */
 		storeName: TName;
 
-		/**
-		 * A provider for the store that allows you to access scoped state and actions using useLocalStore
-		 * @param children The children components that will have access to the scoped store
-		 * @param initialValue The initial value of the scoped store (partial state)
-		 */
-		LocalProvider: React.FC<{
-			children: React.ReactNode;
-			initialValue: Partial<TState>;
-		}>;
-
-		/**
-		 *
-		 * @returns A local store that is scoped to the children components of the LocalProvider
-		 */
-		useLocalStore: () => Omit<
-			StoreApi<TName, TState, TExtendedProps>,
-			'LocalProvider' | 'useLocalStore'
-		>;
+		createInstance: (
+			initialValue: Partial<TState>
+		) => StoreApi<TName, TState, TExtendedProps>;
 
 		/**
 		 * Extends the store with new actions and selectors
@@ -88,6 +73,27 @@ export type StoreApi<
 			builder: TComputedBuilder
 		): StoreApi<TName, TState, TExtendedProps & ReturnType<TComputedBuilder>>;
 	};
+
+type Archive<TName extends string, TState, TExtendedProps extends object> = { 
+	/**
+	 * A provider for the store that allows you to access scoped state and actions using useLocalStore
+	 * @param children The children components that will have access to the scoped store
+	 * @param initialValue The initial value of the scoped store (partial state)
+	 */
+	Provider: React.FC<{
+		children: React.ReactNode;
+		initialValue: Partial<TState>;
+	}>;
+
+	/**
+	 *
+	 * @returns A local store that is scoped to the children components of the LocalProvider
+	 */
+	useStore: () => Omit<
+		StoreApi<TName, TState, TExtendedProps>,
+		'LocalProvider' | 'useLocalStore'
+	>;
+};
 
 export type ExtendBuilder<
 	TName extends string,
