@@ -373,5 +373,69 @@ describe('store performance', () => {
 				expect(myStore.parent.countB.get()).toBe(1);
 			});
 		});
+		test('davstack store: selective rerendering: nested DIFFERENT', async () => {
+			const counterStore = store({
+				count: 0,
+			})
+				.computed((store) => ({
+					doubleCount: () => store.count.get() * 2,
+				}))
+				.extend((store) => ({
+					increment: () => store.count.set(store.count.get() + 1),
+					decrement: () => store.count.set(store.count.get() - 1),
+				}));
+
+			const ComponentA = () => {
+				const renderCount = useRef(0);
+
+				renderCount.current++;
+
+				counterStore.count.use();
+				return (
+					<span data-testid={testId.componentARenderCount}>
+						{renderCount.current}
+					</span>
+				);
+			};
+
+			const ComponentB = () => {
+				const renderCount = useRef(0);
+
+				const doubleCount = counterStore.doubleCount.use();
+				renderCount.current++;
+				return (
+					<span data-testid={testId.componentBRenderCount}>
+						{renderCount.current}
+					</span>
+				);
+			};
+
+			const renderResult = render(
+				<>
+					<ComponentA />
+					<ComponentB />
+				</>
+			);
+			const ui = getUi(renderResult);
+
+			// Initial render
+			expect(counterStore.count.get()).toBe(0);
+			expect(counterStore.doubleCount.get()).toBe(0);
+			expect(ui.componentARenderCount).toBe('1');
+			expect(ui.componentBRenderCount).toBe('1');
+
+			act(() => {
+				// myStore.set.incrementB();
+				counterStore.count.set(counterStore.count.get() + 1);
+			});
+
+			await waitFor(() => {
+				// Only ComponentB should re-render
+				expect(ui.componentARenderCount).toBe('2');
+				expect(ui.componentBRenderCount).toBe('1');
+				expect(counterStore.count.get()).toBe(1);
+				expect(counterStore.doubleCount.get()).toBe(2);
+			});
+		});
 	});
 });

@@ -5,11 +5,12 @@ export type ComputedProps = Record<string, () => any>;
 
 export type ComputedMethods<TComputedProps extends ComputedProps> = {
 	[K in keyof TComputedProps]: Pick<
-		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>>,
+		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>, object>,
 		'use' | 'get'
 	>;
 };
-
+// Context to manage whether 'get' should be intercepted
+let replaceGetWithUse = false;
 export type ComputedBuilder<
 	TStore extends StoreApi<any, any>,
 	TComputedProps extends ComputedProps,
@@ -25,12 +26,8 @@ export function computed<
 	const handler = {
 		// @ts-expect-error
 		get: (target, prop, receiver) => {
-			if (prop === 'get') {
-				// Dynamically replace `get` with `use` only during the `use` method call of computed properties
-				const stack = new Error().stack;
-				if (stack && stack.includes('.use@')) {
-					return target.use;
-				}
+			if (prop === 'get' && replaceGetWithUse) {
+				return target.use;
 			}
 			return Reflect.get(target, prop, receiver);
 		},
@@ -62,8 +59,11 @@ export function computed<
 		acc[key] = {
 			get: () => computedProperties[key](),
 			use: () => {
+				replaceGetWithUse = true;
 				// Use the realProxy here to ensure `get` is replaced by `use` during the execution
-				return computedProperties[key]();
+				const result = computedProperties[key as keyof TComputedProps]();
+				replaceGetWithUse = false;
+				return result;
 			},
 		};
 		return acc;
