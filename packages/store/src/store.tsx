@@ -76,6 +76,14 @@ export const store = <TState extends State>(
 		}, store);
 	};
 
+	function extend<TNewExtendedProps extends Record<string, any>>(
+		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
+	): StoreApi<TState, TNewExtendedProps> {
+		extensions.push(builder);
+		Object.assign(globalStore, builder(globalStore));
+		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
+	}
+
 	function createInstance(
 		instanceInitialValue?: Partial<TState>,
 		options?: StoreOptions<TState>
@@ -108,22 +116,13 @@ export const store = <TState extends State>(
 
 		Object.assign(methods, {
 			_: internals,
+			extend,
 		});
 
 		return methods as StoreApi<TState>;
 	}
 
 	const globalStore = createInstance(initialState);
-
-	function extend<TNewExtendedProps extends Record<string, any>>(
-		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
-	): StoreApi<TState, TNewExtendedProps> {
-		extensions.push(builder);
-		Object.assign(globalStore, builder(globalStore));
-		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
-	}
-
-	Object.assign(globalStore, { extend });
 
 	return globalStore as unknown as StoreApi<TState, {}>;
 };
