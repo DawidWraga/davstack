@@ -2,7 +2,7 @@
 import { useStoreWithEqualityFn } from 'zustand/traditional';
 import {
 	ImmerStoreApi,
-	MainStoreMethods,
+	NestedStoreMethods,
 	SetImmerState,
 	State,
 	UseImmerStore,
@@ -16,7 +16,7 @@ export const createMethods = <T extends State>(options: {
 	currentPath: string[];
 	key: string;
 	value: any;
-}): MainStoreMethods<T> => {
+}): NestedStoreMethods<T> => {
 	const { immerStore, storeName, currentPath, key, value } = options;
 
 	const isGlobal = currentPath.length === 0;
@@ -84,7 +84,7 @@ export const createMethods = <T extends State>(options: {
 		},
 	};
 
-	return methods as unknown as MainStoreMethods<T>;
+	return methods as unknown as NestedStoreMethods<T>;
 };
 
 export const createNestedMethods = <T extends State>(options: {
@@ -92,7 +92,7 @@ export const createNestedMethods = <T extends State>(options: {
 	storeName: string;
 	storeValues?: T;
 	path?: string[];
-}): MainStoreMethods<T> => {
+}): NestedStoreMethods<T> => {
 	const {
 		immerStore,
 		storeName,
@@ -106,7 +106,7 @@ export const createNestedMethods = <T extends State>(options: {
 
 	// STOP RECURSION AT 2 levels deep. This is temporary solution to avoid damaging performance with deeply nested objects. Long term solution is to implement proxies. I have tried for a long time and have to move on for now.
 	if (path.length > 1) {
-		return {} as MainStoreMethods<T>;
+		return {} as NestedStoreMethods<T>;
 	}
 
 	// support parent primitive values
@@ -116,7 +116,7 @@ export const createNestedMethods = <T extends State>(options: {
 
 	// if not global primitive, then must be the deepest level, so stop recursive loop
 	if (!isParent && valueIsPrimitive) {
-		return {} as MainStoreMethods<T>;
+		return {} as NestedStoreMethods<T>;
 	}
 
 	// if the value is an object AND it the selected path is the parent, then initiate the recursive loop to create child methods
@@ -125,7 +125,7 @@ export const createNestedMethods = <T extends State>(options: {
 	}
 
 	// if the value is an object and the selected path is not the root, then recursively create child methods for all children
-	return createMethodsForAllChildren() as MainStoreMethods<T>;
+	return createMethodsForAllChildren() as NestedStoreMethods<T>;
 
 	function createParentMethods() {
 		return createMethods({

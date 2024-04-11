@@ -411,7 +411,6 @@ describe('store', () => {
 		});
 	});
 
-
 	describe("should be able to use the store's state in a callback", () => {
 		const countStore = store({ count: 0 }).extend((store) => ({
 			incrementUsingCalback: () => {
@@ -421,6 +420,8 @@ describe('store', () => {
 				store.count.set(store.count.get() + 1);
 			},
 		}));
+
+		
 
 		const Counter = () => {
 			const count = countStore.count.use();

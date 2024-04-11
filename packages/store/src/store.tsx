@@ -8,16 +8,16 @@ import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from './middlewares/immer.middleware';
 import { ImmerStoreApi, SetImmerState, State, StoreApi } from './types';
-import { storeOptions } from './types/CreateStoreOptions';
+import { StoreOptions } from './types/CreateStoreOptions';
 import { pipe } from './utils/pipe';
 
 import React from 'react';
 import type { StateCreator } from 'zustand';
 import { createNestedMethods } from './utils/create-methods';
-export const store = <TState extends State, TName extends string>(
+export const store = <TState extends State>(
 	initialState: TState,
-	options: storeOptions<TState, TName> = {}
-): StoreApi<TName, TState, {}> => {
+	options: StoreOptions<TState> = {}
+): StoreApi<TState, {}> => {
 	const { middlewares: _middlewares = [], devtools, persist, immer } = options;
 
 	const name =
@@ -26,76 +26,59 @@ export const store = <TState extends State, TName extends string>(
 			isObject(initialState) ? Object.keys(initialState) : initialState
 		);
 
-	// function
+	const createInnerStore = (initialState: TState) => {
+		const pipeMiddlewares = (
+			// @ts-expect-error
+			createState: StateCreator<TState, SetImmerState<TState>>
+		) => pipe(createState as any, ...middlewares) as ImmerStoreApi<TState>;
 
-	setAutoFreeze(immer?.enabledAutoFreeze ?? false);
-	if (immer?.enableMapSet) {
-		enableMapSet();
-	}
+		setAutoFreeze(immer?.enabledAutoFreeze ?? false);
+		if (immer?.enableMapSet) {
+			enableMapSet();
+		}
 
-	const middlewares: any[] = [immerMiddleware, ..._middlewares];
+		const middlewares: any[] = [immerMiddleware, ..._middlewares];
 
-	if (persist?.enabled) {
-		const opts = {
-			...persist,
-			name: persist.name ?? name,
-		};
+		if (persist?.enabled) {
+			const opts = {
+				...persist,
+				name: persist.name ?? name,
+			};
 
-		middlewares.push((config: any) => persistMiddleware(config, opts));
-	}
+			middlewares.push((config: any) => persistMiddleware(config, opts));
+		}
 
-	if (devtools?.enabled) {
-		middlewares.push((config: any) =>
-			devtoolsMiddleware(config, { ...devtools, name })
-		);
-	}
+		if (devtools?.enabled) {
+			middlewares.push((config: any) =>
+				devtoolsMiddleware(config, { ...devtools, name })
+			);
+		}
 
-	middlewares.push(createVanillaStore);
+		middlewares.push(createVanillaStore);
+
+		const immerStoreApi = pipeMiddlewares(() => initialState);
+
+		return immerStoreApi;
+	};
 
 	/**
 	 * Store the applied extensions to be applied later
 	 * This allows us to ensure that the local store has the same extensions as the global store
 	 */
-	let extensions: Array<
-		(store: StoreApi<TName, TState, {}>) => Record<string, any>
-	> = [];
+	let extensions: Array<(store: StoreApi<TState, {}>) => Record<string, any>> =
+		[];
 
-	const pipeMiddlewares = (
-		// @ts-expect-error
-		createState: StateCreator<TState, SetImmerState<TState>>
-	) => pipe(createState as any, ...middlewares) as ImmerStoreApi<TState>;
-
-	/**
-	 * By extracting this logic we are able to recreate the store again in the LocalProvider
-	 * Otherwise the localStore setters would actually set the global store
-	 */
-	const createInnerStore = (initialState: TState) => {
-		const immerStoreApi = pipeMiddlewares(() => initialState);
-
-		const innerMethods = createNestedMethods({
-			immerStore: immerStoreApi,
-			storeName: name,
-		});
-
-		return {
-			storeName: name,
-			immerStoreApi,
-			// ...globalMethods,
-			...innerMethods,
-		};
-	};
-
-	const applyExtensions = (store: StoreApi<TName, TState, {}>) => {
+	const applyExtensions = (store: StoreApi<TState, {}>) => {
+		if (!extensions.length) return store;
 		return extensions.reduce((acc, ext) => {
 			// should avoid using spread operator here as it reduce + spread harms performance
 			return Object.assign(acc, ext(acc));
 		}, store);
 	};
-	const globalStore = createInnerStore(initialState);
 
-	function createInstance<TState extends State, TName extends string>(
+	function createInstance(
 		instanceInitialValue?: Partial<TState>,
-		options?: storeOptions<TState, TName>
+		options?: StoreOptions<TState>
 	) {
 		// if is object then merge, otherwise use the localInitialValue and fallback to initialState
 		const mergedInitialState = isObject(initialState)
@@ -105,59 +88,73 @@ export const store = <TState extends State, TName extends string>(
 				}
 			: ((instanceInitialValue ?? initialState) as TState);
 
-		const storeInstance = createInnerStore(mergedInitialState as any);
+		const innerStore = createInnerStore(mergedInitialState as any);
 
-		applyExtensions(storeInstance as any);
+		const methods = createNestedMethods({
+			immerStore: innerStore,
+			storeName: name,
+		});
 
-		return storeInstance as any;
+		applyExtensions(methods as any);
+
+		const internals = {
+			name,
+			extensions,
+			applyExtensions,
+			createInnerStore,
+			createInstance,
+			innerStore,
+		};
+
+		Object.assign(methods, {
+			_: internals,
+		});
+
+		return methods as StoreApi<TState>;
 	}
 
-	const api = {
-		...globalStore,
-		createInstance,
-		extend: <TNewExtendedProps extends Record<string, any>>(
-			builder: (store: StoreApi<TName, TState, {}>) => TNewExtendedProps
-		): StoreApi<TName, TState, TNewExtendedProps> => {
-			extensions.push(builder);
-			// Object.assign(globalStore, builder(globalStore));
-			// applyExtensions(api as any);
-			// const extendedStore = applyExtensions(api as any);
-			Object.assign(api, builder(api as any));
-			return api as unknown as StoreApi<TName, TState, TNewExtendedProps>;
-		},
-	};
-	return api as unknown as StoreApi<TName, TState, {}>;
+	const globalStore = createInstance(initialState);
+
+	function extend<TNewExtendedProps extends Record<string, any>>(
+		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
+	): StoreApi<TState, TNewExtendedProps> {
+		extensions.push(builder);
+		Object.assign(globalStore, builder(globalStore));
+		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
+	}
+
+	Object.assign(globalStore, { extend });
+
+	return globalStore as unknown as StoreApi<TState, {}>;
 };
 
 export function createStoreContext<
-	TName extends string,
 	TState extends State,
 	TExtensions extends object,
->(store: StoreApi<TName, TState, TExtensions>) {
-	const LocalContext = React.createContext<StoreApi<
-		TName,
-		TState,
-		TExtensions
-	> | null>(null);
+>(store: StoreApi<TState, TExtensions>) {
+	const Context = React.createContext<StoreApi<TState, TExtensions> | null>(
+		null
+	);
 
-	const LocalProvider = ({
+	const Provider = ({
 		children,
 		initialValue: localInitialValue = {},
 	}: {
 		initialValue?: Partial<TState>;
 		children: React.ReactNode;
 	}) => {
-		const storeInstance = store.createInstance(localInitialValue as TState);
+		// probably want a use ref in here
+		const storeInstance = store._.createInstance(localInitialValue as TState);
 
 		return (
-			<LocalContext.Provider value={storeInstance as any}>
+			<Context.Provider value={storeInstance as any}>
 				{children}
-			</LocalContext.Provider>
+			</Context.Provider>
 		);
 	};
 
-	const useLocalStore = () => {
-		const localStore = React.useContext(LocalContext);
+	const useStore = () => {
+		const localStore = React.useContext(Context);
 
 		if (localStore) {
 			return localStore;
@@ -167,8 +164,9 @@ export function createStoreContext<
 	};
 
 	return {
-		Provider: LocalProvider,
-		useStore: useLocalStore,
+		Provider,
+		useStore,
+		Context,
 	};
 }
 

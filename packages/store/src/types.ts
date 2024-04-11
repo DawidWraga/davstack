@@ -6,7 +6,7 @@ import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
 
 export type State = unknown;
 
-export type InnerStoreMethods<TState> = {
+export type StoreMethods<TState> = {
 	/**
 	 * @returns The current state of the entire store
 	 * @note This does not subscribe to changes in the store
@@ -28,10 +28,10 @@ export type InnerStoreMethods<TState> = {
 		 */
 	set: (newValueOrFn: TState | ((prev: TState) => TState | void)) => void;
 	/**
-	 * @returns A Reactive version of the entire store
-	 * @note AVOID using this in most cases as it will cause the component to re-render on every change in the store.
+	 * @returns A Reactive version of the store
 	 */
 	use: () => TState;
+
 	/**
 		 * Assign a partial state to the store using Immer
 		 * @param state The partial state to assign
@@ -41,66 +41,47 @@ export type InnerStoreMethods<TState> = {
 	assign: (partial: Partial<TState>) => void;
 };
 
-export type MainStoreMethods<TState> = InnerStoreMethods<TState> &
+export type NestedStoreMethods<TState> = StoreMethods<TState> &
 	(TState extends object
-		? { [TKey in keyof TState]: MainStoreMethods<TState[TKey]> }
+		? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey]> }
 		: {});
 
-export type StoreApi<
-	TName extends string,
+export interface StoreInternals<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = MainStoreMethods<TState> &
-	TExtendedProps & {
-		immerStoreApi: ImmerStoreApi<TState>;
-		/**
-		 * The name of the store instance, useful for debugging and devtools
-		 */
-		storeName: TName;
+> {
+	createInstance: (
+		initialValue: Partial<TState>
+	) => StoreApi<TState, TExtendedProps>;
+	name: string;
+	extensions: Array<(store: StoreApi<TState>) => Record<string, any>>;
+	applyExtensions: (store: StoreApi<TState>) => void;
+	createInnerStore: (initialState: TState) => ImmerStoreApi<TState>;
+	innerStore: ImmerStoreApi<TState>;
+}
 
-		createInstance: (
-			initialValue: Partial<TState>
-		) => StoreApi<TName, TState, TExtendedProps>;
+export type StoreApi<
+	TState extends State = {},
+	TExtendedProps extends Record<string, any> = {},
+> = NestedStoreMethods<TState> &
+	TExtendedProps & {
+		_: StoreInternals<TState, TExtendedProps>;
 
 		/**
 		 * Extends the store with new actions and selectors
 		 *
 		 * @param builder A function that extends the store with new actions and selectors
 		 */
-		extend<
-			TComputedBuilder extends ExtendBuilder<TName, TState, TExtendedProps>,
-		>(
-			builder: TComputedBuilder
-		): StoreApi<TName, TState, TExtendedProps & ReturnType<TComputedBuilder>>;
+		extend<TBuilder extends ExtendBuilder<TState, TExtendedProps>>(
+			builder: TBuilder
+		): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>>;
 	};
 
-type Archive<TName extends string, TState, TExtendedProps extends object> = { 
-	/**
-	 * A provider for the store that allows you to access scoped state and actions using useLocalStore
-	 * @param children The children components that will have access to the scoped store
-	 * @param initialValue The initial value of the scoped store (partial state)
-	 */
-	Provider: React.FC<{
-		children: React.ReactNode;
-		initialValue: Partial<TState>;
-	}>;
-
-	/**
-	 *
-	 * @returns A local store that is scoped to the children components of the LocalProvider
-	 */
-	useStore: () => Omit<
-		StoreApi<TName, TState, TExtendedProps>,
-		'LocalProvider' | 'useLocalStore'
-	>;
-};
-
 export type ExtendBuilder<
-	TName extends string,
 	T extends State,
 	TExtendedProps extends Record<string, any>,
 > = (
-	store: StoreApi<TName, T, TExtendedProps>
+	store: StoreApi<T, TExtendedProps>
 ) => Record<string, (...args: any[]) => any>;
 
 export type Simplify<T> = T extends any[] | Date
