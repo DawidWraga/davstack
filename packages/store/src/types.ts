@@ -11,7 +11,10 @@ import {
 
 export type State = unknown;
 
-export type StoreMethods<TState> = {
+/**
+ * the TState is recursively narrowed down to each property, but we need access to the full state to correctly type the onChange additionalDeps, so we need to pass the full state type as TFullState
+ */
+export type StoreMethods<TState, TFullState> = {
 	/**
 	 * @returns The current state of the entire store
 	 * @note This does not subscribe to changes in the store
@@ -44,7 +47,7 @@ export type StoreMethods<TState> = {
 	 */
 	onChange: (
 		callback: (value: TState, prevValue: TState) => void,
-		options?: OnChangeOptions<TState>
+		options?: OnChangeOptions<TFullState>
 	) => void;
 
 	/**
@@ -62,11 +65,11 @@ export type OnChangeOptions<TState> = {
 	/**
 	 * If set to true, the callback will be called immediately with the current state
 	 */
-	immediate?: boolean;
+	fireImmediately?: boolean;
 
 	equalityFn?: EqualityChecker<TState>;
 
-	additionalDeps?: keyof Partial<TState>[];
+	additionalDeps?: Partial<keyof TState>[];
 
 	/**
 	 *  custom fn for defining the subscription dependencies
@@ -74,9 +77,12 @@ export type OnChangeOptions<TState> = {
 	customSelector?: (state: TState) => any;
 };
 
-export type NestedStoreMethods<TState> = StoreMethods<TState> &
+export type NestedStoreMethods<TState, TFullState = object> = StoreMethods<
+	TState,
+	TFullState
+> &
 	(TState extends object
-		? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey]> }
+		? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey], TFullState> }
 		: {});
 
 export interface StoreInternals<
@@ -96,7 +102,7 @@ export interface StoreInternals<
 export type StoreApi<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = NestedStoreMethods<TState> &
+> = NestedStoreMethods<TState, TState> &
 	TExtendedProps & {
 		_: StoreInternals<TState, TExtendedProps>;
 

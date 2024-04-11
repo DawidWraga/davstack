@@ -3,6 +3,7 @@ import { useStoreWithEqualityFn } from 'zustand/traditional';
 import {
 	ImmerStoreApi,
 	NestedStoreMethods,
+	OnChangeOptions,
 	SetImmerState,
 	State,
 	UseImmerStore,
@@ -68,18 +69,39 @@ export const createMethods = <T extends State>(options: {
 	const methods = {
 		set,
 		get: () => getPathValue(immerStore.getState(), currentPath),
-		onChange: (listener: any) =>
-			immerStore.subscribe(
+		onChange: (listener: any, options: OnChangeOptions<T> = {}) => {
+			return immerStore.subscribe(
 				(state) => {
-					return getPathValue(state, currentPath);
+					if (options?.customSelector) {
+						return options?.customSelector(state);
+					}
+
+					const baseDependency = getPathValue(state, currentPath);
+					// return baseDependency;
+
+					if (!options?.additionalDeps || !options.additionalDeps.length)
+						return baseDependency;
+
+					const deps = [baseDependency];
+
+					options.additionalDeps.forEach((dep) => {
+						const value = getPathValue(state, [dep as string]);
+						deps.push(value);
+					});
+					return deps;
 				},
 				// @ts-expect-error
 				(...args) => {
 					// console.log('INSIDE SUBSCRIBE:', { args });
 					return listener(...args);
+				},
+				{
+					fireImmediately: options?.fireImmediately,
+					equalityFn: options?.equalityFn,
 				}
 				// equality fn
-			),
+			);
+		},
 		use: (equalityFn?: EqualityChecker<any>) => {
 			return useStore((state) => {
 				return getPathValue(state, currentPath);

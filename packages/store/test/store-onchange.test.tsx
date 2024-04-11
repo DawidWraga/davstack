@@ -1,7 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import { useRef } from 'react';
-import { describe, expect, test, vi } from 'vitest';
-import { store } from '../src';
+import { beforeEach, describe, expect, it, test, vi } from 'vitest';
+import { store, StoreApi } from '../src';
+import { a } from 'vitest/dist/suite-a18diDsI';
 
 // Define testIds only once, avoiding repetition
 const testIds = {
@@ -126,4 +127,65 @@ describe('store onchange', () => {
 	// 		expect(cb2).toHaveBeenCalledTimes(1);
 	// 	});
 	// });
+});
+
+describe('Store onChange method', () => {
+	it('should call the listener immediately if immediate option is true', async () => {
+		const initialState = { data: 'initial' };
+		const myStore = store(initialState);
+
+		const mockCallback = vi.fn();
+		myStore.onChange(mockCallback, { fireImmediately: true });
+
+		expect(mockCallback).toHaveBeenCalledTimes(1);
+		expect(mockCallback).toHaveBeenCalledWith(initialState, initialState);
+	});
+
+	it('should respect the custom equality function', () => {
+		const myStore = store({ num: 1 });
+
+		const mockCallback2 = vi.fn();
+		myStore.onChange(mockCallback2, {
+			equalityFn: () => true,
+		});
+
+		myStore.num.set(5);
+		expect(mockCallback2).toHaveBeenCalledTimes(0);
+		myStore.num.set(3);
+
+		expect(mockCallback2).toHaveBeenCalledTimes(0);
+		myStore.assign({ num: 5 });
+		expect(mockCallback2).toHaveBeenCalledTimes(0);
+	});
+
+	it("additional dependencies should trigger the callback when they're changed", () => {
+		const myStore = store({ num: 1, otherNum: 2 });
+
+		const mockCallback = vi.fn();
+		myStore.onChange(mockCallback, { additionalDeps: ['otherNum'] });
+
+		myStore.num.set(5);
+		expect(mockCallback).toHaveBeenCalledTimes(1);
+		myStore.otherNum.set(3);
+		expect(mockCallback).toHaveBeenCalledTimes(2);
+	});
+	it('custom selector should work as intended', () => {
+		const myStore = store({ num: 1, otherNum: 2 });
+
+		const mockCallback1 = vi.fn();
+		myStore.num.onChange(mockCallback1, { additionalDeps: ['otherNum'] });
+
+		myStore.num.set(5);
+		expect(mockCallback1).toHaveBeenCalledTimes(1);
+		myStore.otherNum.set(3);
+		expect(mockCallback1).toHaveBeenCalledTimes(2);
+
+		const mockCallback2 = vi.fn();
+		myStore.num.onChange(mockCallback2, { additionalDeps: [] });
+
+		myStore.num.set(9);
+		expect(mockCallback2).toHaveBeenCalledTimes(1);
+		myStore.otherNum.set(3);
+		expect(mockCallback2).toHaveBeenCalledTimes(1); // this time, the callback should not be called
+	});
 });
