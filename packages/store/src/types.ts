@@ -83,7 +83,10 @@ export type StoreApi<
 
 		computed<
 			TComputedProps extends ComputedProps,
-			TBuilder extends ComputedBuilder<TState, TComputedProps>,
+			TBuilder extends ComputedBuilder<
+				StoreApi<TState, TExtendedProps>,
+				TComputedProps
+			>,
 		>(
 			builder: TBuilder
 		): StoreApi<TState, TExtendedProps & ComputedMethods<ReturnType<TBuilder>>>;

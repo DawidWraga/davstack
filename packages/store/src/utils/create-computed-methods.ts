@@ -7,39 +7,26 @@ import {
 	StoreMethods,
 } from '../types';
 
-type StateSubscriptionMethods<T extends State> = {
-	/**
-	 * .get represents getting the state, but if computed value is callde with .use then it will call .use under the hood instead, so be careful to follow the rules of hooks.
-	 */
-	get: () => T;
-};
-
-export type NestedStateSubscriptionMethods<TState> =
-	StateSubscriptionMethods<TState> &
-		(TState extends object
-			? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey]> }
-			: {});
-
 export type ComputedProps = Record<string, () => any>;
 
 export type ComputedMethods<TComputedProps extends ComputedProps> = {
-	[K in keyof TComputedProps]: Omit<
+	[K in keyof TComputedProps]: Pick<
 		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>>,
-		'set' | 'assign'
+		'use' | 'get'
 	>;
 };
 
 export type ComputedBuilder<
-	T extends State,
+	TStore extends StoreApi<any, any>,
 	TComputedProps extends ComputedProps,
-> = (state: NestedStateSubscriptionMethods<T>) => TComputedProps;
+> = (store: TStore) => TComputedProps;
 
 export function computed<
-	TState extends State,
+	TStore extends StoreApi<any, any>,
 	TComputedProps extends ComputedProps,
 >(
-	store: StoreApi<TState>,
-	computedCallback: ComputedBuilder<TState, TComputedProps>
+	store: TStore,
+	computedCallback: ComputedBuilder<TStore, TComputedProps>
 ): ComputedMethods<TComputedProps> {
 	const handler = {
 		// @ts-expect-error
@@ -56,6 +43,7 @@ export function computed<
 	};
 
 	// Creating a dummy proxy to extract computed keys without any side effects
+	// @ts-expect-error
 	const dummyProxy = new Proxy(store, {
 		get: (target, prop) => {
 			if (prop === 'get' || prop === 'use') {
@@ -67,6 +55,7 @@ export function computed<
 	});
 
 	// Retrieve keys to know which properties are being computed
+	// @ts-expect-error
 	const computedKeys = Object.keys(computedCallback(dummyProxy));
 
 	// Setup real proxies based on computed keys
