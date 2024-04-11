@@ -14,6 +14,11 @@ import { pipe } from './utils/pipe';
 import React from 'react';
 import type { StateCreator } from 'zustand';
 import { createNestedMethods } from './utils/create-methods';
+import {
+	computed,
+	ComputedBuilder,
+	ComputedProps,
+} from './utils/create-computed-methods';
 export const store = <TState extends State>(
 	initialState: TState,
 	options: StoreOptions<TState> = {}
@@ -114,9 +119,19 @@ export const store = <TState extends State>(
 			innerStore,
 		};
 
+		function innerComputed<TComputedProps extends ComputedProps>(
+			computedCallback: ComputedBuilder<TState, TComputedProps>
+		): StoreApi<TState, TComputedProps> {
+			const computedMethods = computed(methods, computedCallback);
+
+			// @ts-expect-error
+			return extend((store) => computedMethods);
+		}
+
 		Object.assign(methods, {
 			_: internals,
 			extend,
+			computed: innerComputed,
 		});
 
 		return methods as StoreApi<TState>;

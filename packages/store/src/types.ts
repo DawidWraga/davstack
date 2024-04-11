@@ -3,6 +3,11 @@
 import { Draft } from 'immer';
 import React from 'react';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
+import {
+	ComputedBuilder,
+	ComputedProps,
+	ComputedMethods,
+} from './utils/create-computed-methods';
 
 export type State = unknown;
 
@@ -75,7 +80,19 @@ export type StoreApi<
 		extend<TBuilder extends ExtendBuilder<TState, TExtendedProps>>(
 			builder: TBuilder
 		): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>>;
+
+		computed<
+			TComputedProps extends ComputedProps,
+			TBuilder extends ComputedBuilder<TState, TComputedProps>,
+		>(
+			builder: TBuilder
+		): StoreApi<TState, TExtendedProps & ComputedMethods<ReturnType<TBuilder>>>;
 	};
+
+// export type ComputedBuilder<
+// 	T extends State,
+// 	TComputedProps extends Record<string, any>,
+// > = (store: T) => TComputedProps;
 
 export type ExtendBuilder<
 	T extends State,
