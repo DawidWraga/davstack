@@ -1,6 +1,11 @@
 /* eslint-disable no-unused-vars */
-import { isObject } from '../store';
-import { NestedStoreMethods, Simplify, State, StoreMethods } from '../types';
+import {
+	NestedStoreMethods,
+	Simplify,
+	State,
+	StoreApi,
+	StoreMethods,
+} from '../types';
 
 type StateSubscriptionMethods<T extends State> = {
 	/**
@@ -29,82 +34,57 @@ export type ComputedBuilder<
 	TComputedProps extends ComputedProps,
 > = (state: NestedStateSubscriptionMethods<T>) => TComputedProps;
 
-export const computed = <T extends State, TComputedProps extends ComputedProps>(
-	methods: NestedStoreMethods<T>,
-	computedCallback: ComputedBuilder<T, TComputedProps>
-) => {
-	function getStateCallbacks() {
-		const stateValue = methods.get();
+export function computed<
+	TState extends State,
+	TComputedProps extends ComputedProps,
+>(
+	store: StoreApi<TState>,
+	computedCallback: ComputedBuilder<TState, TComputedProps>
+): ComputedMethods<TComputedProps> {
+	const handler = {
+		// @ts-expect-error
+		get: (target, prop, receiver) => {
+			if (prop === 'get') {
+				// Dynamically replace `get` with `use` only during the `use` method call of computed properties
+				const stack = new Error().stack;
+				if (stack && stack.includes('.use@')) {
+					return target.use;
+				}
+			}
+			return Reflect.get(target, prop, receiver);
+		},
+	};
 
-		// handle primative values
-		if (!isObject(stateValue)) {
-			const dummy = { get: () => {} };
-			const computedKeys = Object.keys(computedCallback(dummy as any));
-			return {
-				stateGetters: { get: methods.get },
-				stateHooks: { get: methods.use },
-				computedKeys,
-			};
-		}
+	// Creating a dummy proxy to extract computed keys without any side effects
+	const dummyProxy = new Proxy(store, {
+		get: (target, prop) => {
+			if (prop === 'get' || prop === 'use') {
+				return () => {}; // Return a dummy function for initialization purposes
+			}
+			// @ts-expect-error
+			return target[prop];
+		},
+	});
 
-		// handle object values
-		const stateKeys = Object.keys(methods.get() as object) as (keyof T)[];
+	// Retrieve keys to know which properties are being computed
+	const computedKeys = Object.keys(computedCallback(dummyProxy));
 
-		const stateMethods_dummy = Object.fromEntries(
-			stateKeys.map((key) => {
-				return [key, () => {}];
-			})
-		) as NestedStateSubscriptionMethods<T>;
+	// Setup real proxies based on computed keys
+	const proxyStore = new Proxy(store, handler);
 
-		const computedKeys = Object.keys(
-			computedCallback(stateMethods_dummy)
-		) as (keyof TComputedProps)[];
+	const computedProperties = computedCallback(proxyStore);
 
-		const stateGetters = Object.fromEntries(
-			stateKeys.map((key) => {
-				// @ts-expect-error
-				return [key, { get: methods[key].get }];
-			})
-		) as NestedStateSubscriptionMethods<T>;
-
-		const stateHooks = Object.fromEntries(
-			stateKeys.map((key) => {
-				// @ts-expect-error
-				return [key, { get: methods[key].use }];
-			})
-		) as NestedStateSubscriptionMethods<T>;
-
-		return {
-			stateGetters,
-			stateHooks,
-			computedKeys,
+	const computedMethods = computedKeys.reduce((acc, key) => {
+		// @ts-expect-error
+		acc[key] = {
+			get: () => computedProperties[key](),
+			use: () => {
+				// Use the realProxy here to ensure `get` is replaced by `use` during the execution
+				return computedProperties[key]();
+			},
 		};
-	}
-
-	const { stateGetters, stateHooks, computedKeys } = getStateCallbacks();
-
-	const computedMethods = Object.fromEntries(
-		computedKeys.map((key) => {
-			return [
-				key,
-				{
-					// @ts-expect-error
-					get: (...args) => {
-						// @ts-expect-error
-						const allCallbacks = computedCallback(stateGetters);
-						// @ts-expect-error
-						return allCallbacks[key](...args);
-					},
-
-					// @ts-expect-error
-					use: (...args) => {
-						// @ts-expect-error
-						return computedCallback(stateHooks)[key](...args);
-					},
-				},
-			];
-		})
-	) as unknown as ComputedMethods<TComputedProps>;
+		return acc;
+	}, {} as ComputedMethods<TComputedProps>);
 
 	return computedMethods;
-};
+}

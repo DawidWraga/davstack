@@ -42,8 +42,8 @@ describe('store with computed properties', () => {
 		const countStore = store({
 			count: 10,
 		})
-			.computed((state) => ({
-				doubled: () => state.count.get() * 2,
+			.computed((store) => ({
+				doubled: () => store.count.get() * 2,
 			}))
 			.extend((store) => ({
 				increment() {
@@ -97,8 +97,8 @@ describe('store with computed properties', () => {
 		const countStore = store({
 			parent: { count: 10 },
 		})
-			.computed((state) => ({
-				doubled: () => state.parent.count.get() * 2,
+			.computed((store) => ({
+				doubled: () => store.parent.count.get() * 2,
 			}))
 			.extend((store) => ({
 				increment() {

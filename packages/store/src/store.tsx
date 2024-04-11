@@ -119,20 +119,21 @@ export const store = <TState extends State>(
 			innerStore,
 		};
 
-		function innerComputed<TComputedProps extends ComputedProps>(
-			computedCallback: ComputedBuilder<TState, TComputedProps>
-		): StoreApi<TState, TComputedProps> {
-			const computedMethods = computed(methods, computedCallback);
-
-			// @ts-expect-error
-			return extend((store) => computedMethods);
-		}
-
 		Object.assign(methods, {
 			_: internals,
 			extend,
 			computed: innerComputed,
 		});
+
+		function innerComputed<TComputedProps extends ComputedProps>(
+			computedCallback: ComputedBuilder<TState, TComputedProps>
+		): StoreApi<TState, TComputedProps> {
+			// @ts-expect-error
+			const computedMethods = computed(methods, computedCallback);
+
+			// @ts-expect-error
+			return extend((store) => computedMethods);
+		}
 
 		return methods as StoreApi<TState>;
 	}
