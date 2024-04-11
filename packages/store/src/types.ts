@@ -39,10 +39,13 @@ export type StoreMethods<TState> = {
 
 	/**
 	 * Subscribe to changes in the store
-	 * @param listener A callback that is called whenever the store changes
+	 * @param callback A callback that is called whenever the store changes
 	 * @returns A function to unsubscribe from the store
 	 */
-	subscribe: (listener: (state: TState) => void) => () => void;
+	onChange: (
+		callback: (value: TState, prevValue: TState) => void,
+		options?: OnChangeOptions<TState>
+	) => void;
 
 	/**
 		 * Assign a partial state to the store using Immer
@@ -51,6 +54,24 @@ export type StoreMethods<TState> = {
 		 user.assign({ name: 'John Doe' })
 		 */
 	assign: (partial: Partial<TState>) => void;
+};
+
+// TODO: IMPLEMENT THESE OPTIONS
+
+export type OnChangeOptions<TState> = {
+	/**
+	 * If set to true, the callback will be called immediately with the current state
+	 */
+	immediate?: boolean;
+
+	equalityFn?: EqualityChecker<TState>;
+
+	additionalDeps?: keyof Partial<TState>[];
+
+	/**
+	 *  custom fn for defining the subscription dependencies
+	 */
+	customSelector?: (state: TState) => any;
 };
 
 export type NestedStoreMethods<TState> = StoreMethods<TState> &
@@ -97,7 +118,21 @@ export type StoreApi<
 		>(
 			builder: TBuilder
 		): StoreApi<TState, TExtendedProps & ComputedMethods<ReturnType<TBuilder>>>;
+
+		effect<TBuilder extends EffectBuilder<TState>>(
+			builder: TBuilder
+		): StoreApi<TState, TExtendedProps>;
 	};
+
+// TODO: decide if we want to keep this
+export type EffectBuilder<TState extends State> = (
+	store: StoreApi<TState>
+) => Partial<
+	Record<
+		keyof TState,
+		(value: TState[keyof TState], prevValue: TState[keyof TState]) => void
+	>
+>;
 
 // export type ComputedBuilder<
 // 	T extends State,
