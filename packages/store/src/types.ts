@@ -59,8 +59,6 @@ export type StoreMethods<TState, TFullState> = {
 	assign: (partial: Partial<TState>) => void;
 };
 
-// TODO: IMPLEMENT THESE OPTIONS
-
 export type OnChangeOptions<TState> = {
 	/**
 	 * If set to true, the callback will be called immediately with the current state
@@ -107,11 +105,18 @@ export type StoreApi<
 		_: StoreInternals<TState, TExtendedProps>;
 
 		/**
-		 * Extends the store with new actions and selectors
+		 * Extends the store
 		 *
-		 * @param builder A function that extends the store with new actions and selectors
+		 * @param builder a callback that receives the store and returns an object with the new methods
 		 */
 		extend<TBuilder extends ExtendBuilder<TState, TExtendedProps>>(
+			builder: TBuilder
+		): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>>;
+		/**
+		 * Extends the store
+		 * @param builder a callback that receives the store and returns an object with the new methods
+		 */
+		actions<TBuilder extends ExtendBuilder<TState, TExtendedProps>>(
 			builder: TBuilder
 		): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>>;
 

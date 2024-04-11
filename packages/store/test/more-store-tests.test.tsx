@@ -85,21 +85,22 @@ describe('store', () => {
 		});
 
 		test('should be able to extend store to define actions and computed properties', () => {
-			const countStore = store(0).extend((store) => ({
-				getDoubled() {
-					return store.get() * 2;
-				},
-				increment() {
-					store.set(store.get() + 1);
-				},
-				decrement() {
-					store.set(store.get() - 1);
-				},
-			}));
+			const countStore = store(0)
+				.computed((store) => ({
+					doubled: () => store.get() * 2,
+				}))
+				.actions((store) => ({
+					increment() {
+						store.set(store.get() + 1);
+					},
+					decrement() {
+						store.set(store.get() - 1);
+					},
+				}));
 
 			const Counter = () => {
 				const count = countStore.use();
-				const doubled = countStore.getDoubled();
+				const doubled = countStore.doubled.use();
 				return (
 					<div>
 						<p data-testid={testIds.count}>Count: {count}</p>

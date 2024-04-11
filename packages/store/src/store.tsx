@@ -125,6 +125,7 @@ export const store = <TState extends State>(
 		Object.assign(methods, {
 			_: internals,
 			extend,
+			actions: extend,
 			computed: innerComputed,
 		});
 
