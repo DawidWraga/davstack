@@ -1,6 +1,6 @@
 import React, { useContext, useMemo, useRef, useState } from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
+import { fireEvent, render, waitFor, act } from '@testing-library/react';
+
 import { create as createZustandStore } from 'zustand';
 
 import { store } from '../src/store';
