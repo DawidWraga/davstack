@@ -1,14 +1,13 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable prettier/prettier */
 import { Draft } from 'immer';
-import React from 'react';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
+import { NestedStoreMethods } from './types/store-methods';
 import {
 	ComputedBuilder,
-	ComputedProps,
 	ComputedMethods,
+	ComputedProps,
 } from './utils/create-computed-methods';
-import { RecursiveNestedStoreMethods } from './types/store-methods';
 
 export type State = unknown;
 
@@ -29,7 +28,7 @@ export interface StoreInternals<
 export type StoreApi<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = RecursiveNestedStoreMethods<TState, TState> &
+> = NestedStoreMethods<TState> &
 	TExtendedProps & {
 		_: StoreInternals<TState, TExtendedProps>;
 

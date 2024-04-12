@@ -82,7 +82,7 @@ describe('Store onChange method', () => {
 
 		it('should trigger the callback when deps callback dependencies change', () => {
 			const mockCallback1 = vi.fn();
-			const unsub1 = myStore.num.onChange(mockCallback1, {
+			const unsub1 = myStore.onChange(mockCallback1, {
 				deps: (state) => [state.num, state.otherNum],
 			});
 			myStore.num.set(6);
@@ -92,7 +92,7 @@ describe('Store onChange method', () => {
 			unsub1();
 
 			const mockCallback2 = vi.fn();
-			const unsub2 = myStore.num.onChange(mockCallback2, {
+			const unsub2 = myStore.onChange(mockCallback2, {
 				deps: ['num', 'otherNum'],
 			});
 			myStore.num.set(7);

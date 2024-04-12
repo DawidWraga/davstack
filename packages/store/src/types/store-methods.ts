@@ -1,13 +1,10 @@
 /* eslint-disable no-unused-vars */
-/* eslint-disable prettier/prettier */
+
 import { EqualityChecker } from '../types';
 
 export type State = unknown;
 
-/**
- * the TState is recursively narrowed down to each property, but we need access to the full state to correctly type the onChange additionalDeps, so we need to pass the full state type as TFullState
- */
-export type StoreMethods<TState, TFullState> = {
+export type StoreMethods<TState> = {
 	/**
 	 * @returns The current state of the entire store
 	 * @note This does not subscribe to changes in the store
@@ -40,7 +37,7 @@ export type StoreMethods<TState, TFullState> = {
 	 */
 	onChange: (
 		callback: (value: TState, prevValue: TState) => void,
-		options?: OnChangeOptions<TFullState>
+		options?: OnChangeOptions<TState>
 	) => () => void;
 
 	/**
@@ -73,27 +70,22 @@ export type OnChangeOptions<TState> = {
 
 	/**
 	 * Dependencies to trigger the callback when they're changed
+	 *
+	 * can be an array of keys or a function that takens in the object and returns the values to subscribe to
+	 *
+	 * this allows you to only subscribe to a subset of child values changes.
+	 *
+	 * @note non object values cannot use the deps option. If you need to subscribe to non-object value and another value, then call onChange on a parent object and then use the deps option to subscribe to both values.
+	 *
 	 */
-	deps?: Partial<keyof TState>[] | ((state: TState) => any);
+	deps?: TState extends object
+		? Partial<keyof TState>[] | ((state: TState) => any)
+		: never;
 };
 
-export type NestedStoreMethods<TState, TFullState = object> = StoreMethods<
-	TState,
-	TFullState
-> &
-	(TState extends object
-		? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey], TFullState> }
-		: {});
-
-export type RecursiveNestedStoreMethods<TState, TSlice> = StoreMethods<
-	TSlice,
-	TState
-> &
+export type NestedStoreMethods<TState> = StoreMethods<TState> &
 	(TState extends object
 		? {
-				[TKey in keyof TSlice]: RecursiveNestedStoreMethods<
-					TState,
-					TSlice[TKey]
-				>;
+				[TKey in keyof TState]: NestedStoreMethods<TState[TKey]>;
 			}
 		: {});

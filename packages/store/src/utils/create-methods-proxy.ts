@@ -84,7 +84,7 @@ export const createMethod = <T extends State>(options: {
 
 					if (isFunction(options.deps)) {
 						// if deps is a callback then allow for fully custom dependencies
-						return options.deps(state);
+						return options.deps(state as object);
 					}
 
 					// if deps is an array then subscribe to those dependencies
@@ -127,7 +127,7 @@ export const createMethod = <T extends State>(options: {
 				return Object.assign(draft, state);
 			});
 		},
-	} as StoreMethods<T, T>;
+	} as StoreMethods<T>;
 
 	return methods[method];
 };
