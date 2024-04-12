@@ -13,7 +13,6 @@ const testIds = {
 	componentUsingUseRenderCount: 'component-using-use-render-count',
 };
 
-// Simpler UI retrieval without redundant getByTestId spread
 const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 	return {
 		getByTestId,
@@ -261,52 +260,136 @@ describe('store', () => {
 			expect(ui.componentUsingGetRenderCount).toBe('1');
 			expect(ui.componentUsingUseRenderCount).toBe('2');
 		});
+
+		/**
+		 * this test is here because built in method names eg "name" and "length" were conflicting with the store properties inside the proxy. THis has been fixed inside create-recrusive-proxy.ts using excludeKeys
+		 */
+		test('should update only the component using the nested store when a nested value changes - RISKY WORDS', () => {
+			const userStore = store({
+				user: { name: 'John', length: 25, books: [1, 2, 3] },
+			});
+
+			expect(userStore.user.books.get()).toStrictEqual([1, 2, 3]);
+			expect(userStore.user.books.get().length).toBe(3);
+
+			const ComponentUsingGet = () => {
+				const renderCount = useRef(0);
+
+				const _name = userStore.user.name.get();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingGetRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ComponentUsingUse = () => {
+				const renderCount = useRef(0);
+
+				const _name = userStore.user.name.use();
+				renderCount.current++;
+				return (
+					<div data-testid={testIds.componentUsingUseRenderCount}>
+						{renderCount.current}
+					</div>
+				);
+			};
+
+			const ui = getUi(
+				render(
+					<>
+						<ComponentUsingGet />
+						<ComponentUsingUse />
+					</>
+				)
+			);
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('1');
+
+			act(() => {
+				userStore.user.name.set('Jane');
+			});
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('2');
+
+			act(() => {
+				userStore.user.length.set(30);
+			});
+
+			expect(ui.componentUsingGetRenderCount).toBe('1');
+			expect(ui.componentUsingUseRenderCount).toBe('2');
+		});
 	});
 
-	describe('TEMP: should max out at 2 levels of nesting', () => {
+	describe('should be able to have infinite nesting', () => {
 		const countStore = store({
 			level1: {
 				count1: 1,
 				level2: {
 					count2: 2,
+					level3: {
+						count3: 3,
+					},
 				},
 			},
 		});
 
 		test('get', () => {
 			const counterValues = countStore.level1.level2.get();
-			expect(counterValues).toStrictEqual({ count2: 2 });
-
-			// @ts-expect-error
-			expect(() => countStore.level1.level2.level3.get()).toThrow();
+			expect(counterValues).toStrictEqual({
+				count2: 2,
+				level3: {
+					count3: 3,
+				},
+			});
+			expect(countStore.level1.level2.level3.get()).toStrictEqual({
+				count3: 3,
+			});
 		});
 
 		test('set', () => {
-			countStore.level1.level2.set((prev) => ({ count2: prev.count2 + 8 }));
+			countStore.level1.level2.count2.set((prev) => prev + 2);
+			expect(countStore.level1.level2.get()).toStrictEqual({
+				count2: 4,
+				level3: {
+					count3: 3,
+				},
+			});
 
-			expect(countStore.level1.level2.get()).toStrictEqual({ count2: 10 });
-
-			// @ts-expect-error
-			expect(() => countStore.level1.level2.level3.set(20)).toThrow();
+			countStore.level1.level2.level3.count3.set(20);
+			expect(countStore.level1.level2.level3.get()).toStrictEqual({
+				count3: 20,
+			});
 		});
 
 		test('assign', () => {
-			countStore.assign({
+			countStore.level1.assign({
+				count1: 10,
+				level2: {
+					count2: 20,
+					level3: {
+						count3: 30,
+					},
+				},
+			});
+			expect(countStore.get()).toStrictEqual({
 				level1: {
-					count1: 1,
+					count1: 10,
 					level2: {
 						count2: 20,
+						level3: {
+							count3: 30,
+						},
 					},
 				},
 			});
 
-			expect(countStore.get()).toStrictEqual({
-				level1: {
-					count1: 1,
-					level2: {
-						count2: 20,
-					},
-				},
+			countStore.level1.level2.level3.assign({ count3: 40 });
+			expect(countStore.level1.level2.level3.get()).toStrictEqual({
+				count3: 40,
 			});
 		});
 	});
