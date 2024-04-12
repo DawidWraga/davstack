@@ -10,8 +10,7 @@ export type ComputedMethods<TComputedProps extends ComputedProps> = {
 		'use' | 'get'
 	>;
 };
-// Context to manage whether 'get' should be intercepted
-let replaceGetWithUse = false;
+
 export type ComputedBuilder<
 	TStore extends StoreApi<any, any>,
 	TComputedProps extends ComputedProps,
@@ -24,51 +23,52 @@ export function computed<
 	store: TStore,
 	computedCallback: ComputedBuilder<TStore, TComputedProps>
 ): ComputedMethods<TComputedProps> {
-	const handler = {
-		// @ts-expect-error
+	// Context to manage whether 'get' should be intercepted
+	let replaceGetWithUse = false;
+
+	// Retrieve keys to know which properties are being computed
+	const computedKeys = Object.keys(
+		computedCallback(
+			new Proxy(store as any, {
+				// Creating a dummy proxy to extract computed keys without any side effects
+				get: (target, prop) => {
+					if (prop === 'get' || prop === 'use') {
+						return () => {}; // Return a dummy function for initialization purposes
+					}
+					return Reflect.get(target, prop);
+				},
+			})
+		)
+	) as (keyof TComputedProps)[];
+
+	// Setup real proxies based on computed keys
+	const proxyStore = new Proxy(store as any, {
 		get: (target, prop, receiver) => {
 			if (prop === 'get' && replaceGetWithUse) {
 				return target.use;
 			}
 			return Reflect.get(target, prop, receiver);
 		},
-	};
-
-	// Creating a dummy proxy to extract computed keys without any side effects
-	// @ts-expect-error
-	const dummyProxy = new Proxy(store, {
-		get: (target, prop) => {
-			if (prop === 'get' || prop === 'use') {
-				return () => {}; // Return a dummy function for initialization purposes
-			}
-			// @ts-expect-error
-			return target[prop];
-		},
 	});
-
-	// Retrieve keys to know which properties are being computed
-	// @ts-expect-error
-	const computedKeys = Object.keys(computedCallback(dummyProxy));
-
-	// Setup real proxies based on computed keys
-	const proxyStore = new Proxy(store, handler);
 
 	const computedProperties = computedCallback(proxyStore);
 
-	const computedMethods = computedKeys.reduce((acc, key) => {
-		// @ts-expect-error
-		acc[key] = {
-			get: () => computedProperties[key](),
-			use: () => {
-				replaceGetWithUse = true;
-				// Use the realProxy here to ensure `get` is replaced by `use` during the execution
-				const result = computedProperties[key as keyof TComputedProps]();
-				replaceGetWithUse = false;
-				return result;
-			},
-		};
-		return acc;
-	}, {} as ComputedMethods<TComputedProps>);
+	const computedMethods = Object.fromEntries(
+		computedKeys.map((key) => {
+			return [
+				key,
+				{
+					get: () => computedProperties[key](),
+					use: () => {
+						replaceGetWithUse = true;
+						const result = computedProperties[key]();
+						replaceGetWithUse = false;
+						return result;
+					},
+				},
+			];
+		})
+	) as ComputedMethods<TComputedProps>;
 
 	return computedMethods;
 }

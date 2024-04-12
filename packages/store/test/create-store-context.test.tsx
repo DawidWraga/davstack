@@ -212,6 +212,7 @@ describe('local component store', () => {
 						store.syncedCount.set(count);
 					}),
 			}));
+
 		const storeContext = createStoreContext(globalStore);
 
 		const Counter = ({ id }: { id: string }) => {

@@ -38,7 +38,7 @@ export type StoreMethods<TState> = {
 	onChange: (
 		callback: (value: TState, prevValue: TState) => void,
 		options?: OnChangeOptions<TState>
-	) => OnChangeUnsubscribe;
+	) => UnsubscribeFn;
 
 	/**
 		 * Assign a partial state to the store using Immer
@@ -49,21 +49,7 @@ export type StoreMethods<TState> = {
 	assign: (partial: Partial<TState>) => void;
 };
 
-// export type EffectBuilder<TState extends State> = (
-// 	store: StoreMethods<TState>
-// ) => Record<string, () => ReturnType<OnChangeMethod<TState>>>;
-
-// export type OnChangeMethod<TState> = (
-// 	callback: Simplify<OnChangeCallback<TState>>,
-// 	options?: OnChangeOptions<TState>
-// ) => OnChangeUnsubscribe;
-
-// export type OnChangeCallback<TState> = (
-// 	value: TState,
-// 	prevValue: TState
-// ) => void;
-
-export type OnChangeUnsubscribe = () => void;
+export type UnsubscribeFn = () => void;
 
 export type OnChangeOptions<TState> = {
 	/**

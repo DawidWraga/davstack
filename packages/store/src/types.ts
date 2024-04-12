@@ -2,7 +2,7 @@
 
 import { Draft } from 'immer';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
-import { NestedStoreMethods, OnChangeUnsubscribe } from './types/store-methods';
+import { NestedStoreMethods, UnsubscribeFn } from './types/store-methods';
 import {
 	ComputedBuilder,
 	ComputedMethods,
@@ -68,7 +68,7 @@ export type StoreApi<
 export type EffectBuilder<
 	T extends State,
 	TExtendedProps extends Record<string, any>,
-> = (store: StoreApi<T, TExtendedProps>) => Record<string, OnChangeUnsubscribe>;
+> = (store: StoreApi<T, TExtendedProps>) => Record<string, UnsubscribeFn>;
 
 export type EffectMethods<TMethods> = {
 	_effects: TMethods;
