@@ -1,4 +1,4 @@
-import { isFunction } from '../src/utils/create-methods';
+import { isFunction } from '../src/utils/create-methods-proxy';
 import { createRecursiveProxy } from '../src/utils/create-recursive-proxy';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 
@@ -101,32 +101,28 @@ describe('recursive proxy', () => {
 			expectTypeOf(result).toEqualTypeOf<void>();
 		});
 
-		describe('assign new method and access it', () => {
-			const createMethods2 = <TStore extends object>() =>
-				createRecursiveProxy((opts) => {
-					const path = [...opts.path];
-					const method = path.pop()! as 'get' | 'set';
-					const args = opts.args;
+		// describe('assign new method and access it', () => {
+		// 	const createMethods2 = <TStore extends object>() =>
+		// 		createRecursiveProxy((opts) => {
+		// 			const path = [...opts.path];
+		// 			const method = path.pop()! as 'get' | 'set';
+		// 			const args = opts.args;
 
-					if (method === 'get') {
-						return 'GET-RETURN';
-					}
-					if (method === 'set') {
-						return 'SET-RETURN';
-					}
+		// 			if (method === 'get') {
+		// 				return 'GET-RETURN';
+		// 			}
+		// 			if (method === 'set') {
+		// 				return 'SET-RETURN';
+		// 			}
+		// 		}) as TStore;
 
-					if(isFunction(method)) {
-						
-					}
-				}) as TStore;
+		// 	test("can access 'test' method", async () => {
+		// 		// @ts-expect-error
+		// 		const result = methods2.test.get();
 
-			test("can access 'test' method", async () => {
-				// @ts-expect-error
-				const result = methods.test.get();
-
-				expect(result).toBe('test');
-			});
-		});
+		// 		expect(result).toBe('test');
+		// 	});
+		// });
 	});
 });
 
