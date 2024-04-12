@@ -1,13 +1,17 @@
 /* eslint-disable no-unused-vars */
+import { shallow } from 'zustand/shallow';
 import { useStoreWithEqualityFn } from 'zustand/traditional';
-import { ImmerStoreApi, SetImmerState, State, UseImmerStore } from '../types';
-import { EqualityChecker } from '../types';
 import { isObject } from '../store';
-import { createRecursiveProxy } from './create-recursive-proxy';
+import {
+	EqualityChecker,
+	ImmerStoreApi,
+	SetImmerState,
+	State,
+	UseImmerStore,
+} from '../types';
 import { OnChangeOptions, StoreMethods } from '../types/store-methods';
-//import { createRecursiveProxy, ProxyCallback } from './create-recursive-proxy';
+import { createRecursiveProxy } from './create-recursive-proxy';
 
-// export type StoreMethodKeys<T> = keyof NestedStoreMethods<T>;
 export type StoreMethodKey = 'get' | 'set' | 'onChange' | 'use' | 'assign';
 
 export const createMethod = <T extends State>(options: {
@@ -70,32 +74,41 @@ export const createMethod = <T extends State>(options: {
 		onChange: (listener: any, options: OnChangeOptions<T> = {}) => {
 			return immerStore.subscribe(
 				(state) => {
-					if (options?.customSelector) {
-						return options?.customSelector(state);
+					if (!options.deps) {
+						// default to subscribing to the part of the store which is being dot-notated
+						// if store().onChange subscribes to the top level store, it will always fire
+						// but store({parent:{child:1}}).parent.onChange will only fire when parent changes
+
+						return getPathValue(state, path);
 					}
 
-					const baseDependency = getPathValue(state, path);
-					// return baseDependency;
+					if (isFunction(options.deps)) {
+						// if deps is a callback then allow for fully custom dependencies
+						return options.deps(state);
+					}
 
-					if (!options?.additionalDeps || !options.additionalDeps.length)
-						return baseDependency;
+					// if deps is an array then subscribe to those dependencies
 
-					const deps = [baseDependency];
-
-					options.additionalDeps.forEach((dep) => {
-						const value = getPathValue(state, [dep as string]);
-						deps.push(value);
+					return options.deps.map((dep) => {
+						const value = state[dep];
+						return value;
 					});
-					return deps;
 				},
 				// @ts-expect-error
 				(...args) => {
-					// console.log('INSIDE SUBSCRIBE:', { args });
 					return listener(...args);
 				},
 				{
 					fireImmediately: options?.fireImmediately,
-					equalityFn: options?.equalityFn,
+
+					/**
+					 * defaults to using zustand shallow equality checker
+					 *
+					 * This is NEEDED for deps to work as expected, otherwise will always fire
+					 *
+					 * however, if you want to use a custom equality checker, you can pass it in
+					 */
+					equalityFn: options?.equalityChecker ?? shallow,
 				}
 				// equality fn
 			);

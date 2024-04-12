@@ -41,7 +41,7 @@ export type StoreMethods<TState, TFullState> = {
 	onChange: (
 		callback: (value: TState, prevValue: TState) => void,
 		options?: OnChangeOptions<TFullState>
-	) => void;
+	) => () => void;
 
 	/**
 		 * Assign a partial state to the store using Immer
@@ -58,14 +58,23 @@ export type OnChangeOptions<TState> = {
 	 */
 	fireImmediately?: boolean;
 
-	equalityFn?: EqualityChecker<TState>;
-
-	additionalDeps?: Partial<keyof TState>[];
+	/**
+	 * Custom equality function to compare the previous and new state
+	 *
+	 * first argument is the new state, second argument is the prev state
+	 *
+	 * if the function returns true, the callback will NOT be called;
+	 * if it returns false, the callback will be called
+	 *
+	 * @default shallow (from zustand)
+	 *
+	 */
+	equalityChecker?: EqualityChecker<TState>;
 
 	/**
-	 *  custom fn for defining the subscription dependencies
+	 * Dependencies to trigger the callback when they're changed
 	 */
-	customSelector?: (state: TState) => any;
+	deps?: Partial<keyof TState>[] | ((state: TState) => any);
 };
 
 export type NestedStoreMethods<TState, TFullState = object> = StoreMethods<
