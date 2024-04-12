@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import { EqualityChecker } from '../types';
+import { EqualityChecker, Simplify } from '../types';
 
 export type State = unknown;
 
@@ -38,7 +38,7 @@ export type StoreMethods<TState> = {
 	onChange: (
 		callback: (value: TState, prevValue: TState) => void,
 		options?: OnChangeOptions<TState>
-	) => () => void;
+	) => OnChangeUnsubscribe;
 
 	/**
 		 * Assign a partial state to the store using Immer
@@ -48,6 +48,22 @@ export type StoreMethods<TState> = {
 		 */
 	assign: (partial: Partial<TState>) => void;
 };
+
+// export type EffectBuilder<TState extends State> = (
+// 	store: StoreMethods<TState>
+// ) => Record<string, () => ReturnType<OnChangeMethod<TState>>>;
+
+// export type OnChangeMethod<TState> = (
+// 	callback: Simplify<OnChangeCallback<TState>>,
+// 	options?: OnChangeOptions<TState>
+// ) => OnChangeUnsubscribe;
+
+// export type OnChangeCallback<TState> = (
+// 	value: TState,
+// 	prevValue: TState
+// ) => void;
+
+export type OnChangeUnsubscribe = () => void;
 
 export type OnChangeOptions<TState> = {
 	/**

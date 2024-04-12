@@ -1,6 +1,5 @@
-import { describe, expect, it, test, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { store } from '../src';
-import { shallow } from 'zustand/shallow';
 
 describe('Store onChange method', () => {
 	describe('Primitive values store', () => {
@@ -105,36 +104,3 @@ describe('Store onChange method', () => {
 		});
 	});
 });
-
-// describe('store effect helper ', () => {
-// 	const countStore = store({
-// 		parent1: { count: 1 },
-// 		parent2: { count: 2 },
-// 	});
-
-// 	test('v1', () => {
-// 		const cb1 = vi.fn();
-// 		const cb2 = vi.fn();
-
-// 		countStore.parent1.count.onChange(cb1);
-// 		countStore.parent2.count.onChange(cb2);
-
-// 		countStore.parent1.count.set(10);
-
-// 		expect(cb1).toHaveBeenCalledTimes(1);
-// 		expect(cb2).toHaveBeenCalledTimes(0);
-// 	});
-
-// 	test('v2', () => {
-// 		const cb1 = vi.fn();
-// 		const cb2 = vi.fn();
-
-// 		countStore.parent1.onChange(cb1);
-// 		countStore.parent2.onChange(cb2);
-
-// 		countStore.parent2.count.set(20);
-
-// 		expect(cb1).toHaveBeenCalledTimes(0);
-// 		expect(cb2).toHaveBeenCalledTimes(1);
-// 	});
-// });

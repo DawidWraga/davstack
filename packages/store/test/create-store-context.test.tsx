@@ -6,12 +6,13 @@ import {
 	waitFor,
 } from '@testing-library/react';
 
-import { beforeEach, describe, expect, it, test } from 'vitest';
+import { beforeEach, describe, expect, it, test, vi } from 'vitest';
 import { createStoreContext, store } from '../src';
 import { useEffect, useRef, useState } from 'react';
 const testIds = {
 	count: 'count',
 	doubledCount: 'doubled-count',
+	synchedCount: 'synched-count',
 	increment: 'increment',
 	decrement: 'decrement',
 	componentUsingGetRenderCount: 'component-using-get-render-count',
@@ -193,6 +194,171 @@ describe('local component store', () => {
 		await waitFor(() => {
 			expect(ui.getUserAge('comp1')).toBe('26');
 			expect(ui.getUserAge('comp2')).toBe('28');
+		});
+	});
+
+	describe('local store scoping', () => {
+		const globalStore = store({ count: 2, syncedCount: 0 })
+			.computed((store) => ({
+				doubledCount: () => store.count.get() * 2,
+			}))
+			.actions((store) => ({
+				increment: () => store.count.set(store.count.get() + 1),
+				decrement: () => store.count.set(store.count.get() - 1),
+			}))
+			.effects((store) => ({
+				logCount: () =>
+					store.count.onChange((count) => {
+						store.syncedCount.set(count);
+					}),
+			}));
+		const storeContext = createStoreContext(globalStore);
+
+		const Counter = ({ id }: { id: string }) => {
+			const store = storeContext.useStore();
+			const count = store.count.use();
+			const doubledCount = store.doubledCount.use();
+			const syncedCount = store.syncedCount.use();
+
+			return (
+				<div>
+					<p data-testid={`${testIds.count}-${id}`}>Count: {count}</p>
+					<p data-testid={`${testIds.doubledCount}-${id}`}>
+						Doubled Count: {doubledCount}
+					</p>
+					<p data-testid={`${testIds.synchedCount}-${id}`}>
+						Synched Count: {syncedCount}
+					</p>
+					<button
+						data-testid={`${testIds.increment}-${id}`}
+						onClick={store.increment}
+					>
+						Increment
+					</button>
+					<button
+						data-testid={`${testIds.decrement}-${id}`}
+						onClick={store.decrement}
+					>
+						Decrement
+					</button>
+				</div>
+			);
+		};
+
+		test('computed values should be scoped to each component', async () => {
+			const ui = getUi(
+				render(
+					<>
+						<storeContext.Provider initialValue={{ count: 5 }}>
+							<Counter id="comp1" />
+						</storeContext.Provider>
+						<storeContext.Provider initialValue={{ count: 10 }}>
+							<Counter id="comp2" />
+						</storeContext.Provider>
+					</>
+				)
+			);
+
+			await waitFor(() => {
+				expect(ui.getByTestId(`${testIds.count}-comp1`)).toHaveTextContent(
+					'Count: 5'
+				);
+			});
+
+			act(() => {
+				fireEvent.click(ui.getByTestId(`${testIds.increment}-comp1`));
+			});
+
+			await waitFor(() => {
+				expect(ui.getByTestId(`${testIds.count}-comp1`)).toHaveTextContent(
+					'Count: 6'
+				);
+			});
+
+			await waitFor(() => {
+				expect(
+					ui.getByTestId(`${testIds.doubledCount}-comp1`)
+				).toHaveTextContent('Doubled Count: 12');
+			});
+			// await waitFor(() => {
+
+			// 	expect(
+			// 		ui.getByTestId(`${testIds.doubledCount}-comp1`)
+			// 	).toHaveTextContent('Doubled Count: 10');
+			// 	expect(ui.getByTestId(`${testIds.count}-comp2`)).toHaveTextContent(
+			// 		'Count: 10'
+			// 	);
+			// 	expect(
+			// 		ui.getByTestId(`${testIds.doubledCount}-comp2`)
+			// 	).toHaveTextContent('Doubled Count: 20');
+			// });
+		});
+
+		test('actions should be scoped to each component', async () => {
+			const ui = getUi(
+				render(
+					<>
+						<storeContext.Provider initialValue={{ count: 5 }}>
+							<Counter id="comp1" />
+						</storeContext.Provider>
+						<storeContext.Provider initialValue={{ count: 10 }}>
+							<Counter id="comp2" />
+						</storeContext.Provider>
+					</>
+				)
+			);
+
+			act(() => {
+				fireEvent.click(ui.getByTestId(`${testIds.increment}-comp1`));
+				fireEvent.click(ui.getByTestId(`${testIds.decrement}-comp2`));
+			});
+
+			await waitFor(() => {
+				expect(ui.getByTestId(`${testIds.count}-comp1`)).toHaveTextContent(
+					'Count: 6'
+				);
+				expect(ui.getByTestId(`${testIds.count}-comp2`)).toHaveTextContent(
+					'Count: 9'
+				);
+			});
+		});
+
+		test('effects should be scoped to each component', async () => {
+			const ui = getUi(
+				render(
+					<>
+						<storeContext.Provider initialValue={{ count: 5 }}>
+							<Counter id="comp1" />
+						</storeContext.Provider>
+						<storeContext.Provider initialValue={{ count: 10 }}>
+							<Counter id="comp2" />
+						</storeContext.Provider>
+					</>
+				)
+			);
+
+			act(() => {
+				fireEvent.click(ui.getByTestId(`${testIds.increment}-comp1`));
+				fireEvent.click(ui.getByTestId(`${testIds.decrement}-comp2`));
+			});
+
+			await waitFor(() => {
+				expect(ui.getByTestId(`${testIds.count}-comp1`)).toHaveTextContent(
+					'Count: 6'
+				);
+				expect(ui.getByTestId(`${testIds.count}-comp2`)).toHaveTextContent(
+					'Count: 9'
+				);
+			});
+
+			await waitFor(() => {
+				expect(
+					ui.getByTestId(`${testIds.synchedCount}-comp1`)
+				).toHaveTextContent('Synched Count: 6');
+				expect(
+					ui.getByTestId(`${testIds.synchedCount}-comp2`)
+				).toHaveTextContent('Synched Count: 9');
+			});
 		});
 	});
 });

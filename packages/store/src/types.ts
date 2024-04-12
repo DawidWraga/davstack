@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
-/* eslint-disable prettier/prettier */
+
 import { Draft } from 'immer';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
-import { NestedStoreMethods } from './types/store-methods';
+import { NestedStoreMethods, OnChangeUnsubscribe } from './types/store-methods';
 import {
 	ComputedBuilder,
 	ComputedMethods,
@@ -32,6 +32,8 @@ export type StoreApi<
 	TExtendedProps & {
 		_: StoreInternals<TState, TExtendedProps>;
 
+		// _effects: EffectMethods<{}>;
+
 		/**
 		 * Extends the store
 		 *
@@ -58,25 +60,21 @@ export type StoreApi<
 			builder: TBuilder
 		): StoreApi<TState, TExtendedProps & ComputedMethods<ReturnType<TBuilder>>>;
 
-		effect<TBuilder extends EffectBuilder<TState>>(
+		effects<TBuilder extends EffectBuilder<TState, TExtendedProps>>(
 			builder: TBuilder
-		): StoreApi<TState, TExtendedProps>;
+		): StoreApi<TState, TExtendedProps & EffectMethods<ReturnType<TBuilder>>>;
 	};
 
-// TODO: decide if we want to keep this
-export type EffectBuilder<TState extends State> = (
-	store: StoreApi<TState>
-) => Partial<
-	Record<
-		keyof TState,
-		(value: TState[keyof TState], prevValue: TState[keyof TState]) => void
-	>
->;
+export type EffectBuilder<
+	T extends State,
+	TExtendedProps extends Record<string, any>,
+> = (store: StoreApi<T, TExtendedProps>) => Record<string, OnChangeUnsubscribe>;
 
-// export type ComputedBuilder<
-// 	T extends State,
-// 	TComputedProps extends Record<string, any>,
-// > = (store: T) => TComputedProps;
+export type EffectMethods<TMethods> = {
+	_effects: TMethods;
+	subscribeToEffects: () => void;
+	unsubscribeFromEffects: () => void;
+};
 
 export type ExtendBuilder<
 	T extends State,

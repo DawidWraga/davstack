@@ -7,7 +7,13 @@ import {
 import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from './middlewares/immer.middleware';
-import { ImmerStoreApi, SetImmerState, State, StoreApi } from './types';
+import {
+	EffectBuilder,
+	ImmerStoreApi,
+	SetImmerState,
+	State,
+	StoreApi,
+} from './types';
 import { StoreOptions } from './types/CreateStoreOptions';
 import { pipe } from './utils/pipe';
 
@@ -90,6 +96,38 @@ export const store = <TState extends State>(
 		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
 	}
 
+	function effects<TBuilder extends EffectBuilder<TState, {}>>(
+		builder: TBuilder
+	): StoreApi<TState, {}> {
+		// @ts-expect-error
+		return globalStore.extend((store) => {
+			const effectNameToFn = builder(store);
+			const unsubMethods: Record<string, () => void> = {};
+
+			const subscribeToEffects = () => {
+				Object.entries(effectNameToFn).forEach(([key, fn]) => {
+					// @ts-expect-error
+					unsubMethods[key] = fn();
+				});
+			};
+
+			const unsubscribeFromEffects = () => {
+				Object.values(unsubMethods).forEach((fn) => fn());
+			};
+
+			const extraProps = {
+				_effects: effectNameToFn,
+				subscribeToEffects,
+				unsubscribeFromEffects,
+			};
+
+			// subscribe to the effects when the store is created
+			subscribeToEffects();
+
+			return extraProps;
+		});
+	}
+
 	function createInstance(instanceInitialValue?: Partial<TState>) {
 		// if is object then merge, otherwise use the localInitialValue and fallback to initialState
 		const mergedInitialState = isObject(initialState)
@@ -105,6 +143,17 @@ export const store = <TState extends State>(
 			immerStore: innerStore,
 			storeName: name,
 		});
+
+		function innerComputed<TComputedProps extends ComputedProps>(
+			computedCallback: ComputedBuilder<TState, TComputedProps>
+		): StoreApi<TState, TComputedProps> {
+			// @ts-expect-error
+			const computedMethods = computed(methods, computedCallback);
+
+			console.log('computedMethods', computedMethods);
+			// @ts-expect-error
+			return extend((store) => computedMethods);
+		}
 
 		applyExtensions(methods as any);
 
@@ -122,17 +171,8 @@ export const store = <TState extends State>(
 			extend,
 			actions: extend,
 			computed: innerComputed,
+			effects,
 		});
-
-		function innerComputed<TComputedProps extends ComputedProps>(
-			computedCallback: ComputedBuilder<TState, TComputedProps>
-		): StoreApi<TState, TComputedProps> {
-			// @ts-expect-error
-			const computedMethods = computed(methods, computedCallback);
-
-			// @ts-expect-error
-			return extend((store) => computedMethods);
-		}
 
 		return methods as unknown as StoreApi<TState>;
 	}
@@ -157,11 +197,24 @@ export function createStoreContext<
 		initialValue?: Partial<TState>;
 		children: React.ReactNode;
 	}) => {
-		// probably want a use ref in here
-		const storeInstance = store._.createInstance(localInitialValue as TState);
+		const storeInstance = React.useRef<StoreApi<TState, TExtensions>>(
+			store._.createInstance(localInitialValue as TState)
+		);
+
+		React.useEffect(() => {
+			return () => {
+				if (
+					storeInstance.current &&
+					'unsubscribeFromEffects' in storeInstance.current
+				) {
+					// @ts-expect-error
+					storeInstance.current?.unsubscribeFromEffects?.();
+				}
+			};
+		}, []);
 
 		return (
-			<Context.Provider value={storeInstance as any}>
+			<Context.Provider value={storeInstance.current as any}>
 				{children}
 			</Context.Provider>
 		);
