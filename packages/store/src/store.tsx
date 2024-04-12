@@ -21,6 +21,7 @@ import {
 } from './utils/create-computed-methods';
 
 import { subscribeWithSelector } from 'zustand/middleware';
+import { createMethodsProxy } from './utils/create-methods-proxy';
 export const store = <TState extends State>(
 	initialState: TState,
 	options: StoreOptions<TState> = {}
@@ -29,9 +30,7 @@ export const store = <TState extends State>(
 
 	const name =
 		options.name ??
-		JSON.stringify(
-			isObject(initialState) ? Object.keys(initialState) : initialState
-		);
+		'davstack/store|initialValue=' + JSON.stringify(initialState);
 
 	const createInnerStore = (initialState: TState) => {
 		const pipeMiddlewares = (
@@ -106,10 +105,15 @@ export const store = <TState extends State>(
 
 		const innerStore = createInnerStore(mergedInitialState as any);
 
-		const methods = createNestedMethods({
+		const methods = createMethodsProxy({
 			immerStore: innerStore,
 			storeName: name,
+			
 		});
+		// const methods = createNestedMethods({
+		// 	immerStore: innerStore,
+		// 	storeName: name,
+		// });
 
 		applyExtensions(methods as any);
 
@@ -139,7 +143,9 @@ export const store = <TState extends State>(
 			return extend((store) => computedMethods);
 		}
 
-		return methods as StoreApi<TState>;
+		//console.log('methods end of create instance', methods.parent);
+
+		return methods as unknown as StoreApi<TState>;
 	}
 
 	const globalStore = createInstance(initialState);
