@@ -6,7 +6,7 @@ export type ComputedProps = Record<string, () => any>;
 
 export type ComputedMethods<TComputedProps extends ComputedProps> = {
 	[K in keyof TComputedProps]: Pick<
-		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>, object>,
+		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>>,
 		'use' | 'get'
 	>;
 };

@@ -167,11 +167,10 @@ describe('store with computed properties', () => {
 		const Counter = () => {
 			const count = countStore.use();
 
-			const doubled = countStore.doubled.use();
 			return (
 				<div>
 					<p data-testid={testIds.count}>Count: {count}</p>
-					<p data-testid={testIds.doubledCount}>Doubled: {doubled}</p>
+
 					<button
 						data-testid={testIds.increment}
 						onClick={countStore.increment}
@@ -187,15 +186,32 @@ describe('store with computed properties', () => {
 				</div>
 			);
 		};
+		const Doubled = () => {
+			const doubled = countStore.doubled.use();
+			return (
+				<div>
+					<p data-testid={testIds.doubledCount}>Doubled: {doubled}</p>
+				</div>
+			);
+		};
+
+		function Counters() {
+			return (
+				<>
+					<Counter />
+					<Doubled />
+				</>
+			);
+		}
 
 		test('initial computed property value', () => {
-			const ui = getUi(render(<Counter />));
+			const ui = getUi(render(<Counters />));
 			expect(ui.count).toBe('Count: 0');
 			expect(ui.doubledCount).toBe('Doubled: 0');
 		});
 
 		test('computed property updates on state change', () => {
-			const ui = getUi(render(<Counter />));
+			const ui = getUi(render(<Counters />));
 
 			act(() => {
 				ui.fireIncrement();

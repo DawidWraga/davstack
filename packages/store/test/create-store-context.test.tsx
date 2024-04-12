@@ -280,18 +280,14 @@ describe('local component store', () => {
 					ui.getByTestId(`${testIds.doubledCount}-comp1`)
 				).toHaveTextContent('Doubled Count: 12');
 			});
-			// await waitFor(() => {
-
-			// 	expect(
-			// 		ui.getByTestId(`${testIds.doubledCount}-comp1`)
-			// 	).toHaveTextContent('Doubled Count: 10');
-			// 	expect(ui.getByTestId(`${testIds.count}-comp2`)).toHaveTextContent(
-			// 		'Count: 10'
-			// 	);
-			// 	expect(
-			// 		ui.getByTestId(`${testIds.doubledCount}-comp2`)
-			// 	).toHaveTextContent('Doubled Count: 20');
-			// });
+			await waitFor(() => {
+				expect(ui.getByTestId(`${testIds.count}-comp2`)).toHaveTextContent(
+					'Count: 10'
+				);
+				expect(
+					ui.getByTestId(`${testIds.doubledCount}-comp2`)
+				).toHaveTextContent('Doubled Count: 20');
+			});
 		});
 
 		test('actions should be scoped to each component', async () => {

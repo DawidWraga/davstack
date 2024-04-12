@@ -148,11 +148,7 @@ export const store = <TState extends State>(
 			computedCallback: ComputedBuilder<TState, TComputedProps>
 		): StoreApi<TState, TComputedProps> {
 			// @ts-expect-error
-			const computedMethods = computed(methods, computedCallback);
-
-			console.log('computedMethods', computedMethods);
-			// @ts-expect-error
-			return extend((store) => computedMethods);
+			return extend((store) => computed(store, computedCallback));
 		}
 
 		applyExtensions(methods as any);
