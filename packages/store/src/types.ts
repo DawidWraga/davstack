@@ -83,6 +83,19 @@ export type NestedStoreMethods<TState, TFullState = object> = StoreMethods<
 		? { [TKey in keyof TState]: NestedStoreMethods<TState[TKey], TFullState> }
 		: {});
 
+export type RecursiveNestedStoreMethods<TState, TSlice> = StoreMethods<
+	TSlice,
+	TState
+> &
+	(TState extends object
+		? {
+				[TKey in keyof TSlice]: RecursiveNestedStoreMethods<
+					TState,
+					TSlice[TKey]
+				>;
+			}
+		: {});
+
 export interface StoreInternals<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
@@ -100,7 +113,7 @@ export interface StoreInternals<
 export type StoreApi<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
-> = NestedStoreMethods<TState, TState> &
+> = RecursiveNestedStoreMethods<TState, TState> &
 	TExtendedProps & {
 		_: StoreInternals<TState, TExtendedProps>;
 
