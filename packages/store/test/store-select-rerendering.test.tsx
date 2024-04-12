@@ -1,5 +1,5 @@
-import React, { useContext, useMemo, useRef, useState } from 'react';
-import { fireEvent, render, waitFor, act } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import React, { useContext, useRef, useState } from 'react';
 
 import { create as createZustandStore } from 'zustand';
 

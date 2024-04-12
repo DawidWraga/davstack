@@ -1,42 +1,5 @@
-import { act, fireEvent, render } from '@testing-library/react';
-import { useRef } from 'react';
-import { beforeEach, describe, expect, it, test, vi } from 'vitest';
-import { store, StoreApi } from '../src';
-import { a } from 'vitest/dist/suite-a18diDsI';
-
-// Define testIds only once, avoiding repetition
-const testIds = {
-	count: 'count',
-	doubledCount: 'doubled-count',
-	increment: 'increment',
-	decrement: 'decrement',
-	componentUsingGetRenderCount: 'component-using-get-render-count',
-	componentUsingUseRenderCount: 'component-using-use-render-count',
-};
-
-// Simpler UI retrieval without redundant getByTestId spread
-const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
-	return {
-		getByTestId,
-		...rest,
-		get count() {
-			return getByTestId(testIds.count).textContent;
-		},
-		get doubledCount() {
-			return getByTestId(testIds.doubledCount).textContent;
-		},
-		getCount: () => getByTestId(testIds.count).textContent,
-		getDoubledCount: () => getByTestId(testIds.doubledCount).textContent,
-		fireIncrement: () => fireEvent.click(getByTestId(testIds.increment)),
-		fireDecrement: () => fireEvent.click(getByTestId(testIds.decrement)),
-		get componentUsingGetRenderCount() {
-			return getByTestId(testIds.componentUsingGetRenderCount).textContent;
-		},
-		get componentUsingUseRenderCount() {
-			return getByTestId(testIds.componentUsingUseRenderCount).textContent;
-		},
-	};
-};
+import { describe, expect, it, test, vi } from 'vitest';
+import { store } from '../src';
 
 describe('store onchange', () => {
 	describe('primative values store', () => {
