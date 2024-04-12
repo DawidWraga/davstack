@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
-import { Simplify, StoreApi, StoreMethods } from '../types';
+import { Simplify, StoreApi } from '../types';
+import { StoreMethods } from '../types/store-methods';
 
 export type ComputedProps = Record<string, () => any>;
 

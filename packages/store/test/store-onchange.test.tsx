@@ -122,7 +122,13 @@ describe('Store onChange method', () => {
 	});
 
 	it("additional dependencies should trigger the callback when they're changed", () => {
-		const myStore = store({ num: 1, otherNum: 2 });
+		const myStore = store({
+			num: 1,
+			otherNum: 2,
+			parent: {
+				child: 3,
+			},
+		});
 
 		const mockCallback = vi.fn();
 		myStore.onChange(mockCallback, { additionalDeps: ['otherNum'] });

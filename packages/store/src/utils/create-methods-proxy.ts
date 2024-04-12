@@ -1,17 +1,10 @@
 /* eslint-disable no-unused-vars */
 import { useStoreWithEqualityFn } from 'zustand/traditional';
-import {
-	ImmerStoreApi,
-	NestedStoreMethods,
-	OnChangeOptions,
-	SetImmerState,
-	State,
-	StoreMethods,
-	UseImmerStore,
-} from '../types';
+import { ImmerStoreApi, SetImmerState, State, UseImmerStore } from '../types';
 import { EqualityChecker } from '../types';
 import { isObject } from '../store';
 import { createRecursiveProxy } from './create-recursive-proxy';
+import { OnChangeOptions, StoreMethods } from '../types/store-methods';
 //import { createRecursiveProxy, ProxyCallback } from './create-recursive-proxy';
 
 // export type StoreMethodKeys<T> = keyof NestedStoreMethods<T>;
