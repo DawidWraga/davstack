@@ -24,54 +24,27 @@ export const createMethod = <T extends State>(options: {
 
 	const isRootPath = path.length === 0;
 
-	const useStore = ((selector, equalityFn) =>
-		useStoreWithEqualityFn(
-			immerStore as any,
-			selector as any,
-			equalityFn as any
-		)) as UseImmerStore<T>;
+	if (method === 'get') {
+		return () => getPathValue(immerStore.getState(), path);
+	}
 
-	const setState: SetImmerState<T> = (fnOrNewValue, actionName) => {
-		immerStore.setState(fnOrNewValue, actionName || `@@${storeName}/setState`);
-	};
+	if (method === 'use') {
+		const useStore = ((selector, equalityFn) =>
+			useStoreWithEqualityFn(
+				immerStore as any,
+				selector as any,
+				equalityFn as any
+			)) as UseImmerStore<T>;
 
-	const set = (newValueOrFn: any) => {
-		const isCallback = isFunction(newValueOrFn);
-		const isValue = !isCallback;
+		return (equalityFn?: EqualityChecker<any>) => {
+			return useStore((state) => {
+				return getPathValue(state, path);
+			}, equalityFn);
+		};
+	}
 
-		const prevValue = getPathValue(immerStore.getState(), path);
-		if (isValue && prevValue === newValueOrFn) {
-			return;
-		}
-
-		const actionKey = method.replace(/^\S/, (s) => s.toUpperCase());
-
-		return setState((draft) => {
-			if (isRootPath && isValue) {
-				draft = newValueOrFn;
-				return draft;
-			}
-
-			if (isValue) {
-				setPathValue(draft, path, newValueOrFn);
-			}
-
-			if (isCallback) {
-				if (isRootPath) {
-					newValueOrFn(draft);
-					return;
-				}
-
-				setPathValue(draft, path, newValueOrFn(prevValue));
-				return;
-			}
-		}, `@@${storeName}/set${actionKey}`);
-	};
-
-	const methods = {
-		set,
-		get: () => getPathValue(immerStore.getState(), path),
-		onChange: (listener: any, options: OnChangeOptions<T> = {}) => {
+	if (method === 'onChange') {
+		return (listener: any, options: OnChangeOptions<T> = {}) => {
 			return immerStore.subscribe(
 				(state) => {
 					if (!options.deps) {
@@ -112,13 +85,50 @@ export const createMethod = <T extends State>(options: {
 				}
 				// equality fn
 			);
-		},
-		use: (equalityFn?: EqualityChecker<any>) => {
-			return useStore((state) => {
-				return getPathValue(state, path);
-			}, equalityFn);
-		},
-		assign: (state: Partial<T>) => {
+		};
+	}
+
+	const setState: SetImmerState<T> = (fnOrNewValue, actionName) => {
+		immerStore.setState(fnOrNewValue, actionName || `@@${storeName}/setState`);
+	};
+
+	const set = (newValueOrFn: any) => {
+		const isCallback = isFunction(newValueOrFn);
+		const isValue = !isCallback;
+
+		const prevValue = getPathValue(immerStore.getState(), path);
+		if (isValue && prevValue === newValueOrFn) {
+			return;
+		}
+
+		const actionKey = method.replace(/^\S/, (s) => s.toUpperCase());
+
+		return setState((draft) => {
+			if (isRootPath && isValue) {
+				draft = newValueOrFn;
+				return draft;
+			}
+
+			if (isValue) {
+				setPathValue(draft, path, newValueOrFn);
+			}
+
+			if (isCallback) {
+				if (isRootPath) {
+					newValueOrFn(draft);
+					return;
+				}
+
+				setPathValue(draft, path, newValueOrFn(prevValue));
+				return;
+			}
+		}, `@@${storeName}/set${actionKey}`);
+	};
+
+	if (method === 'set') return set;
+
+	if (method === 'assign')
+		return (state: Partial<T>) => {
 			if (!isObject(state)) {
 				return set(state);
 			}
@@ -126,10 +136,10 @@ export const createMethod = <T extends State>(options: {
 			return set((draft) => {
 				return Object.assign(draft, state);
 			});
-		},
-	} as StoreMethods<T>;
+		};
 
-	return methods[method];
+	console.error(`Method ${method} not found`);
+	return undefined;
 };
 
 /**
