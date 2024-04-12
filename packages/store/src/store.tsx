@@ -13,7 +13,6 @@ import { pipe } from './utils/pipe';
 
 import React from 'react';
 import type { StateCreator } from 'zustand';
-import { createNestedMethods } from './utils/create-methods';
 import {
 	computed,
 	ComputedBuilder,
@@ -91,10 +90,7 @@ export const store = <TState extends State>(
 		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
 	}
 
-	function createInstance(
-		instanceInitialValue?: Partial<TState>,
-		options?: StoreOptions<TState>
-	) {
+	function createInstance(instanceInitialValue?: Partial<TState>) {
 		// if is object then merge, otherwise use the localInitialValue and fallback to initialState
 		const mergedInitialState = isObject(initialState)
 			? {
@@ -108,12 +104,7 @@ export const store = <TState extends State>(
 		const methods = createMethodsProxy({
 			immerStore: innerStore,
 			storeName: name,
-			
 		});
-		// const methods = createNestedMethods({
-		// 	immerStore: innerStore,
-		// 	storeName: name,
-		// });
 
 		applyExtensions(methods as any);
 
@@ -142,8 +133,6 @@ export const store = <TState extends State>(
 			// @ts-expect-error
 			return extend((store) => computedMethods);
 		}
-
-		//console.log('methods end of create instance', methods.parent);
 
 		return methods as unknown as StoreApi<TState>;
 	}
