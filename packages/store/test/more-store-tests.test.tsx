@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { act, fireEvent, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { describe, expect, test, vi } from 'vitest';

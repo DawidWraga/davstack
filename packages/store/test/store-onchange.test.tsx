@@ -39,7 +39,10 @@ describe('Store onChange method', () => {
 	});
 
 	describe('Nested object store', () => {
-		const nestedStore = store({ parent: { count: 2 }, parent2: { count: 3 } });
+		const nestedStore = store({
+			parent: { count: 2 },
+			parent2: { count: 3 },
+		});
 
 		it('should call the listener when a nested value changes', () => {
 			const cb = vi.fn();

@@ -27,17 +27,53 @@ import {
 
 import { subscribeWithSelector } from 'zustand/middleware';
 import { createMethodsProxy } from './utils/create-methods-proxy';
-export const store = <TState extends State>(
-	initialState: TState,
-	options: StoreOptions<TState> = {}
-): StoreApi<TState, {}> => {
-	const { middlewares: _middlewares = [], devtools, persist, immer } = options;
 
-	const name =
-		options.name ??
-		'davstack/store|initialValue=' + JSON.stringify(initialState);
+export type StoreBuilderApi<TState extends State> = StoreApi<TState, {}> & {
+	options: (options: StoreOptions<TState>) => StoreBuilderApi<TState>;
+	state: <TNewState>(initialValue: TNewState) => StoreApi<TNewState, {}>;
+};
 
+export const storeBuilder = <TState extends State>() => {
+	let initialState: TState;
+	let options: StoreOptions<TState> = {};
+
+	const getName = () => {
+		if (options.name) return options.name;
+
+		const defaultName = `(davstack/store)initialValue=${
+			initialState ? JSON.stringify(initialState) : 'no-state'
+		}`;
+		Object.assign(options, { name: defaultName });
+		return defaultName;
+	};
+
+	function optionFn(newOpts: any) {
+		options = newOpts;
+		return { state };
+	}
+
+	function state<TNewState extends State>(initialValue: TNewState) {
+		initialState = initialValue as any;
+
+		const storeInstance = createInstance(initialState);
+		globalStore = storeInstance;
+		return globalStore;
+	}
+
+	let globalStore = {
+		options: optionFn,
+		state,
+	} as unknown as StoreApi<TState, {}>;
+
+	/** creates the internal store with middlwares */
 	const createInnerStore = (initialState: TState) => {
+		const {
+			middlewares: _middlewares = [],
+			devtools,
+			persist,
+			immer,
+		} = options;
+		const name = getName();
 		const pipeMiddlewares = (
 			// @ts-expect-error
 			createState: StateCreator<TState, SetImmerState<TState>>
@@ -90,10 +126,13 @@ export const store = <TState extends State>(
 
 	function extend<TNewExtendedProps extends Record<string, any>>(
 		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
+		//@ts-expect-error
 	): StoreApi<TState, TNewExtendedProps> {
 		extensions.push(builder);
-		Object.assign(globalStore, builder(globalStore));
-		return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
+		if (globalStore) {
+			Object.assign(globalStore, builder(globalStore));
+			return globalStore as unknown as StoreApi<TState, TNewExtendedProps>;
+		}
 	}
 
 	function effects<TBuilder extends EffectBuilder<TState, {}>>(
@@ -129,6 +168,8 @@ export const store = <TState extends State>(
 	}
 
 	function createInstance(instanceInitialValue?: Partial<TState>) {
+		const name = getName();
+
 		// if is object then merge, otherwise use the localInitialValue and fallback to initialState
 		const mergedInitialState = isObject(initialState)
 			? {
@@ -168,14 +209,33 @@ export const store = <TState extends State>(
 			actions: extend,
 			computed: innerComputed,
 			effects,
+			state,
 		});
 
 		return methods as unknown as StoreApi<TState>;
 	}
 
-	const globalStore = createInstance(initialState);
+	return globalStore as unknown as StoreBuilderApi<TState>;
+};
 
-	return globalStore as unknown as StoreApi<TState, {}>;
+export const store = <TState extends State>(
+	initialState?: TState,
+	options?: StoreOptions<TState>
+): StoreBuilderApi<TState> => {
+	if (initialState !== undefined && options !== undefined)
+		return storeBuilder()
+			.options(options as any)
+			.state(initialState) as StoreBuilderApi<TState>;
+
+	if (initialState !== undefined) {
+		return storeBuilder().state(initialState) as StoreBuilderApi<TState>;
+	}
+
+	if (options !== undefined) {
+		return storeBuilder().options(options as any) as StoreBuilderApi<TState>;
+	}
+
+	return storeBuilder() as StoreBuilderApi<TState>;
 };
 
 export function createStoreContext<

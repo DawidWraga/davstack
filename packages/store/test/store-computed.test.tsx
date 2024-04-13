@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react';
-import { useRef } from 'react';
+
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import { store } from '../src';
 
@@ -36,6 +36,29 @@ const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 		},
 	};
 };
+// .name("test store")
+// .config({
+// 	enabledAutoFreeze: true,
+// 	enableMapSet: true,
+// })
+
+// const countStore2 = storeBuilder((store) =>
+// 	store
+// 		.state({
+// 			count: 10,
+// 		})
+// 		.computed((store) => ({
+// 			doubled: () => store.count.get() * 2,
+// 		}))
+// 		.actions((store) => ({
+// 			increment() {
+// 				store.count.set(store.count.get() + 1);
+// 			},
+// 			decrement() {
+// 				store.count.set(store.count.get() - 1);
+// 			},
+// 		}))
+// );
 
 describe('store with computed properties', () => {
 	describe('basic example', () => {
@@ -45,7 +68,7 @@ describe('store with computed properties', () => {
 			.computed((store) => ({
 				doubled: () => store.count.get() * 2,
 			}))
-			.extend((store) => ({
+			.actions((store) => ({
 				increment() {
 					store.count.set(store.count.get() + 1);
 				},
