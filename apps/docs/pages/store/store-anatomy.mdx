@@ -1,0 +1,47 @@
+import { Callout } from 'nextra/components';
+
+# Store Anatomy
+
+Stores allow you to encapsulate state and logic in single, reusable object.
+
+### Why Encapsulate State and Logic in the Store?
+
+The store definition is **self-contained**, allowing you to **reuse** it to create **multiple instances** of the same store with the same extensions and effects eg for [Local State Management](/store/local-state-management).
+
+Additionally, it helps to keep your code organized and provides useful autocompletion and type checking.
+
+### Example
+
+```tsx filename="stores/user-store.ts"
+import { store } from '@davstack/store';
+
+export const userStore = store
+	.state({
+		name: 'John',
+		age: 25,
+	})
+	.computed((store) => ({
+		fullName: () => `${store.name.get()} Doe`,
+	}))
+	.actions((store) => ({
+		incrementAge() {
+			store.age.set(store.age.get() + 1);
+		},
+	}));
+
+// fully typed
+userStore.incrementAge();
+userStore.name.get();
+```
+
+### Core store concepts:
+
+- **State**: a single source of truth that can be accessed and modified.
+- **Actions**: functions that modify the state.
+- **Computed Properties**: read-only derived values that are automatically updated when the state changes.
+
+### Additional store concepts:
+
+- **Extensions**: allow you to assign any additional properties to the store, while keeping the store definition self-contained and reusable. (see [extensions](/store/extensions))
+- **Effects**: side effects that run when the state changes, such as logging or API calls. (See [onChange and effects](/store/onChange-and-effects))
+- **Store Options**: additional options such as middlewares, devtools, and state persistence. (See [options](/store/options-and-middleware))

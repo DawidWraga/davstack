@@ -1,0 +1,69 @@
+import { Callout } from 'nextra/components';
+
+# Defining Stores
+
+To create a store, you can use the `store()` function and pass in the initial state:
+
+```tsx
+import { store } from '@davstack/store';
+
+const counterStore = store(0);
+```
+
+Alternatively, you can use `store.state()` to define the initial state:
+
+```tsx
+const counterStore = store().state(0);
+```
+
+<Callout type="info" emoji="ℹ️">
+	`store(initialState)` and `store.state(initialState)` are equivalent and can be used interchangeably.
+
+</Callout>
+
+## Defining Actions
+
+Actions are functions that modify the store's state. They can be defined using the `actions` method:
+
+```tsx
+const userStore = store()
+	.state({
+		name: 'John',
+		age: 25,
+	})
+	.actions((store) => ({
+		incrementAge() {
+			store.age.set(store.age.get() + 1);
+		},
+	}));
+
+// calling actions
+userStore.incrementAge();
+```
+
+## Defining Computed Properties
+
+Computed properties are derived values that are automatically updated when the store's state changes. They can be defined using the `computed` method:
+
+```tsx
+const userStore = store()
+	.state({
+		name: 'John',
+		age: 25,
+	})
+	.computed((store) => ({
+		fullName: () => `${store.name.get()} Doe`,
+	}));
+
+// accessing computed properties
+const fullName = userStore.fullName.get();
+```
+
+<Callout type="info" emoji="ℹ️">
+	How do computed properties work?
+</Callout>
+
+- The "store" passed into the computed callback is a proxy.
+- When you call `store.computedValue.get()`, then the store will be passed to the computed function like normal.
+- When you call `store.computedValue.use()`, then the store passed to computed function will detect any `store.get()` calls inside the computed function, and will replace them with `store.use()` calls.
+- This means that the value will be re-evaluated whenever any of the dependencies change, but it does not currently cache the result.

@@ -1,0 +1,130 @@
+import { Callout } from 'nextra/components';
+
+# Local State Management
+
+Davstack Store provides an easy way to manage locally scoped state using the `createStoreContext` helper. This allows you to create multiple instances of a store within different components, each with its own initial state.
+
+## Creating a Store Context
+
+To create a store context, use the `createStoreContext` function and pass in the global store:
+
+```tsx
+import { store, createStoreContext } from '@davstack/store';
+
+const globalStore = store({
+	count: 0,
+});
+
+const storeContext = createStoreContext(globalStore);
+```
+
+## Using the Store Context
+
+Once you have created a store context, you can use it to provide locally scoped state to different parts of your application.
+
+### Providing Local State
+
+To provide local state to a component subtree, wrap the components with the `Provider` component from the store context:
+
+```tsx
+const Counter = () => {
+	const store = storeContext.useStore();
+	const count = store.count.use();
+
+	return (
+		<div>
+			<p>Count: {count}</p>
+			<button onClick={() => store.count.set(store.count.get() + 1)}>
+				Increment
+			</button>
+		</div>
+	);
+};
+
+const App = () => {
+	return (
+		<>
+			<storeContext.Provider initialValue={{ count: 1 }}>
+				<Counter />
+			</storeContext.Provider>
+			<storeContext.Provider initialValue={{ count: 5 }}>
+				<Counter />
+			</storeContext.Provider>
+		</>
+	);
+};
+```
+
+In this example, we have two instances of the `Counter` component, each wrapped with a different `Provider` component from the store context. Each `Provider` component receives a different `initialValue` prop, which is used to initialize the local state for that instance of the store.
+
+### Accessing Local State
+
+To access the local state within a component, use the `useStore` hook from the store context:
+
+```tsx
+const store = storeContext.useStore();
+```
+
+This will give you access to the local instance of the store, which you can then use to access and update the state:
+
+```tsx
+const count = store.count.use();
+store.count.set(store.count.get() + 1);
+```
+
+<Callout type="info" emoji="ℹ️">
+	The `useStore` hook will return the closest instance of the store in the
+	component tree. If there is no `Provider` component above the current
+	component, it will throw an error.
+</Callout>
+
+## Computed Properties, Actions, and Effects
+
+Computed properties, actions, and effects defined on the global store will be automatically scoped to each local instance of the store when using `createStoreContext`.
+
+```tsx
+const globalStore = store({ count: 0 })
+	.computed((store) => ({
+		doubledCount: () => store.count.get() * 2,
+	}))
+	.actions((store) => ({
+		increment: () => store.count.set(store.count.get() + 1),
+	}))
+	.effects((store) => ({
+		logCount: () => store.count.onChange(console.log),
+	}));
+
+const storeContext = createStoreContext(globalStore);
+```
+
+In this example, the `doubledCount` computed property, `increment` action, and `logCount` effect will be scoped to each local instance of the store created with the `storeContext`.
+
+<Callout type="warning" emoji="⚠️">
+	Make sure to encapsulate your store definition within `.computed`, `.actions`,
+	and `.effects` methods. If you create any computed values/actions/effects
+	elsewhere, they will not be scoped to the local store instance.
+</Callout>
+
+## Merging Local and Global State
+
+When creating a local instance of a store with `<Provider initialValue={...}>`, the `initialValue` will be merged with the global store's initial value:
+
+```tsx
+const globalStore = store({
+	count: 0,
+	name: 'John',
+});
+
+const storeContext = createStoreContext(globalStore);
+
+const App = () => {
+	return (
+		<storeContext.Provider initialValue={{ count: 5 }}>
+			{/* count will be 5, but name will still be 'John' from the global store */}
+			<Counter />
+		</storeContext.Provider>
+	);
+};
+```
+
+In this example, the local instance of the store will have a `count` of 5, but the `name` property will still be "John" from the global store.

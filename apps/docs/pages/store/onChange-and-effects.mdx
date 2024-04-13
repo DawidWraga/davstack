@@ -1,0 +1,109 @@
+# `onChange` and `effects`
+
+Davstack Store provides `onChange` and `effects` to manage side effects and state changes in a predictable way.
+
+It is important to understand how to use these features **TOGETHER** to create a robust state management system.
+
+tldr: you can use `onChange` to subscribe to state changes and `effects` to encapsulate side effects.
+
+### Usage example
+
+```tsx
+import { store } from '@davstack/store';
+
+const userStore = store({
+	name: 'John',
+	age: 25,
+}).effects((store) => ({
+	logChanges: () => store.onChange(console.log),
+}));
+```
+
+## `onChange` Method
+
+The `onChange` method callback is called whenever the state changes and can be used to trigger side effects.
+This is useful for scenarios like logging, syncing with external systems, or complex state-driven effects.
+
+### Usage
+
+Subscribe to state changes with `onChange`. It returns an unsubscribe function to prevent memory leaks.
+
+```tsx
+const countStore = store(0);
+const unsubscribe = countStore.onChange((newVal, oldVal) =>
+	console.log(`Changed from ${oldVal} to ${newVal}`)
+);
+```
+
+#### Selective State Changes
+
+Use `onChange` on specific store segments to only run the callback when those parts change.
+
+```tsx
+const unsubscribe = userStore.name.onChange(console.log);
+```
+
+### Dependencies (`deps`)
+
+Specify `deps` to react only to certain state parts. It can be a keys array or a function returning dependencies.
+
+```tsx
+const unsubscribe = store.onChange(callback, { deps: ['num'] });
+```
+
+#### Immediate Invocation
+
+Use `fireImmediately` to trigger the callback immediately with the current state.
+
+```tsx
+const unsubscribe = countStore.onChange(console.log, { fireImmediately: true });
+```
+
+#### Custom Equality Checker
+
+Control callback invocation with a custom equality function. If it returns `true`, the callback does not fire.
+
+```tsx
+const unsubscribe = countStore.onChange(console.log, {
+	equalityChecker: (newState, oldState) =>
+		newState.someValue === oldState.someValue,
+});
+```
+
+## Effects
+
+The `store.effects` method allows you to **encapsule** the logic related to state changes, making it easily testable and reusable.
+
+They enable you to bind logic to the specific store instance, which makes it possible to have multiple instances of the store (see [local state management](/store/local-state-management))
+
+### Defining and Using Effects
+
+Define effects within the store by returning a object similar to actions but each callback should use the `.onChange` method to subscribe to state changes.
+
+```tsx
+const countStore = store(0).effects((store) => ({
+	logChanges: () => store.onChange(console.log),
+}));
+```
+
+### Effect Methods and Subscriptions
+
+**The effects are automatically subscribed to when the store is created, so it is unlikely that you will need to use this.**
+
+However, you can manually access the effects eg for testing using `store._effects.effectName()`.
+
+```tsx
+const unsub = countStore._effects.logChanges();
+```
+
+Additionally, you can subscribe/unsubscribe from all of the store's effects
+
+```tsx
+// subscribe to all the stores effects
+countStore.subscribeToEffecs();
+
+// unsubscribe from all the stores effects
+countStore.unsubscribeFromEffects();
+```
+
+These methods are used under the hood of `createStoreContext` to make multiple instances of the store work correctly.

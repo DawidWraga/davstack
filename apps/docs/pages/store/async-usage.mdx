@@ -1,0 +1,80 @@
+# Async usage
+
+Davstack store can be combined with davstack service to manage async state. Here is an example of how to use davstack store with davstack service to manage async state.
+
+1. Export the trpc react query api utils from your trpc provider file
+
+```tsx
+export let apiUtils = null as unknown as ReturnType<typeof api.useUtils>;
+
+function InitApiClient() {
+	const actualApiUtils = api.useUtils();
+
+	useEffect(() => {
+		apiUtils = actualApiUtils;
+	}, [actualApiUtils]);
+
+	return null;
+}
+
+export function TRPCReactProvider(props: { children: React.ReactNode }) {
+	// ... other code
+	return (
+		<api.Provider client={trpcClient} queryClient={queryClient}>
+			<QueryClientProvider client={queryClient}>
+				{props.children}
+				<InitApiClient />
+			</QueryClientProvider>
+		</api.Provider>
+	);
+}
+```
+
+This allows you to access the api utils from anywhere in your app.
+
+2. Create a store that manages the async state
+
+```tsx
+import { store } from '@davstack/store';
+
+export const notificationsStore = store({
+	subscription: null as PushSubscription | null,
+	registration: null as ServiceWorkerRegistration | null,
+})
+	.computed((store) => ({
+		isSubscribed: () => Boolean(store.subscription),
+	}))
+	.extend((store) => {
+		async function init() {
+			const registration = await navigator.serviceWorker.ready;
+
+			try {
+				checkPushNotificationIsSupported();
+
+				const subscription = await registration.pushManager.getSubscription();
+
+				// use the api utils to make a request to the server
+				await apiUtils.notification.checkSubscription.fetch({
+					endpoint: subscription.endpoint,
+				});
+
+				store.subscription.set(subscription);
+			} catch (error) {
+				console.error('Error initializing subscription:', error);
+			}
+		}
+
+		return {
+			/**
+			 *  Initializes the store, should only be place once in root layout
+			 */
+			Init() {
+				useEffect(() => {
+					init();
+				}, []);
+
+				return null;
+			},
+		};
+	});
+```

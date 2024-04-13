@@ -1,0 +1,107 @@
+# Extensions
+
+Extensions allow you to assign any additional properties to the store, while keeping the store definition self-contained and reusable.
+
+Under the hood, `actions`, `computed` and `effects` all wrap around the `extend` method.
+
+However, you can also use `extend` directly to add any custom properties to the store, which don't direclty fit into the state, actions or computed properties.
+
+## Basic usage example
+
+```tsx
+import { store } from '@davstack/store';
+
+const userStore = store()
+	.state({
+		name: 'John',
+		age: 25,
+	})
+	.extend((store) => ({
+		isAdmin: false,
+	}));
+
+// accessing the extension
+
+const isAdmin = userStore.isAdmin.get();
+```
+
+## Example usage with hooks
+
+```tsx
+
+const altStore = store({
+	searchTerm: '',
+}).extend((store) => ({
+	useFilteredBooks: () => {
+		const searchTerm = store.searchTerm.use();
+      // use react query or any other data fetching library here
+
+	},
+
+```
+
+## Example usage with components
+
+```tsx
+import { store } from '@davstack/store';
+
+export const notificationsStore = store({
+  subscription: null as PushSubscription | null,
+  registration: null as ServiceWorkerRegistration | null,
+}).
+.computed((store) => ({
+  isSubscribed: () => Boolean(store.subscription),
+}))
+.extend((store) => {
+  async function init() {
+    const registration = await navigator.serviceWorker.ready;
+
+    try {
+      checkPushNotificationIsSupported();
+
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        console.log("No subscription found");
+        return;
+      }
+
+
+      await apiUtils!.notification.checkSubscription.fetch({
+        endpoint: subscription.endpoint,
+      });
+
+      store.subscription.set(subscription);
+    } catch (error) {
+      console.error("Error initializing subscription:", error);
+    }
+  }
+
+  return {
+    /**
+     *  Initializes the store, should only be place once in root layout
+     */
+    Init() {
+      useEffect(() => {
+        init();
+      }, []);
+
+      return null;
+    }
+  };
+});
+
+// app/layout.tsx
+import { notificationsStore } from './notificationsStore';
+
+export default function Layout({ children }:{children: React.ReactNode}) {
+  return (
+    <div>
+      {children}
+      <notificationsStore.Init>
+    </div>
+  );
+}
+
+
+```

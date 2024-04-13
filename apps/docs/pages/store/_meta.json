@@ -2,6 +2,15 @@
 	"overview": {
 		"title": "Overview"
 	},
+	"store-anatomy": {},
+	"defining-stores": {},
+	"reading-state": {},
+	"updating-state": {},
+	"onChange-and-effects": {},
+	"local-state-management": {},
+	"options-and-middleware": {},
+	"extensions": {},
+	"async-usage": {},
 	"todo-example": {
 		"title": "Todo Example",
 		"theme": {

@@ -1,0 +1,96 @@
+import { Callout } from 'nextra/components';
+
+# Accessing State
+
+Davstack Store provides two main methods for accessing state: `get` and `use`.
+
+It is important to understand how to use these methods in order to optimize performance and avoid unnecessary re-renders in your application.
+
+### The `get` Method
+
+Use `get` to retrieve the current value of a state property without subscribing to changes.
+
+This is useful eg for accessing state within callbacks or event handlers.
+
+```tsx
+import { store } from '@davstack/store';
+
+const countStore = store(0);
+
+function onSave() {
+	const count = countStore.get();
+	console.log(`Saving count: ${count}`);
+}
+```
+
+### The `use` Method
+
+The `use` method is a React hook that subscribes to changes in a specific part of the store and causes the component to re-render whenever that part of the state changes.
+
+```tsx
+import { store } from '@davstack/store';
+
+const countStore = store(0);
+
+function Counter() {
+	// will re-render whenever count changes
+	const count = countStore.use();
+	return <div>Count: {count}</div>;
+}
+```
+
+<Callout type="warning" emoji="⚠️">
+	Avoid using `use` on the entire store or large portions of the state unless
+	necessary, as it may lead to excessive re-renders and performance issues.
+</Callout>
+
+### Nested Methods
+
+You can use the `get` and `use` methods to access deeply nested state properties.
+
+```tsx
+import { store } from '@davstack/store';
+
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
+const city = userStore.address.city.get();
+```
+
+### Minimizing Re-Renders
+
+To optimize performance and minimize unnecessary re-renders, it is best practice to use the `use` method on the most specific property you need within a component.
+
+```tsx
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
+
+function UserProfile() {
+	const name = userStore.name.use();
+	return <div>Name: {name}</div>;
+}
+```
+
+In this example, the `UserProfile` component only subscribes to changes in the `name` property. Changes to other properties like `age` or `address` will not trigger a re-render of this component.
+
+## Computed Properties
+
+Computed properties, defined using the `computed` method, can also be accessed using `get` and `use`. However, they cannot be directly modified using `set` or `assign`.
+
+```tsx
+const fullName = userStore.fullName.get();
+const fullName = userStore.fullName.use();
+```
+
+When you access a computed property with `use`, it will still re-render the component whenever the computed value changes, just like a regular state property.

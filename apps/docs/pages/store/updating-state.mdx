@@ -1,0 +1,168 @@
+import { Callout } from 'nextra/components';
+
+# Updating State
+
+Davstack Store provides two main methods for updating state: `set` and `assign`. Both methods use Immer under the hood, allowing you to update state immutably.
+
+## Example
+
+```tsx
+import { store } from '@davstack/store';
+
+const userStore = store
+	.state({
+		name: 'John',
+		age: 25,
+		address: {
+			street: '123 Main St',
+			city: 'Anytown',
+		},
+	})
+	.actions((store) => ({
+		happyBirthday() {
+			store.age.set(store.age.get() + 1);
+		},
+	}));
+
+function AddressForm() {
+	const userAddress = userStore.address.use();
+
+	return (
+		<form>
+			<input
+				value={userAddress.street}
+				onChange={(e) => userStore.address.street.set(e.target.value)}
+			/>
+			<input
+				value={userAddress.city}
+				onChange={(e) => userStore.address.city.set(e.target.value)}
+			/>
+		</form>
+	);
+}
+```
+
+## Best Practices
+
+- It's generally recommended to enapsulate state updates in actions, and avoid directly mutating state properties outside of actions. This helps to keep your codebase clean and maintainable.
+- Use the `set` method to update a single state property, and `assign` to update multiple properties at once.
+
+## The `set` Method
+
+Use `set` to update the value of a state property.
+
+```tsx
+import { store } from '@davstack/store';
+
+const countStore = store(0);
+
+countStore.set(5);
+```
+
+The set method can also be used to update nested state properties:
+
+```tsx
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
+
+userStore.address.city.set('Newtown');
+```
+
+## The `assign` Method
+
+The `assign` method is similar to `set` but is specifically designed for updating multiple properties of an object at once. It uses `Object.assign` under the hood.
+
+```tsx
+const userStore = store({
+	name: 'John',
+	age: 25,
+	address: {
+		street: '123 Main St',
+		city: 'Anytown',
+	},
+});
+
+userStore.assign({
+	name: 'Jane',
+	age: 30,
+});
+```
+
+<Callout type="info" emoji="ℹ️">
+	When using `assign`, only the specified properties will be updated. Other
+	properties will remain unchanged.
+</Callout>
+
+### Updating Nested State with `assign`
+
+You can also use `assign` to update multiple nested state properties:
+
+```tsx
+userStore.address.assign({
+	street: '456 Elm St',
+	city: 'Newtown',
+});
+```
+
+## Using set with Callbacks
+
+### store.set
+
+Calling `.set` on the store itself allows you to mutate a draft copy of the state using a callback function, and all changes will be applied immutably with immer.
+
+```tsx
+userStore.set((draft) => {
+	draft.name = 'Jane';
+	draft.age = 30;
+});
+```
+
+### store.property.set
+
+Calling `set` on a nested property will only update that property behaves slightly differently
+
+```tsx
+userStore.age.set((prevAge) => prevAge + 1);
+```
+
+### Differences between `store.set` and `store.property.set`
+
+- `store.set` gets the entire state as a draft, you can directly modify the draft and you dont need to return anything
+- `store.property.set` gets the previous value of the property, you must return the new value from the callback
+
+### Common pitfalls
+
+Since `set` uses immer under the hood, it is a good idea to familiarize yourself with [immerjs.github.io/immer/pitfalls](https://immerjs.github.io/immer/pitfalls) to avoid common pitfalls when using immer
+
+For example, when using array state make to use `store({items: []})` instead of `store([])` for arrays.
+
+```tsx
+const todosStore = store
+	.state({
+		todos: [
+			{ id: 1, text: 'Buy milk', completed: false },
+			{ id: 2, text: 'Do laundry', completed: false },
+		],
+	})
+	.actions((store) => ({
+		addTodo(text) {
+			store.todos.set((draft) => {
+				draft.push({ id: draft.length + 1, text, completed: false });
+			});
+		},
+		toggleTodo(id) {
+			store.todos.set((draft) => {
+				const todo = draft.find((todo) => todo.id === id);
+				if (todo) {
+					todo.completed = !todo.completed;
+				}
+			});
+		},
+	}));
+```
