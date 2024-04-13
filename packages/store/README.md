@@ -65,6 +65,8 @@ const counterStore = store()
 		decrement: () => store.set(store.get() - 1),
 	}));
 
+counterStore.onChange(console.log);
+
 function Counter() {
 	const count = counterStore.use();
 	return <div>Count: {count}</div>;
@@ -143,7 +145,8 @@ Visit the [Davstack Store Docs](https://davstack.com/store/overview) for more in
 
 ### Acknowledgements
 
-Davstack Store wouldn't be possible without the incredible work done by the Zustand creators. We'd also like to give a shout-out to [Zustand X](https://github.com/udecode/zustand-x) for inspiring some of the code in this library.
+Davstack Store wouldn't be possible without the incredible work done by [Daishi Kato](https://github.com/dai-shi) and other zustand contributors.
+We'd also like to give a shout-out to [Zustand X](https://github.com/udecode/zustand-x) for inspiring some of the initial code in this library.
 
 ### Contributing
 
