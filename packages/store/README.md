@@ -56,19 +56,19 @@ const counterStore: StoreApi<number, {}>;
 import { store } from '@davstack/store';
 
 const counterStore = store()
-	.state(0)
+	.state({ count: 0 })
 	.computed((store) => ({
-		doubleCount: () => store.get() * 2,
+		doubleCount: () => store.count.get() * 2,
 	}))
 	.actions((store) => ({
-		increment: () => store.set(store.get() + 1),
-		decrement: () => store.set(store.get() - 1),
+		increment: () => store.count.set(store.count.get() + 1),
+		decrement: () => store.count.set(store.count.get() - 1),
 	}));
 
 counterStore.onChange(console.log);
 
 function Counter() {
-	const count = counterStore.use();
+	const count = counterStore.count.use();
 	return <div>Count: {count}</div>;
 }
 
@@ -83,7 +83,7 @@ function Controls() {
 
 // Generated types
 const counterStore: StoreApi<
-	number,
+	{ count: number },
 	ComputedMethods<{
 		doubleCount: () => number;
 	}> & {
