@@ -23,9 +23,6 @@ export function computed<
 	store: TStore,
 	computedCallback: ComputedBuilder<TStore, TComputedProps>
 ): ComputedMethods<TComputedProps> {
-	// // Context to manage whether 'get' should be intercepted
-	// let replaceGetWithUse = false;
-
 	// Retrieve keys to know which properties are being computed
 	const computedKeys = Object.keys(
 		computedCallback(
@@ -52,7 +49,7 @@ export function computed<
 					get: () => {
 						// @ts-expect-error
 						store._replaceUseWithGet = true;
-						console.log('CALLING COMPUTED .GET, store =', store);
+
 						const result = computedCallback(store)[key]();
 						// @ts-expect-error
 						store._replaceUseWithGet = false;
