@@ -52,7 +52,7 @@ const userStore = store()
 		age: 25,
 	})
 	.computed((store) => ({
-		fullName: () => `${store.name.get()} Doe`,
+		fullName: () => `${store.name.use()} Doe`,
 	}));
 
 // accessing computed properties
@@ -60,10 +60,9 @@ const fullName = userStore.fullName.get();
 ```
 
 <Callout type="info" emoji="ℹ️">
-	How do computed properties work?
+	You can still use the computed properties outside of react components by
+	calling `get()` on them. When you use `store.computedProperty.get()`, davstack
+	store will intercept the inner `.use()` calls and replace them with `.get()`
+	calls.
 </Callout>
 
-- The "store" passed into the computed callback is a proxy.
-- When you call `store.computedValue.get()`, then the store will be passed to the computed function like normal.
-- When you call `store.computedValue.use()`, then the store passed to computed function will detect any `store.get()` calls inside the computed function, and will replace them with `store.use()` calls.
-- This means that the value will be re-evaluated whenever any of the dependencies change, but it does not currently cache the result.

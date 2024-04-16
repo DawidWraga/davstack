@@ -85,7 +85,7 @@ Computed properties, actions, and effects defined on the global store will be au
 ```tsx
 const globalStore = store({ count: 0 })
 	.computed((store) => ({
-		doubledCount: () => store.count.get() * 2,
+		doubledCount: () => store.count.use() * 2,
 	}))
 	.actions((store) => ({
 		increment: () => store.count.set(store.count.get() + 1),

@@ -58,7 +58,7 @@ import { store } from '@davstack/store';
 const counterStore = store()
 	.state({ count: 0 })
 	.computed((store) => ({
-		doubleCount: () => store.count.get() * 2,
+		doubleCount: () => store.count.use() * 2,
 	}))
 	.actions((store) => ({
 		increment: () => store.count.set(store.count.get() + 1),

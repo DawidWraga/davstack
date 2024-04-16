@@ -50,7 +50,7 @@ export const notificationsStore = store({
   registration: null as ServiceWorkerRegistration | null,
 }).
 .computed((store) => ({
-  isSubscribed: () => Boolean(store.subscription),
+  isSubscribed: () => Boolean(store.subscription.use()),
 }))
 .extend((store) => {
   async function init() {
