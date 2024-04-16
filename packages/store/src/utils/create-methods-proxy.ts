@@ -10,7 +10,7 @@ import {
 	UseImmerStore,
 } from '../types';
 import { OnChangeOptions, StoreMethods } from '../types/store-methods';
-import { createRecursiveProxy } from './create-recursive-proxy';
+// import { createRecursiveProxy } from './create-recursive-proxy';
 
 export type StoreMethodKey = 'get' | 'set' | 'onChange' | 'use' | 'assign';
 
@@ -185,26 +185,155 @@ export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 }: {
 	immerStore: TStore;
 	storeName: string;
-}) =>
-	createRecursiveProxy((opts) => {
-		const path = [...opts.path];
-		const method = path.pop()! as StoreMethodKey;
-		const args = opts.args;
+}) => {
+	interface ProxyCallbackOptions {
+		target?: unknown;
+		path: string[];
+		args: unknown[];
+	}
+	type ProxyCallback = (opts: ProxyCallbackOptions) => unknown;
 
-		// really this should never trigger, it's just a safety net
-		// all non-store methods should be passed through to the target inside the createRecursiveProxy
-		if (!['get', 'set', 'onChange', 'use', 'assign'].includes(method)) {
-			// @ts-expect-error
-			return opts.target[method](...args);
-		}
+	const noop = () => {
+		// noop
+		// dummy no-op function since we don't have any
+		// client-side target we want to remap to
+	};
 
-		const methodFn = createMethod({
-			immerStore,
-			storeName,
-			path,
-			method,
+	function createInnerProxy(
+		callback: ProxyCallback,
+		path: string[],
+		// py passing the innerObj, we allow for the proxy to be used as a normal object
+		// this is useful for accessing the target methods of store directly eg store.extend()
+		innerObj: any = noop
+	) {
+		const proxy: unknown = new Proxy(innerObj, {
+			get(target, key, receiver) {
+				if (typeof key !== 'string' || key === 'then') {
+					// special case for if the proxy is accidentally treated
+					// like a PromiseLike (like in `Promise.resolve(proxy)`)
+					return undefined;
+				}
+
+				const isActualKeyOfTarget =
+					key in target && !excludedKeys.includes(key);
+				if (isActualKeyOfTarget) {
+					// pass through to the target object
+					return Reflect.get(target, key, receiver);
+				}
+
+				const isStoreMethod = [
+					'get',
+					'set',
+					'onChange',
+					'use',
+					'assign',
+				].includes(key);
+
+				if (isStoreMethod) {
+					const isUse = key === 'use';
+
+					const shouldReplaceUseWithGet = isUse && innerObj._replaceUseWithGet;
+
+					const actualkey = shouldReplaceUseWithGet ? 'get' : key;
+
+					// if we pass the innerObj it will throw error that the store method is not defined, since it doesn't actually exist. By passing the noop, we are able to complete composing the path and call the callback function inside apply.
+
+					return createInnerProxy(callback, [...path, actualkey], noop);
+				}
+
+				// Recursively compose the full path until a function is invoked
+				return createInnerProxy(callback, [...path, key], innerObj);
+			},
+			set(target, key, value) {
+				if (typeof key === 'string') {
+					target[key] = value;
+					return true;
+				}
+				return false;
+			},
+			apply(target, _thisArg, args) {
+				// Call the callback function with the entire path we
+				// recursively created and forward the arguments
+				const isApply = path[path.length - 1] === 'apply';
+
+				if (isApply) {
+					return callback({
+						args: args.length >= 2 ? args[1] : [],
+						path: path.slice(0, -1),
+						target,
+					});
+				}
+
+				return callback({ path, args, target });
+			},
 		});
 
-		// @ts-expect-error
-		return methodFn(...args);
-	}, {}) as TStore;
+		return proxy;
+	}
+
+	const final = createInnerProxy(
+		(opts) => {
+			const path = [...opts.path];
+			const method = path.pop()! as StoreMethodKey;
+			const args = opts.args;
+
+			// really this should never trigger, it's just a safety net
+			// all non-store methods should be passed through to the target inside the createRecursiveProxy
+			if (!['get', 'set', 'onChange', 'use', 'assign'].includes(method)) {
+				// @ts-expect-error
+				return opts.target[method](...args);
+			}
+
+			// const isUse = method === 'use';
+			// const actualMethod = isUse && final._replaceUseWithGet ? 'get' : method;
+
+			const methodFn = createMethod({
+				immerStore,
+				storeName,
+				path,
+				method,
+			});
+
+			// @ts-expect-error
+			return methodFn(...args);
+		},
+		[],
+		{}
+	) as TStore;
+
+	return final;
+};
+
+// this means that you cannot acess the following properties on the proxy object
+// this is to avoid name conflicts with the nested proxy properties
+/**
+ * We check if key in target to allow for fluent API whene building the store
+ * eg store().extend().extend()
+ *
+ * By checking if the key is in the target, we can allow for the fluent API to work as expected
+ *
+ * However, this means means that hidden keys such as .length, .name, .toString, etc. could conflict with the stores nested properties eg store({user:{ name: "" }, book: { length: 5 }}) would not work as expected
+ *
+ * To avoid this, we exclude the following keys from the proxy object
+ *
+ * However because we check if method !== get/set/assign/onChange/use , we can still access these properties eg store({books: [1,2,3	]}); store.books.get().length would work as expected
+ */
+const excludedKeys = [
+	'constructor',
+	'prototype',
+	'__proto__',
+	'toString',
+	'valueOf',
+	'toLocaleString',
+	'hasOwnProperty',
+	'isPrototypeOf',
+	'propertyIsEnumerable',
+	'length',
+	'caller',
+	'callee',
+	'arguments',
+	'name',
+	Symbol.toPrimitive,
+	Symbol.toStringTag,
+	Symbol.iterator,
+];
