@@ -1,5 +1,17 @@
 # @davstack/store
 
+## 1.0.1
+
+### Patch Changes
+
+- Changed how computed values are accessed
+
+## 1.0.0
+
+### Major Changes
+
+- Added unlimited nesting with proxy methods, .onChange, effects, and computed values.
+
 ## 0.2.0
 
 ### Minor Changes
