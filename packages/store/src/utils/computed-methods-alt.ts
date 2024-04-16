@@ -7,7 +7,6 @@
 /* eslint-disable no-unused-vars */
 import { Simplify, StoreApi } from '../types';
 import { StoreMethods } from '../types/store-methods';
-import { createRecursiveProxy } from './create-recursive-proxy';
 
 export type ComputedProps = Record<string, () => any>;
 
