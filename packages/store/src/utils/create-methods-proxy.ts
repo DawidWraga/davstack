@@ -191,6 +191,8 @@ export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 		const method = path.pop()! as StoreMethodKey;
 		const args = opts.args;
 
+		// really this should never trigger, it's just a safety net
+		// all non-store methods should be passed through to the target inside the createRecursiveProxy
 		if (!['get', 'set', 'onChange', 'use', 'assign'].includes(method)) {
 			// @ts-expect-error
 			return opts.target[method](...args);

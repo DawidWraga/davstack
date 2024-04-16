@@ -31,11 +31,33 @@ function createInnerProxy(
 				return undefined;
 			}
 
-			if (key in target && !excludedKeys.includes(key)) {
+			const isActualKeyOfTarget = key in target && !excludedKeys.includes(key);
+			if (isActualKeyOfTarget) {
+				// pass through to the target object
 				return Reflect.get(target, key, receiver);
 			}
+
+			const isStoreMethod = [
+				'get',
+				'set',
+				'onChange',
+				'use',
+				'assign',
+			].includes(key);
+
+			if (isStoreMethod) {
+				const isUse = key === 'use';
+				const shouldReplaceUseWithGet = isUse && target._replaceUseWithGet;
+
+				const actualkey = shouldReplaceUseWithGet ? 'get' : key;
+
+				// if we pass the innerObj it will throw error that the store method is not defined, since it doesn't actually exist. By passing the noop, we are able to complete composing the path and call the callback function inside apply.
+
+				return createInnerProxy(callback, [...path, actualkey], noop);
+			}
+
 			// Recursively compose the full path until a function is invoked
-			return createInnerProxy(callback, [...path, key]);
+			return createInnerProxy(callback, [...path, key], innerObj);
 		},
 		set(target, key, value) {
 			if (typeof key === 'string') {
@@ -106,7 +128,7 @@ export const createFlatProxy = <TFaux>(
  *
  * To avoid this, we exclude the following keys from the proxy object
  *
- * However because we check if method !== get/set/assign/onChange/use inside createMethodsProxy, we can still access these properties eg store({books: [1,2,3	]}); store.books.get().length would work as expected
+ * However because we check if method !== get/set/assign/onChange/use , we can still access these properties eg store({books: [1,2,3	]}); store.books.get().length would work as expected
  */
 const excludedKeys = [
 	'constructor',

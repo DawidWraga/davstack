@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import { store } from '../src';
@@ -66,7 +66,7 @@ describe('store with computed properties', () => {
 			count: 10,
 		})
 			.computed((store) => ({
-				doubled: () => store.count.get() * 2,
+				doubled: () => store.count.use() * 2,
 			}))
 			.actions((store) => ({
 				increment() {
@@ -174,9 +174,96 @@ describe('store with computed properties', () => {
 
 	describe('computed properties', () => {
 		// Define a store with an initial count state and a computed property for the doubled count
+		const countStore = store()
+			.state({ count: 0 })
+			.computed((store) => ({
+				doubled: () => store.count.use() * 2,
+			}))
+			.extend((store) => ({
+				useDoubled() {
+					return store.count.use() * 2;
+				},
+				increment() {
+					store.count.set(store.count.get() + 1);
+				},
+				decrement() {
+					store.count.set(store.count.get() - 1);
+				},
+			}));
+
+		const Counter = () => {
+			const count = countStore.doubled.use();
+
+			return (
+				<div>
+					<p data-testid={testIds.count}>Count: {count}</p>
+
+					<button
+						data-testid={testIds.increment}
+						onClick={countStore.increment}
+					>
+						Increment
+					</button>
+					<button
+						data-testid={testIds.decrement}
+						onClick={countStore.decrement}
+					>
+						Decrement
+					</button>
+				</div>
+			);
+		};
+		const Doubled = () => {
+			const doubled = countStore.doubled.get();
+			// const doubled = countStore.useDoubled();
+			return (
+				<div>
+					<p data-testid={testIds.doubledCount}>Doubled: {doubled}</p>
+				</div>
+			);
+		};
+
+		function Counters() {
+			return (
+				<div>
+					<Counter />
+					<Doubled />
+				</div>
+			);
+		}
+
+		test('computed property updates on state change', () => {
+			const ui = getUi(render(<Counters />));
+
+			expect(ui.count).toBe('Count: 0');
+			expect(ui.doubledCount).toBe('Doubled: 0');
+			// const ui = getUi(render(<Counters />));
+
+			// console.log(ui.debug());
+
+			act(() => {
+				ui.fireIncrement();
+			});
+
+			waitFor(() => {
+				expect(ui.count).toBe('Count: 1');
+				expect(ui.doubledCount).toBe('Doubled: 2');
+			});
+
+			act(() => {
+				ui.fireDecrement();
+			});
+			waitFor(() => {
+				expect(ui.count).toBe('Count: 0');
+				expect(ui.doubledCount).toBe('Doubled: 0');
+			});
+		});
+	});
+	describe('computed properties', () => {
+		// Define a store with an initial count state and a computed property for the doubled count
 		const countStore = store(0)
 			.computed((state) => ({
-				doubled: () => state.get() * 2,
+				doubled: () => state.use() * 2,
 			}))
 			.extend((store) => ({
 				increment() {
@@ -235,6 +322,9 @@ describe('store with computed properties', () => {
 
 		test('computed property updates on state change', () => {
 			const ui = getUi(render(<Counters />));
+
+			expect(ui.count).toBe('Count: 0');
+			expect(ui.doubledCount).toBe('Doubled: 0');
 
 			act(() => {
 				ui.fireIncrement();

@@ -23,8 +23,8 @@ export function computed<
 	store: TStore,
 	computedCallback: ComputedBuilder<TStore, TComputedProps>
 ): ComputedMethods<TComputedProps> {
-	// Context to manage whether 'get' should be intercepted
-	let replaceGetWithUse = false;
+	// // Context to manage whether 'get' should be intercepted
+	// let replaceGetWithUse = false;
 
 	// Retrieve keys to know which properties are being computed
 	const computedKeys = Object.keys(
@@ -41,28 +41,22 @@ export function computed<
 		)
 	) as (keyof TComputedProps)[];
 
-	// Setup real proxies based on computed keys
-	const proxyStore = new Proxy(store as any, {
-		get: (target, prop, receiver) => {
-			if (prop === 'get' && replaceGetWithUse) {
-				return target.use;
-			}
-			return Reflect.get(target, prop, receiver);
-		},
-	});
-
-	const computedProperties = computedCallback(proxyStore);
+	const computedProperties = computedCallback(store);
 
 	const computedMethods = Object.fromEntries(
 		computedKeys.map((key) => {
 			return [
 				key,
 				{
-					get: () => computedProperties[key](),
-					use: () => {
-						replaceGetWithUse = true;
-						const result = computedProperties[key]();
-						replaceGetWithUse = false;
+					use: () => computedProperties[key](),
+					get: () => {
+						// @ts-expect-error
+						store._replaceUseWithGet = true;
+						console.log('CALLING COMPUTED .GET, store =', store);
+						const result = computedCallback(store)[key]();
+						// @ts-expect-error
+						store._replaceUseWithGet = false;
+
 						return result;
 					},
 				},
