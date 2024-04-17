@@ -9,7 +9,7 @@ Davstack Store provides two main methods for updating state: `set` and `assign`.
 ```tsx
 import { store } from '@davstack/store';
 
-const userStore = store
+const userStore = store()
 	.state({
 		name: 'John',
 		age: 25,
@@ -125,7 +125,8 @@ userStore.set((draft) => {
 
 ### store.property.set
 
-Calling `set` on a nested property will only update that property behaves slightly differently
+Calling `set` on a property behaves slightly differently than calling `set` on the store itself.
+You are given the previous value of the property and you must return the new value from the callback.
 
 ```tsx
 userStore.age.set((prevAge) => prevAge + 1);
