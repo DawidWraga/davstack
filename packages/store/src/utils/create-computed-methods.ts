@@ -12,11 +12,11 @@ export type ComputedMethods<TComputedProps extends ComputedProps> = {
 };
 
 export type ComputedBuilder<
-	TStore extends StoreApi<any, any>,
+	TStore extends StoreApi<any, any, any>,
 	TComputedProps extends ComputedProps,
 > = (store: TStore) => TComputedProps;
 
-export function computed<
+export function createComputedMethods<
 	TStore extends StoreApi<any, any>,
 	TComputedProps extends ComputedProps,
 >(

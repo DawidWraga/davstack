@@ -85,9 +85,13 @@ export type OnChangeOptions<TState> = {
 		: never;
 };
 
+
+
+
 export type NestedStoreMethods<TState> = StoreMethods<TState> &
 	(TState extends object
 		? {
 				[TKey in keyof TState]: NestedStoreMethods<TState[TKey]>;
 			}
 		: {});
+
