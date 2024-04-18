@@ -50,22 +50,23 @@ function Controls() {
 const counterStore: StoreApi<number, {}>;
 ```
 
-### Example with computed properties and actions
+### Advanced example
 
 ```tsx
 import { store } from '@davstack/store';
 
 const counterStore = store()
 	.state({ count: 0 })
-	.computed((store) => ({
-		doubleCount: () => store.count.use() * 2,
-	}))
 	.actions((store) => ({
 		increment: () => store.count.set(store.count.get() + 1),
 		decrement: () => store.count.set(store.count.get() - 1),
+	}))
+	.computed((store) => ({
+		doubleCount: () => store.count.use() * 2,
+	}))
+	.effects((store) => ({
+		logChanges: () => store.onChange(console.log),
 	}));
-
-counterStore.onChange(console.log);
 
 function Counter() {
 	const count = counterStore.count.use();
@@ -84,13 +85,16 @@ function Controls() {
 // Generated types
 const counterStore: StoreApi<
 	{ count: number },
-	ComputedMethods<{
-		doubleCount: () => number;
-	}> & {
+	{
 		increment: () => void;
 		decrement: () => void;
-	}
+	} & ComputedMethods<{
+		doubleCount: () => number;
+	}> & EffectMethods<{
+		logChanges: () => UnsubscribeFn;
+	}>;
 >;
+
 ```
 
 Note: store(initialValue) and store.state(initialValue) are equivalent, it's just a matter of preference.
@@ -155,3 +159,4 @@ Contributions are welcome! Please read our [contributing guide](link-to-contribu
 ### License
 
 This project is licensed under the [MIT License](link-to-license). See the LICENSE file for details.
+

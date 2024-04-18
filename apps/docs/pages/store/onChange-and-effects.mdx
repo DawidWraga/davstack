@@ -48,8 +48,16 @@ const unsubscribe = userStore.name.onChange(console.log);
 Specify `deps` to react only to certain state parts. It can be a keys array or a function returning dependencies.
 
 ```tsx
-const unsubscribe = store.onChange(callback, { deps: ['num'] });
+const unsubscribe = store.onChange(callback, { deps: ['name '] });
 ```
+
+```tsx
+const unsubscribe = store.onChange(callback, {
+	deps: (state) => [state.name],
+});
+```
+
+You can subscribe to deeply nested changes inside the deps callback eg `state => [state.user.address.street]`
 
 #### Immediate Invocation
 
@@ -107,3 +115,27 @@ countStore.unsubscribeFromEffects();
 ```
 
 These methods are used under the hood of `createStoreContext` to make multiple instances of the store work correctly.
+
+Here is a super simplified version of `createStoreContext` to show how the effects are unsubscribed from when the component is unmounted
+
+```tsx
+export function createStoreContext(store) {
+	const Provider = () => {
+		const storeInstance = React.useRef(store.create(localInitialValue));
+
+		React.useEffect(() => {
+			return () => {
+				storeInstance.current.unsubscribeFromEffects();
+			};
+		}, []);
+
+		return (
+			<Context.Provider value={storeInstance.current}>
+				{children}
+			</Context.Provider>
+		);
+	};
+}
+```
+
+
