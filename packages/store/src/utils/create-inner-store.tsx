@@ -72,7 +72,8 @@ export const createInnerStore = <TState extends State>(
 	middlewares.push(subscribeWithSelector);
 	middlewares.push(createVanillaStore);
 
-	if (!initialState) {
+	// cannot use nullish here as it breaks when initial value is eg 0
+	if (initialState === undefined) {
 		// consider making this throw? most a bug if there is a store without a state
 		throw new Error('Store must have an initial state');
 	}
@@ -88,13 +89,10 @@ export function createStore<
 	TInput extends Record<string, any> = {},
 >(
 	storeDef: StoreDef<TState>,
-	instanceInitialValue: Partial<TState> = {},
+	instanceInitialValue?: Partial<TState>,
 	instanceInput: Partial<TInput> = {}
 ) {
 	const { initialState, extensions, name } = storeDef;
-
-
-	
 
 	if (instanceInput) {
 		storeDef.extensions.push((store) => instanceInput);

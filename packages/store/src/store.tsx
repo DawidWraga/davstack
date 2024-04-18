@@ -36,10 +36,12 @@ export const storeBuilder = <TState extends State>() => {
 
 	function extend<TNewExtendedProps extends Record<string, any>>(
 		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
-		//	//@ts-expect-error
-		// ): StoreApi<TState, TNewExtendedProps> => {
 	) {
 		_def.extensions.push(builder);
+
+		if (_def.options.onExtend) {
+			return _def.options.onExtend(builder);
+		}
 		return builderMethods;
 	}
 
@@ -139,20 +141,73 @@ export const store = <TState extends State>(
 	initialState?: TState,
 	options?: StoreOptions<TState>
 ): StoreBuilderApi<TState> => {
-	if (initialState !== undefined && options !== undefined)
-		return storeBuilder()
-			.options(options as any)
-			.state(initialState) as StoreBuilderApi<TState>;
+	let globalStore = {} as unknown as StoreBuilderApi<TState>;
+
+	const _options = {
+		...options,
+		onExtend: (builder: any) => {
+			if (options?.onExtend) {
+				options.onExtend(store);
+			}
+
+			Object.assign(globalStore, builder(globalStore));
+			return globalStore as unknown as StoreApi<TState, {}>;
+		},
+	};
 
 	if (initialState !== undefined) {
-		return storeBuilder().state(initialState) as StoreBuilderApi<TState>;
+		const builder = storeBuilder()
+			.options(_options as any)
+			.state(initialState);
+
+		const instance = builder.create() as StoreApi<TState>;
+
+		Object.assign(instance, builder);
+
+		// @ts-expect-error
+		globalStore = instance;
+	} else {
+		const stateFn = (_initialState: any) => {
+			const builder = storeBuilder()
+				.options(_options as any)
+				.state(_initialState);
+
+			const instance = builder.create() as StoreApi<TState>;
+
+			Object.assign(instance, builder);
+
+			// @ts-expect-error
+			globalStore = instance;
+			return globalStore as StoreBuilderApi<TState>;
+		};
+
+		// @ts-expect-error
+		globalStore = {
+			state: stateFn,
+		};
 	}
 
-	if (options !== undefined) {
-		return storeBuilder().options(options as any) as StoreBuilderApi<TState>;
-	}
+	return globalStore as unknown as StoreBuilderApi<TState>;
 
-	return storeBuilder() as StoreBuilderApi<TState>;
+	// return storeBuilder()
+	// 	.state(initialState)
+	// 	.options(options ?? {})
+	// 	.create() as StoreApi<TState>;
+
+	// if (initialState !== undefined && options !== undefined)
+	// 	return storeBuilder()
+	// 		.options(options as any)
+	// 		.state(initialState) as StoreApi<TState>;
+
+	// if (initialState !== undefined) {
+	// 	return storeBuilder().state(initialState).create() as StoreApi<TState>;
+	// }
+
+	// if (options !== undefined) {
+	// 	return storeBuilder().options(options as any) as StoreApi<TState>;
+	// }
+
+	// return storeBuilder() as StoreApi<TState>;
 };
 
 export function createStoreContext<

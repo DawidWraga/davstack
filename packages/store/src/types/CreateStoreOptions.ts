@@ -24,6 +24,8 @@ export interface StoreOptions<T extends State> {
 	 * Persist middleware options.
 	 */
 	persist?: PersistOptions<T>;
+
+	onExtend?: (builder: any) => void;
 }
 
 export interface ImmerOptions {
