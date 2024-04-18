@@ -1,13 +1,106 @@
 # Davstack UI
 
-Plans for this package:
+In the coming weeks I will be releasing a wide range of reusable UI component snippets that I have built while working on [Ream](https://reamapp.com).
 
-- Extension of shadcn/ui
-- Makes react-hook-form + shadcn/ui much more easier to use, WITHOUT sacrificing flexibility
-- Comprensive library of snippets for common form components
-- Dialog manager
-- Slot components
+This includes a comprehensive form library that is built on top of [shadcn/ui](https://ui.shadcn.com/) and [react-hook-form](https://react-hook-form.com/).
 
-Much of the code in this package has already been written while building [Ream](https://reamapp.com), but it is currently in a private repository.
+Example usage:
+
+```tsx
+'use client';
+
+import { useRouter } from 'next/navigation';
+import {
+	Button,
+	ButtonProps,
+	dialog,
+	Field,
+	Form,
+	PlusCircleIcon,
+	toast,
+} from '@ui';
+import { z } from 'zod';
+
+import { api } from '@ream/api/react';
+
+export const createRitualFormSchema = z.object({
+	title: z.string().min(1, 'Name is required'),
+	description: z.string().optional(),
+	frequency: FrequencySchema.optional(),
+	timeOfDay: z.string().optional(),
+});
+
+export interface CreateRitualFormProps {}
+
+export function CreateRitualForm(props: CreateRitualFormProps) {
+	const {} = props;
+
+	const createRitualMutation = api.ritual.createRitual.useMutation();
+
+	return (
+		<>
+			<Form.Root
+				schema={createRitualFormSchema}
+				onSubmit={async (d) => createRitualMutation?.mutateAsync(d)}
+				mode="onSubmit"
+			>
+				<Form.Header>
+					<Form.Title>Create ritual</Form.Title>
+				</Form.Header>
+				<Field.Text
+					name="title"
+					placeholder="morning ritual"
+					inputProps={{
+						autoFocus: true,
+					}}
+				/>
+				<Field.Textarea
+					name="description"
+					optionalIndicator
+					withVoiceRecognition
+				/>
+
+				<Field.Time
+					name="timeOfDay"
+					orientation="horizontal"
+					slotClasses={{
+						root: 'mt-2',
+					}}
+					label="Notification Time"
+					helpMessage="We will remind you at this time, and order your rituals based on this time."
+				/>
+
+				<Field.Select
+					name="frequency"
+					options={[
+						{ label: 'daily', value: 'DAILY' },
+						{ label: 'weekly', value: 'WEEKLY' },
+						{ label: 'monthly', value: 'MONTHLY' },
+						{ label: 'yearly', value: 'YEARLY' },
+					]}
+				/>
+
+				<Form.SubmitButton className="ml-auto w-auto">create</Form.SubmitButton>
+			</Form.Root>
+		</>
+	);
+}
+
+export const openCreateRitualModal = () => {
+	dialog.open(<CreateRitualForm />);
+};
+
+export type CreateRitualButtonProps = ButtonProps & {};
+
+export function CreateRitualButton(props: CreateRitualButtonProps) {
+	const { ...buttonProps } = props;
+	return (
+		<Button variant="outline" onClick={openCreateRitualModal} {...buttonProps}>
+			<PlusCircleIcon className="h-4 w-4 stroke-fg-muted" />
+			create ritual
+		</Button>
+	);
+}
+```
 
 I will be working on this package in the coming weeks. If you are interested in this package, please join the discord server and let me know!
