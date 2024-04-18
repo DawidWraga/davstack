@@ -6,7 +6,7 @@ Visit the [DavStack Sound Docs](https://davstack.com/sound/overview) for more in
 
 ## Features
 
-- **Super Simple API**: Just call `soundStore.play('soundName')` to play a sound. No hooks required.
+- **Super Simple API**: Just call `soundStore.playSound('soundName')` to play a sound. No hooks required.
 - **Excellent DX**: Define all your sounds in once place and play them with full type safety.
 - **Optimized Performance**: All sounds are cached and preloaded, so they play instantly. Howler.js is lazy-loaded to keep bundle size down.
 - **Easily change global sound settings**: Change volume, mute, or stop all sounds with a single line of code.
