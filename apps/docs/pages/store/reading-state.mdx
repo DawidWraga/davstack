@@ -92,5 +92,3 @@ Computed properties, defined using the `computed` method, can also be accessed u
 const fullName = userStore.fullName.get();
 const fullName = userStore.fullName.use();
 ```
-
-When you access a computed property with `use`, it will still re-render the component whenever the computed value changes, just like a regular state property.
