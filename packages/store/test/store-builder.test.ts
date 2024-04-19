@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { store } from '../src';
+import { createStoreContext, store } from '../src';
 
 describe('should access and update the entire state', () => {
 	const countStoreBuilder = store().state({
@@ -102,6 +102,8 @@ describe('should access and update the entire state + INPUT METHODS', () => {
 		}));
 
 	const countStore = countStoreBuilder.create();
+
+	const countStoreCtx = createStoreContext(countStoreBuilder);
 
 	test('get', () => {
 		const counterValues = countStore.count.get();

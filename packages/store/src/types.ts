@@ -29,6 +29,16 @@ export type StoreBuilderMethods<
 > = {
 	_def: StoreDef<TState, TExtendedProps>;
 
+	identify: (newName: string) => StoreApi<TState, TExtendedProps, TInput>;
+
+	/**
+	 *
+	 * @param enabled  enable or disable devtools
+	 * @default true
+	 *
+	 */
+	devtools: (enabled?: boolean) => StoreApi<TState, TExtendedProps, TInput>;
+
 	input: <TNewInput extends Record<string, any>>(
 		initialInput: TNewInput
 	) => StoreApi<TState, TExtendedProps, TNewInput>;

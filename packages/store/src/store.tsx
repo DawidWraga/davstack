@@ -51,8 +51,13 @@ export const store = <TState extends State>(
 			return storeApi;
 		},
 
-		name: (newName: string) => {
+		identify: (newName: string) => {
 			Object.assign(_def.options, { name: newName });
+			return storeApi;
+		},
+
+		devtools: (enabled = true) => {
+			Object.assign(_def.options, { devtools: { enabled } });
 			return storeApi;
 		},
 
@@ -138,23 +143,26 @@ export const store = <TState extends State>(
 	return storeApi as unknown as StoreApi<TState>;
 };
 
+type StoreProviderProps<TState, TInput> = {
+	initialValue?: Partial<TState> & TInput;
+	children: React.ReactNode;
+};
+
 export function createStoreContext<
 	TState extends State,
 	TExtensions extends object,
->(store: StoreApi<TState, TExtensions>) {
-	const Context = React.createContext<StoreApi<TState, TExtensions> | null>(
-		null
-	);
+	TInput extends Record<string, any> = {},
+>(store: StoreApi<TState, TExtensions, TInput>) {
+	const Context = React.createContext<StoreApi<
+		TState,
+		TExtensions,
+		TInput
+	> | null>(null);
 
-	const Provider = ({
-		children,
-		initialValue: localInitialValue = {},
-	}: {
-		initialValue?: Partial<TState>;
-		children: React.ReactNode;
-	}) => {
-		const storeInstance = React.useRef<StoreApi<TState, TExtensions>>(
-			store.create(localInitialValue as TState)
+	const Provider = (props: StoreProviderProps<TState, TInput>) => {
+		const { children, initialValue: localInitialValue } = props;
+		const storeInstance = React.useRef<StoreApi<TState, TExtensions, TInput>>(
+			store.create(localInitialValue)
 		);
 
 		React.useEffect(() => {

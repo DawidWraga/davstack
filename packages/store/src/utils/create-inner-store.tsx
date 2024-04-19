@@ -8,27 +8,18 @@ import { createStore as createVanillaStore } from 'zustand/vanilla';
 
 import { immerMiddleware } from '../middlewares/immer.middleware';
 import {
-	EffectBuilder,
 	ImmerStoreApi,
 	SetImmerState,
 	State,
 	StoreApi,
 	StoreDef,
 } from '../types';
-import { StoreOptions } from '../types/CreateStoreOptions';
 import { pipe } from '../utils/pipe';
 
-import React from 'react';
 import type { StateCreator } from 'zustand';
-import {
-	createComputedMethods,
-	ComputedBuilder,
-	ComputedProps,
-} from '../utils/create-computed-methods';
 
 import { subscribeWithSelector } from 'zustand/middleware';
 import { createMethodsProxy } from '../utils/create-methods-proxy';
-import { createSplitProps } from './split-props';
 /** creates the internal store with middlwares */
 export const createInnerStore = <TState extends State>(
 	storeDef: StoreDef<TState>
