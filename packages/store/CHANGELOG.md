@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 1.1.0
+
+### Minor Changes
+
+- create global store instance lazily, improving performance for non-global stores and consoldating store and storeBuilder
+
 ## 1.0.1
 
 ### Patch Changes
