@@ -22,22 +22,22 @@ export interface StoreDef<
 	initialState: TState | undefined;
 }
 
-export type StoreBuilderApi<
+export type StoreBuilderMethods<
 	TState extends State,
 	TExtendedProps extends Record<string, any> = {},
 	TInput extends Record<string, any> = {},
-> = StoreApi<TState, TExtendedProps, TInput> & {
+> = {
 	_def: StoreDef<TState, TExtendedProps>;
 
 	input: <TNewInput extends Record<string, any>>(
 		initialInput: TNewInput
-	) => StoreBuilderApi<TState, TExtendedProps, TNewInput>;
+	) => StoreApi<TState, TExtendedProps, TNewInput>;
 	options: (
 		options: StoreOptions<TState>
-	) => StoreBuilderApi<TState, TExtendedProps, TInput>;
+	) => StoreApi<TState, TExtendedProps, TInput>;
 	state: <TNewState>(
 		initialValue: TNewState
-	) => StoreBuilderApi<TNewState, TExtendedProps, TInput>;
+	) => StoreApi<TNewState, TExtendedProps, TInput>;
 
 	/**
 	 * Creates a new store with the given initial value
@@ -60,7 +60,7 @@ export type StoreBuilderApi<
 		TBuilder extends ExtendBuilder<StoreApi<TState, TExtendedProps, TInput>>,
 	>(
 		builder: TBuilder
-	): StoreBuilderApi<TState, TExtendedProps & ReturnType<TBuilder>, TInput>;
+	): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>, TInput>;
 	/**
 	 * Extends the store
 	 * @param builder a callback that receives the store and returns an object with the new methods
@@ -69,29 +69,27 @@ export type StoreBuilderApi<
 		TBuilder extends ExtendBuilder<StoreApi<TState, TExtendedProps, TInput>>,
 	>(
 		builder: TBuilder
-	): StoreBuilderApi<TState, TExtendedProps & ReturnType<TBuilder>, TInput>;
+	): StoreApi<TState, TExtendedProps & ReturnType<TBuilder>, TInput>;
 
 	computed<
 		TComputedProps extends ComputedProps,
 		TBuilder extends ComputedBuilder<
-			StoreBuilderApi<TState, TExtendedProps, TInput>,
+			StoreApi<TState, TExtendedProps, TInput>,
 			TComputedProps
 		>,
 	>(
 		builder: TBuilder
-	): StoreBuilderApi<
+	): StoreApi<
 		TState,
 		TExtendedProps & ComputedMethods<ReturnType<TBuilder>>,
 		TInput
 	>;
 
 	effects<
-		TBuilder extends EffectBuilder<
-			StoreBuilderApi<TState, TExtendedProps, TInput>
-		>,
+		TBuilder extends EffectBuilder<StoreApi<TState, TExtendedProps, TInput>>,
 	>(
 		builder: TBuilder
-	): StoreBuilderApi<
+	): StoreApi<
 		TState,
 		TExtendedProps & EffectMethods<ReturnType<TBuilder>>,
 		TInput
@@ -102,7 +100,9 @@ export type StoreApi<
 	TState extends State = {},
 	TExtendedProps extends Record<string, any> = {},
 	TInput extends Record<string, any> = {},
-> = NestedStoreMethods<TState> & Simplify<TExtendedProps & TInput>;
+> = StoreBuilderMethods<TState, TExtendedProps, TInput> &
+	NestedStoreMethods<TState> &
+	Simplify<TExtendedProps & TInput>;
 
 export type EffectBuilder<TStore extends StoreApi<any, any, any>> = (
 	store: TStore

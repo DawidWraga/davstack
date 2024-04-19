@@ -1,12 +1,13 @@
-import { describe, expect, test } from 'vitest';
-import { storeBuilder } from '../src';
+import { describe, expect, test, vi } from 'vitest';
+import { store } from '../src';
 
 describe('should access and update the entire state', () => {
-	const countStoreBuilder = storeBuilder().state({
+	const countStoreBuilder = store().state({
 		count: 2,
 	});
 
-	const countStore = countStoreBuilder.create();
+	// dont need to call create() as it will be created automatically when accessed!
+	const countStore = countStoreBuilder;
 
 	test('get', () => {
 		const counterValues = countStore.count.get();
@@ -31,7 +32,7 @@ describe('should access and update the entire state', () => {
 		});
 	});
 	describe('ACTIONS', () => {
-		const countStoreBuilder = storeBuilder()
+		const countStoreBuilder = store()
 			.state({
 				count: 2,
 			})
@@ -83,7 +84,7 @@ describe('should access and update the entire state', () => {
 	});
 });
 describe('should access and update the entire state + INPUT METHODS', () => {
-	const countStoreBuilder = storeBuilder()
+	const countStoreBuilder = store()
 		.input({ setting: false })
 		.state({
 			count: 2,
@@ -133,5 +134,49 @@ describe('should access and update the entire state + INPUT METHODS', () => {
 
 		expect(countStore.setting).toBe(false);
 		expect(countStore2.setting).toBe(true);
+	});
+
+	describe('EFFECTS', () => {
+		const someEffectCallback = vi.fn();
+
+		const countStore = store()
+			.state({ count: 2 })
+			.computed((store) => ({
+				doubled: () => store.count.get() * 2,
+			}))
+			.actions((store) => ({
+				increment() {
+					store.count.set(store.count.get() + 1);
+				},
+				decrement() {
+					store.count.set(store.count.get() - 1);
+				},
+			}))
+			.effects((store) => ({
+				someEffect: someEffectCallback,
+			}));
+
+		test('should not create store instance until accessed', () => {
+			expect(someEffectCallback).not.toHaveBeenCalled();
+		});
+
+		test('should create store instance when accessed', () => {
+			// const countStore = countStoreBuilder.create();
+			countStore.count.get();
+			expect(someEffectCallback).toHaveBeenCalledTimes(1);
+		});
+		test('store insatnce should not be recreated ', () => {
+			// const countStore = countStoreBuilder.create();
+			countStore.count.get();
+			expect(someEffectCallback).toHaveBeenCalledTimes(1);
+		});
+
+		// this fully works which means the following:
+		/**
+		 * The store is NOT created until it is accessed
+		 * therefore you can us ethe store() syntax to define non-creating stores eg for context, without redundant store instances being created
+		 *
+		 * however, if you want to use a global store insatnce, you dont need to call .create() as it will be created automatically when accessed eg store.count.get()
+		 */
 	});
 });

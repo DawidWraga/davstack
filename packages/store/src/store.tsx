@@ -1,12 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import {
-	EffectBuilder,
-	State,
-	StoreApi,
-	StoreBuilderApi,
-	StoreDef,
-} from './types';
+import { EffectBuilder, State, StoreApi, StoreDef } from './types';
 import { StoreOptions } from './types/CreateStoreOptions';
 
 import React from 'react';
@@ -17,8 +11,12 @@ import {
 } from './utils/create-computed-methods';
 import { createStore } from './utils/create-inner-store';
 import { createSplitProps } from './utils/split-props';
+import { createStoreApiProxy } from './utils/create-store-proxy';
 
-export const storeBuilder = <TState extends State>() => {
+export const store = <TState extends State>(
+	initialState?: TState,
+	options?: StoreOptions<TState>
+): StoreApi<TState> => {
 	const _def = {
 		initialState: undefined,
 		input: {},
@@ -39,25 +37,23 @@ export const storeBuilder = <TState extends State>() => {
 	) {
 		_def.extensions.push(builder);
 
-		if (_def.options.onExtend) {
-			return _def.options.onExtend(builder);
-		}
-		return builderMethods;
+		return storeApi;
 	}
 
-	const builderMethods = {
+	const storeApi = createStoreApiProxy({
+		_def,
 		options: (newOpts: any) => {
 			Object.assign(_def.options, newOpts);
-			return builderMethods;
+			return storeApi;
 		},
 		state: (initialValue: TState) => {
 			Object.assign(_def, { initialState: initialValue });
-			return builderMethods;
+			return storeApi;
 		},
 
 		name: (newName: string) => {
 			Object.assign(_def.options, { name: newName });
-			return builderMethods;
+			return storeApi;
 		},
 
 		/**
@@ -71,7 +67,6 @@ export const storeBuilder = <TState extends State>() => {
 		effects: <TBuilder extends EffectBuilder<StoreApi<TState, {}>>>(
 			builder: TBuilder
 		): StoreApi<TState, {}> => {
-			// @ts-expect-error
 			return extend((store) => {
 				const effectNameToFn = builder(store);
 				const unsubMethods: Record<string, () => void> = {};
@@ -93,15 +88,11 @@ export const storeBuilder = <TState extends State>() => {
 					unsubscribeFromEffects,
 				};
 
-				// subscribe to the effects when the store is created
-				subscribeToEffects();
-
 				return extraProps;
 			});
 		},
 		computed: <TComputedProps extends ComputedProps>(
 			computedCallback: ComputedBuilder<TState, TComputedProps>
-			// ): StoreApi<TState, TComputedProps> => {
 		) => {
 			return extend((store) =>
 				// @ts-expect-error
@@ -110,7 +101,10 @@ export const storeBuilder = <TState extends State>() => {
 		},
 		create: (initialValue: Partial<TState> & Record<string, any>) => {
 			if (!initialValue) {
-				return createStore(_def);
+				const instance = createStore(_def);
+
+				Object.assign(instance, storeApi);
+				return instance;
 			}
 
 			if (!isObject(_def.initialState)) {
@@ -130,90 +124,24 @@ export const storeBuilder = <TState extends State>() => {
 			// @ts-expect-error
 			return createStore(_def, stateInitialValue, inputInitialValue);
 		},
-	};
+	});
 
-	return Object.assign(builderMethods, {
-		_def,
-	}) as unknown as StoreBuilderApi<TState>;
-};
-
-export const store = <TState extends State>(
-	initialState?: TState,
-	options?: StoreOptions<TState>
-): StoreBuilderApi<TState> => {
-	let globalStore = {} as unknown as StoreBuilderApi<TState>;
-
-	const _options = {
-		...options,
-		onExtend: (builder: any) => {
-			if (options?.onExtend) {
-				options.onExtend(store);
-			}
-
-			Object.assign(globalStore, builder(globalStore));
-			return globalStore as unknown as StoreApi<TState, {}>;
-		},
-	};
-
+	// must check for undefined to allow for 0 as a valid initial state
 	if (initialState !== undefined) {
-		const builder = storeBuilder()
-			.options(_options as any)
-			.state(initialState);
-
-		const instance = builder.create() as StoreApi<TState>;
-
-		Object.assign(instance, builder);
-
-		// @ts-expect-error
-		globalStore = instance;
-	} else {
-		const stateFn = (_initialState: any) => {
-			const builder = storeBuilder()
-				.options(_options as any)
-				.state(_initialState);
-
-			const instance = builder.create() as StoreApi<TState>;
-
-			Object.assign(instance, builder);
-
-			// @ts-expect-error
-			globalStore = instance;
-			return globalStore as StoreBuilderApi<TState>;
-		};
-
-		// @ts-expect-error
-		globalStore = {
-			state: stateFn,
-		};
+		Object.assign(_def, { initialState });
 	}
 
-	return globalStore as unknown as StoreBuilderApi<TState>;
+	if (options) {
+		Object.assign(_def, { options });
+	}
 
-	// return storeBuilder()
-	// 	.state(initialState)
-	// 	.options(options ?? {})
-	// 	.create() as StoreApi<TState>;
-
-	// if (initialState !== undefined && options !== undefined)
-	// 	return storeBuilder()
-	// 		.options(options as any)
-	// 		.state(initialState) as StoreApi<TState>;
-
-	// if (initialState !== undefined) {
-	// 	return storeBuilder().state(initialState).create() as StoreApi<TState>;
-	// }
-
-	// if (options !== undefined) {
-	// 	return storeBuilder().options(options as any) as StoreApi<TState>;
-	// }
-
-	// return storeBuilder() as StoreApi<TState>;
+	return storeApi as unknown as StoreApi<TState>;
 };
 
 export function createStoreContext<
 	TState extends State,
 	TExtensions extends object,
->(store: StoreBuilderApi<TState, TExtensions>) {
+>(store: StoreApi<TState, TExtensions>) {
 	const Context = React.createContext<StoreApi<TState, TExtensions> | null>(
 		null
 	);
@@ -230,13 +158,17 @@ export function createStoreContext<
 		);
 
 		React.useEffect(() => {
+			const instance = storeInstance.current;
+			if (instance && 'subscribeToEffects' in instance) {
+				const fn = instance.subscribeToEffects;
+				if (typeof fn === 'function') fn();
+			}
+
 			return () => {
-				if (
-					storeInstance.current &&
-					'unsubscribeFromEffects' in storeInstance.current
-				) {
-					// @ts-expect-error
-					storeInstance.current?.unsubscribeFromEffects?.();
+				const instance = storeInstance.current;
+				if (instance && 'unsubscribeFromEffects' in instance) {
+					const fn = instance.unsubscribeFromEffects;
+					if (typeof fn === 'function') fn();
 				}
 			};
 		}, []);

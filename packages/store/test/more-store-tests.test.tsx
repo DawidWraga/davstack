@@ -181,21 +181,23 @@ describe('store', () => {
 
 	describe('nested object store', () => {
 		describe('should access and update the entire state', () => {
+			// the store should NOT be created yet - someone may want to use a context store and no global store.
 			const countStore = store({ parent: { count: 2 } });
 
 			test('get', () => {
+				// check if the store is created and if it's not then just create it in real time
 				const counterValues = countStore.parent.count.get();
 				expect(counterValues).toBe(2);
 			});
 
 			test('set', () => {
+				// at this point we should NOT recreate a new store, we should reuse the global instance from  the previous test
 				countStore.parent.count.set(10);
 
 				expect(countStore.parent.count.get()).toBe(10);
 			});
 
 			test('assign', () => {
-				// console.log('INSIDE ASSIGN NESTED OBJ: ', countStore);
 				countStore.assign({
 					parent: {
 						count: 30,

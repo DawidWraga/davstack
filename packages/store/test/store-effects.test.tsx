@@ -49,8 +49,6 @@ describe('Store effects', () => {
 					testEffect2: () => store.onChange(cb2),
 				}));
 
-
-				
 			countStore.set(11);
 
 			expect(cb1).toHaveBeenCalledTimes(1);

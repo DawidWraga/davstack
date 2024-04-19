@@ -247,7 +247,7 @@ describe('local component store', () => {
 		};
 
 		test('computed values should be scoped to each component', async () => {
-			const ui = getUi(
+			const renderComponents = () =>
 				render(
 					<>
 						<storeContext.Provider initialValue={{ count: 5 }}>
@@ -257,8 +257,12 @@ describe('local component store', () => {
 							<Counter id="comp2" />
 						</storeContext.Provider>
 					</>
-				)
-			);
+				);
+
+			const { unmount } = renderComponents();
+			unmount();
+
+			const ui = getUi(renderComponents());
 
 			await waitFor(() => {
 				expect(ui.getByTestId(`${testIds.count}-comp1`)).toHaveTextContent(
@@ -321,7 +325,7 @@ describe('local component store', () => {
 		});
 
 		test('effects should be scoped to each component', async () => {
-			const ui = getUi(
+			const renderComponents = () =>
 				render(
 					<>
 						<storeContext.Provider initialValue={{ count: 5 }}>
@@ -331,8 +335,11 @@ describe('local component store', () => {
 							<Counter id="comp2" />
 						</storeContext.Provider>
 					</>
-				)
-			);
+				);
+
+			const { unmount } = renderComponents();
+			unmount();
+			const ui = getUi(renderComponents());
 
 			act(() => {
 				fireEvent.click(ui.getByTestId(`${testIds.increment}-comp1`));

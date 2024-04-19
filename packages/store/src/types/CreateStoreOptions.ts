@@ -25,7 +25,12 @@ export interface StoreOptions<T extends State> {
 	 */
 	persist?: PersistOptions<T>;
 
-	onExtend?: (builder: any) => void;
+	/**
+	 * If mode is "CREATE" then the store will defined and created in the same step.
+	 *
+	 * If mode is "DEFINE" then the store will only be defined, and you will need to call the create method to create the store.
+	 */
+	// mode?: 'CREATE' | 'DEFINE';
 }
 
 export interface ImmerOptions {
