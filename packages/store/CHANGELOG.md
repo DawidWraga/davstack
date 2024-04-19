@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 1.1.1
+
+### Patch Changes
+
+- add improved types for providers with input
+
 ## 1.1.0
 
 ### Minor Changes
