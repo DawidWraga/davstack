@@ -126,7 +126,7 @@ export type EffectMethods<TMethods> = {
 
 export type ExtendBuilder<TStore extends StoreApi<any, any, any>> = (
 	store: TStore
-) => Record<string, (...args: any[]) => any>;
+) => Record<string, any>;
 
 export type Simplify<T> = T extends any[] | Date
 	? T
