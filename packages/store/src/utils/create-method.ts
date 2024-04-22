@@ -12,9 +12,14 @@ import {
 import { OnChangeOptions, StoreMethods } from '../types/store-methods';
 // import { createRecursiveProxy } from './create-recursive-proxy';
 
-
-export const storeMethodKeys = ['get', 'set', 'onChange', 'use', 'assign'] as const;
-export type StoreMethodKey = typeof storeMethodKeys[number];
+export const storeMethodKeys = [
+	'get',
+	'set',
+	'onChange',
+	'use',
+	'assign',
+] as const;
+export type StoreMethodKey = (typeof storeMethodKeys)[number];
 
 export const createMethod = <T extends State>(options: {
 	immerStore: ImmerStoreApi<T>;
@@ -146,6 +151,12 @@ export const createMethod = <T extends State>(options: {
 
 /**
  * Get a value from a nested object using a path array
+ *
+ * @example
+ * ```ts
+ * const pathValue = getPathValue({a:{b:{c:1}}}, ['a', 'b', 'c']);
+ * console.log(pathValue); // 1
+ * ```
  */
 function getPathValue<T>(state: T, path: string[]): any {
 	return path.reduce((acc, key) => acc[key], state as any);
@@ -153,6 +164,16 @@ function getPathValue<T>(state: T, path: string[]): any {
 
 /**
  * Set a value in a nested object using a path array
+ *
+ * @example
+ * ```ts
+ * const state = {a:{b:{c:1}}};
+ * const value1 = getPathValue(state, ['a', 'b', 'c']);
+ * console.log(value1); // 1
+ * setPathValue(state, ['a', 'b', 'c'], 2);
+ * const value2 = getPathValue(state, ['a', 'b', 'c']);
+ * console.log(value2); // 2
+ *
  */
 function setPathValue<T>(draft: T, path: string[], value: any): void {
 	if (path.length === 0) {
