@@ -1,5 +1,13 @@
 # @davstack/example-1
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies
+  - @davstack/store@1.1.3
+  - @davstack/sound@0.1.3
+
 ## 0.0.6
 
 ### Patch Changes

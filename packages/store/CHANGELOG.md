@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 1.1.3
+
+### Patch Changes
+
+- tweak extend return type to allow for non-function extensions
+
 ## 1.1.1
 
 ### Patch Changes
