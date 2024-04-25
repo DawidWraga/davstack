@@ -6,3 +6,5 @@ export * from './store';
 export * from './types';
 export * from './middlewares/index';
 export * from './types/index';
+export * from './create-store-context';
+export * from './create-store-context-alt';

@@ -3,34 +3,43 @@
 import { EffectBuilder, State, StoreApi, StoreDef } from './types';
 import { StoreOptions } from './types/CreateStoreOptions';
 
-import React from 'react';
 import {
-	createComputedMethods,
 	ComputedBuilder,
 	ComputedProps,
+	createComputedMethods,
 } from './utils/create-computed-methods';
 import { createStore } from './utils/create-inner-store';
-import { createSplitProps } from './utils/split-props';
 import { createStoreApiProxy } from './utils/create-store-proxy';
+import { createSplitProps } from './utils/split-props';
+
+export function getDefaultStoreDef<TState extends State>(
+	initialState?: TState
+) {
+	const _def = {
+		initialState,
+		extensions: [],
+		options: {},
+		get name() {
+			const options = _def.options as StoreOptions<TState>;
+			const name = options.name as string;
+			if (name) return name;
+
+			const defaultName = `(davstack/store)initialValue=${
+				_def.initialState ? JSON.stringify(_def.initialState) : 'no-state'
+			}`;
+			Object.assign(_def.options, { name: defaultName });
+			return defaultName as string;
+		},
+	};
+
+	return _def satisfies StoreDef<TState>;
+}
 
 export const store = <TState extends State>(
 	initialState?: TState,
 	options?: StoreOptions<TState>
 ): StoreApi<TState> => {
-	const _def = {
-		initialState: undefined,
-		input: {},
-		extensions: [],
-		options: {},
-		get name() {
-			if (_def.options.name) return _def.options.name;
-			const defaultName = `(davstack/store)initialValue=${
-				_def.initialState ? JSON.stringify(_def.initialState) : 'no-state'
-			}`;
-			Object.assign(_def.options, { name: defaultName });
-			return defaultName;
-		},
-	} as StoreDef<TState>;
+	const _def = getDefaultStoreDef(initialState) as StoreDef<TState>;
 
 	function extend<TNewExtendedProps extends Record<string, any>>(
 		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
@@ -142,68 +151,6 @@ export const store = <TState extends State>(
 
 	return storeApi as unknown as StoreApi<TState>;
 };
-
-type StoreProviderProps<TState, TInput> = {
-	initialValue?: Partial<TState> & TInput;
-	children: React.ReactNode;
-};
-
-export function createStoreContext<
-	TState extends State,
-	TExtensions extends object,
-	TInput extends Record<string, any> = {},
->(store: StoreApi<TState, TExtensions, TInput>) {
-	const Context = React.createContext<StoreApi<
-		TState,
-		TExtensions,
-		TInput
-	> | null>(null);
-
-	const Provider = (props: StoreProviderProps<TState, TInput>) => {
-		const { children, initialValue: localInitialValue } = props;
-		const storeInstance = React.useRef<StoreApi<TState, TExtensions, TInput>>(
-			store.create(localInitialValue)
-		);
-
-		React.useEffect(() => {
-			const instance = storeInstance.current;
-			if (instance && 'subscribeToEffects' in instance) {
-				const fn = instance.subscribeToEffects;
-				if (typeof fn === 'function') fn();
-			}
-
-			return () => {
-				const instance = storeInstance.current;
-				if (instance && 'unsubscribeFromEffects' in instance) {
-					const fn = instance.unsubscribeFromEffects;
-					if (typeof fn === 'function') fn();
-				}
-			};
-		}, []);
-
-		return (
-			<Context.Provider value={storeInstance.current as any}>
-				{children}
-			</Context.Provider>
-		);
-	};
-
-	const useStore = () => {
-		const localStore = React.useContext(Context);
-
-		if (localStore) {
-			return localStore;
-		}
-
-		throw new Error('useLocalStore must be used within a LocalProvider');
-	};
-
-	return {
-		Provider,
-		useStore,
-		Context,
-	};
-}
 
 export function isObject(value: any): value is Record<string, any> {
 	return value instanceof Object && !(value instanceof Array);
