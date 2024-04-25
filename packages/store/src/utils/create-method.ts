@@ -9,7 +9,7 @@ import {
 	State,
 	UseImmerStore,
 } from '../types';
-import { OnChangeOptions, StoreMethods } from '../types/store-methods';
+import { OnChangeOptions, StateMethods } from '../types/store-methods';
 // import { createRecursiveProxy } from './create-recursive-proxy';
 
 export const storeMethodKeys = [

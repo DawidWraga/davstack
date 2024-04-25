@@ -4,7 +4,7 @@ import { EqualityChecker, Simplify } from '../types';
 
 export type State = unknown;
 
-export type StoreMethods<TState> = {
+export type StateMethods<TState> = {
 	/**
 	 * @returns The current state of the entire store
 	 * @note This does not subscribe to changes in the store
@@ -85,13 +85,9 @@ export type OnChangeOptions<TState> = {
 		: never;
 };
 
-
-
-
-export type NestedStoreMethods<TState> = StoreMethods<TState> &
+export type NestedStateMethods<TState> = StateMethods<TState> &
 	(TState extends object
 		? {
-				[TKey in keyof TState]: NestedStoreMethods<TState[TKey]>;
+				[TKey in keyof TState]: NestedStateMethods<TState[TKey]>;
 			}
 		: {});
-
