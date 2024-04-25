@@ -20,6 +20,8 @@ import type { StateCreator } from 'zustand';
 
 import { subscribeWithSelector } from 'zustand/middleware';
 import { createMethodsProxy } from '../utils/create-methods-proxy';
+import { getDefaultStoreDef } from '../store';
+import { NestedStateMethods } from '../types/store-methods';
 /** creates the internal store with middlwares */
 export const createInnerStore = <TState extends State>(
 	storeDef: StoreDef<TState>
@@ -124,4 +126,24 @@ export function createStore<
 
 export function isObject(value: any): value is Record<string, any> {
 	return value instanceof Object && !(value instanceof Array);
+}
+
+export function state<TState extends State>(
+	initialState?: TState,
+	storeDef?: Partial<StoreDef<TState>>
+) {
+	const defaultDef = getDefaultStoreDef(initialState) as StoreDef<TState>;
+	const defWithDefaults = { ...defaultDef, ...storeDef };
+
+	const innerStore = createInnerStore({
+		...defWithDefaults,
+		initialState: initialState ?? ({} as TState),
+	});
+
+	const methods = createMethodsProxy({
+		immerStore: innerStore,
+		storeName: defWithDefaults.name,
+	});
+
+	return methods as unknown as NestedStateMethods<TState>;
 }
