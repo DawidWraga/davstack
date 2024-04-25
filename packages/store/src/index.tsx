@@ -8,3 +8,4 @@ export * from './middlewares/index';
 export * from './types/index';
 export * from './create-store-context';
 export * from './create-store-context-alt';
+export { state } from './utils/create-inner-store';
