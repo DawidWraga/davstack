@@ -1,12 +1,12 @@
 /* eslint-disable no-unused-vars */
 import { Simplify, StoreApi } from '../types';
-import { StoreMethods } from '../types/store-methods';
+import { StateMethods } from '../types/store-methods';
 
 export type ComputedProps = Record<string, () => any>;
 
 export type ComputedMethods<TComputedProps extends ComputedProps> = {
 	[K in keyof TComputedProps]: Pick<
-		StoreMethods<Simplify<ReturnType<TComputedProps[K]>>>,
+		StateMethods<Simplify<ReturnType<TComputedProps[K]>>>,
 		'use' | 'get'
 	>;
 };
@@ -63,3 +63,22 @@ export function createComputedMethods<
 
 	return computedMethods;
 }
+
+type StateGetters<TState> = Simplify<Pick<StateMethods<TState>, 'get' | 'use'>>;
+
+export type ComptuedStateMethods<
+	TState,
+	TFn extends (state: StateGetters<TState>) => unknown,
+> = Pick<StateMethods<Simplify<ReturnType<TFn>>>, 'use' | 'get'>;
+
+export const computed = <
+	TState,
+	TFn extends (state: StateGetters<TState>) => unknown,
+>(
+	store: StoreApi<TState>,
+	computedCallback: TFn
+) => {
+	return createComputedMethods(store, (innerStore) => ({
+		temp: () => computedCallback(innerStore) as any,
+	})).temp as ComptuedStateMethods<TState, TFn>;
+};
