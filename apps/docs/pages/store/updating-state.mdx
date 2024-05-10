@@ -153,12 +153,12 @@ const todosStore = store
 	})
 	.actions((store) => ({
 		addTodo(text) {
-			store.todos.set((draft) => {
+			store.set((draft) => {
 				draft.push({ id: draft.length + 1, text, completed: false });
 			});
 		},
 		toggleTodo(id) {
-			store.todos.set((draft) => {
+			store.set((draft) => {
 				const todo = draft.find((todo) => todo.id === id);
 				if (todo) {
 					todo.completed = !todo.completed;
