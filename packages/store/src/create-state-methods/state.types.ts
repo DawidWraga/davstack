@@ -2,9 +2,7 @@
 
 import { EqualityChecker, Simplify, StateValue } from '../types';
 
-export type State<TStateValue extends StateValue> = _State<TStateValue>;
-
-export type _State<TStateValue extends StateValue> = (TStateValue extends object
+export type State<TStateValue extends StateValue> = (TStateValue extends object
 	? {
 			[TKey in keyof TStateValue]: State<TStateValue[TKey]>;
 		}
