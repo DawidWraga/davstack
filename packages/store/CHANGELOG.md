@@ -1,5 +1,15 @@
 # @davstack/store
 
+## 1.2.0
+
+### Minor Changes
+
+- add computed read input, setter, and add withProvider to createStoreContext
+
+### Patch Changes
+
+- fix: null initial state should start as null instead of defaulting to {}
+
 ## 1.1.3
 
 ### Patch Changes
