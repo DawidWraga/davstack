@@ -40,9 +40,62 @@ const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 };
 
 describe('store', () => {
+	describe('should init with correct type', () => {
+		test('null', () => {
+			const count = state(null, { name: 'this wan' });
+			expect(count.get()).toBe(null);
+		});
+		test('undefined', () => {
+			const count = state();
+			expect(count.get()).toBe(undefined);
+
+			count.set('hello');
+			expect(count.get()).toBe('hello');
+		});
+
+		test('number - 0', () => {
+			const count = state(0);
+			expect(count.get()).toBe(0);
+		});
+		test('number - non-zero', () => {
+			const count = state(1);
+			expect(count.get()).toBe(1);
+		});
+
+		test('string - empty', () => {
+			const count = state('');
+			expect(count.get()).toBe('');
+		});
+
+		test('string - non-empty', () => {
+			const count = state('hello');
+			expect(count.get()).toBe('hello');
+		});
+
+		test('boolean - false', () => {
+			const count = state(false);
+			expect(count.get()).toBe(false);
+		});
+
+		test('boolean - true', () => {
+			const count = state(true);
+			expect(count.get()).toBe(true);
+		});
+
+		test('object - empty', () => {
+			const count = state({});
+			expect(count.get()).toEqual({});
+		});
+
+		test('object - non-empty', () => {
+			const count = state({ hello: 'world' });
+			expect(count.get()).toEqual({ hello: 'world' });
+		});
+	});
+
 	const createCountStore = ({ id }: { id: string }) => {
-		const count$ = state(0);
-		const count = store(0);
+		const count = state(0);
+		// const count = store(0);
 
 		return {
 			count,
@@ -54,7 +107,7 @@ describe('store', () => {
 		};
 	};
 
-	type TempType = State<number>;
+	// type TempType = State<number>;
 
 	describe('basic methods', () => {
 		describe('should access and update the entire state', () => {

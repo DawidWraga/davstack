@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { enableMapSet, setAutoFreeze } from 'immer';
+
 import {
 	devtools as devtoolsMiddleware,
 	persist as persistMiddleware,
@@ -69,10 +70,13 @@ export const createInnerStore = <TState extends StateValue>(
 	// cannot use nullish here as it breaks when initial value is eg 0
 	if (initialState === undefined) {
 		// consider making this throw? most a bug if there is a store without a state
-		throw new Error('Store must have an initial state');
+		// throw new Error('Store must have an initial state');
+		console.warn(
+			'store initialized without an initial state. This could indicate a bug.'
+		);
 	}
 
-	const immerStoreApi = pipeMiddlewares(() => initialState ?? ({} as TState));
+	const immerStoreApi = pipeMiddlewares(() => initialState as TState);
 
 	return immerStoreApi;
 };
@@ -134,7 +138,7 @@ export function state<TState extends StateValue>(
 
 	const innerStore = createInnerStore({
 		...defWithDefaults,
-		initialState: initialState ?? ({} as TState),
+		initialState: initialState,
 	});
 
 	return createMethodsProxy({
