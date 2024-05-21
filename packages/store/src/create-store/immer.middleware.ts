@@ -1,10 +1,10 @@
 import { produce } from 'immer';
 import { StoreApi as RawStoreApi, StoreApi as ZustandStoreApi } from 'zustand';
 import { NamedSet } from 'zustand/middleware';
-import { SetImmerState, State } from '../types';
+import { SetImmerState, StateValue } from '../types';
 
 export const immerMiddleware =
-	<T extends State>(
+	<T extends StateValue>(
 		config: StateCreatorWithDevtools<
 			T,
 			SetImmerState<T>,
@@ -28,7 +28,7 @@ export const immerMiddleware =
 	};
 
 export type StateCreatorWithDevtools<
-	T extends State,
+	T extends StateValue,
 	CustomSetState = NamedSet<T>,
 	CustomGetState = ZustandStoreApi<T>['getState'],
 	CustomStoreApi extends RawStoreApi<T> = RawStoreApi<T>,

@@ -3,7 +3,7 @@ import React, { useContext, useRef, useState } from 'react';
 
 import { create as createZustandStore } from 'zustand';
 
-import { store } from '../src/store';
+import { store } from '../src/store-builder/store';
 
 import { describe, expect, test } from 'vitest';
 

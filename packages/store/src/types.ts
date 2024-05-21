@@ -2,28 +2,28 @@
 
 import { Draft } from 'immer';
 import { StoreApi as RawStoreApi, UseBoundStore } from 'zustand';
-import { NestedStateMethods, UnsubscribeFn } from './types/store-methods';
+import { State, UnsubscribeFn } from './create-state-methods/state.types';
 import {
 	ComputedBuilder,
 	ComputedMethods,
 	ComputedProps,
-} from './utils/create-computed-methods';
-import { StoreOptions } from './types/CreateStoreOptions';
+} from './create-computed/create-computed-methods';
+import { StoreOptions } from './create-store/CreateStoreOptions';
 
-export type State = unknown;
+export type StateValue = unknown;
 
 export interface StoreDef<
-	TState extends State = {},
+	TStateValue extends StateValue = {},
 	TExtendedProps extends Record<string, any> = {},
 > {
 	name: string;
-	extensions: Array<(store: StoreApi<TState>) => Record<string, any>>;
-	options: StoreOptions<TState>;
-	initialState: TState | undefined;
+	extensions: Array<(store: StoreApi<TStateValue>) => Record<string, any>>;
+	options: StoreOptions<TStateValue>;
+	initialState: TStateValue | undefined;
 }
 
 export type StoreBuilderMethods<
-	TState extends State,
+	TState extends StateValue,
 	TExtendedProps extends Record<string, any> = {},
 	TInput extends Record<string, any> = {},
 > = {
@@ -107,11 +107,11 @@ export type StoreBuilderMethods<
 };
 
 export type StoreApi<
-	TState extends State = {},
+	TState extends StateValue = {},
 	TExtendedProps extends Record<string, any> = {},
 	TInput extends Record<string, any> = {},
 > = StoreBuilderMethods<TState, TExtendedProps, TInput> &
-	NestedStateMethods<TState> &
+	State<TState> &
 	Simplify<TExtendedProps & TInput>;
 
 export type EffectBuilder<TStore extends StoreApi<any, any, any>> = (
@@ -139,11 +139,11 @@ export type SetImmerState<T> = (
 	actionName?: string
 ) => void;
 
-export interface ImmerStoreApi<T extends State>
+export interface ImmerStoreApi<T extends StateValue>
 	extends Omit<RawStoreApi<T>, 'setState'> {
 	setState: SetImmerState<T>;
 }
-export interface UseImmerStore<T extends State>
+export interface UseImmerStore<T extends StateValue>
 	extends Omit<UseBoundStore<RawStoreApi<T>>, 'setState'> {
 	(): T;
 

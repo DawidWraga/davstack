@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { StoreApi } from '../types';
-import { createStore } from './create-inner-store';
+import { createStore } from './create-inner-immer-store';
 
 /**
  *  allows for lazy .create() of the store

@@ -6,13 +6,13 @@
 
 /* eslint-disable no-unused-vars */
 import { Simplify, StoreApi } from '../types';
-import { StateMethods } from '../types/store-methods';
+import { State } from '../create-state-methods/state.types';
 
 export type ComputedProps = Record<string, () => any>;
 
 export type ComputedMethods<TComputedProps extends ComputedProps> = {
 	[K in keyof TComputedProps]: Pick<
-		StateMethods<Simplify<ReturnType<TComputedProps[K]>>>,
+		State<Simplify<ReturnType<TComputedProps[K]>>>,
 		'use' | 'get'
 	>;
 };

@@ -6,24 +6,25 @@ import {
 } from 'zustand/middleware';
 import { createStore as createVanillaStore } from 'zustand/vanilla';
 
-import { immerMiddleware } from '../middlewares/immer.middleware';
 import {
 	ImmerStoreApi,
 	SetImmerState,
-	State,
+	StateValue,
 	StoreApi,
 	StoreDef,
 } from '../types';
 import { pipe } from '../utils/pipe';
+import { immerMiddleware } from './immer.middleware';
 
 import type { StateCreator } from 'zustand';
 
 import { subscribeWithSelector } from 'zustand/middleware';
-import { createMethodsProxy } from '../utils/create-methods-proxy';
-import { getDefaultStoreDef } from '../store';
-import { NestedStateMethods } from '../types/store-methods';
+import { createMethodsProxy } from '../create-state-methods/create-methods-proxy';
+import { State } from '../create-state-methods/state.types';
+import { getDefaultStoreDef } from '../store-builder/store';
+import { isObject } from '../utils/assertions';
 /** creates the internal store with middlwares */
-export const createInnerStore = <TState extends State>(
+export const createInnerStore = <TState extends StateValue>(
 	storeDef: StoreDef<TState>
 ) => {
 	const { options, initialState, name } = storeDef;
@@ -77,7 +78,7 @@ export const createInnerStore = <TState extends State>(
 };
 
 export function createStore<
-	TState extends State,
+	TState extends StateValue,
 	TExtendedProps extends Record<string, any> = {},
 	TInput extends Record<string, any> = {},
 >(
@@ -124,14 +125,10 @@ export function createStore<
 	return methods as unknown as StoreApi<TState>;
 }
 
-export function isObject(value: any): value is Record<string, any> {
-	return value instanceof Object && !(value instanceof Array);
-}
-
-export function state<TState extends State>(
+export function state<TState extends StateValue>(
 	initialState?: TState,
 	storeDef?: Partial<StoreDef<TState>>
-) {
+): State<TState> {
 	const defaultDef = getDefaultStoreDef(initialState) as StoreDef<TState>;
 	const defWithDefaults = { ...defaultDef, ...storeDef };
 
@@ -140,10 +137,8 @@ export function state<TState extends State>(
 		initialState: initialState ?? ({} as TState),
 	});
 
-	const methods = createMethodsProxy({
+	return createMethodsProxy({
 		immerStore: innerStore,
 		storeName: defWithDefaults.name,
-	});
-
-	return methods as unknown as NestedStateMethods<TState>;
+	}) as unknown as State<TState>;
 }

@@ -1,31 +1,31 @@
 /* eslint-disable no-unused-vars */
 import { shallow } from 'zustand/shallow';
 import { useStoreWithEqualityFn } from 'zustand/traditional';
-import { isObject } from '../store';
+
 import {
 	EqualityChecker,
 	ImmerStoreApi,
 	SetImmerState,
-	State,
+	StateValue,
 	UseImmerStore,
 } from '../types';
-import { OnChangeOptions, StateMethods } from '../types/store-methods';
-// import { createRecursiveProxy } from './create-recursive-proxy';
+import { isFunction, isObject } from '../utils/assertions';
+import { OnChangeOptions } from './state.types';
 
-export const storeMethodKeys = [
+export const stateMethodKeys = [
 	'get',
 	'set',
 	'onChange',
 	'use',
 	'assign',
 ] as const;
-export type StoreMethodKey = (typeof storeMethodKeys)[number];
+export type StateMethodKey = (typeof stateMethodKeys)[number];
 
-export const createMethod = <T extends State>(options: {
+export const createStateMethod = <T extends StateValue>(options: {
 	immerStore: ImmerStoreApi<T>;
 	storeName: string;
 	path: string[];
-	method: StoreMethodKey;
+	method: StateMethodKey;
 }) => {
 	const { immerStore, storeName, path, method } = options;
 
@@ -194,10 +194,4 @@ function setPathValue<T>(draft: T, path: string[], value: any): void {
 	}
 	// @ts-expect-error
 	current[path[path.length - 1]] = value;
-}
-
-export function isFunction<T extends Function = Function>(
-	value: any
-): value is T {
-	return typeof value === 'function';
 }

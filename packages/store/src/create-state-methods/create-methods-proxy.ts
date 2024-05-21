@@ -1,6 +1,10 @@
 /* eslint-disable no-unused-vars */
 import { ImmerStoreApi } from '../types';
-import { createMethod, StoreMethodKey, storeMethodKeys } from './create-method';
+import {
+	createStateMethod,
+	StateMethodKey,
+	stateMethodKeys,
+} from './create-state-method';
 
 export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 	immerStore,
@@ -30,7 +34,7 @@ export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 				}
 
 				// @ts-expect-error
-				const isStoreMethodKey = storeMethodKeys.includes(key);
+				const isStoreMethodKey = stateMethodKeys.includes(key);
 
 				if (isStoreMethodKey) {
 					const shouldReplaceUseWithGet =
@@ -49,12 +53,12 @@ export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 			},
 
 			apply(target, _thisArg, args) {
-				const method = path.pop()! as StoreMethodKey;
+				const method = path.pop()! as StateMethodKey;
 
 				// now the path is fully formed eg ["user","address","get"], we can pass it to the createMethod function
 
 				// Create the store method function using the createMethod utility
-				const methodFn = createMethod({
+				const methodFn = createStateMethod({
 					immerStore,
 					storeName,
 					path,

@@ -121,6 +121,7 @@ describe('store', () => {
 					store.count.set(store.count.get() - 1);
 				},
 			}));
+		//
 
 		const Counter = () => {
 			const count = counterStore.count.use();

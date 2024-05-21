@@ -1,8 +1,8 @@
 import { DevtoolsOptions } from 'zustand/middleware';
 
-import { State } from '../types';
+import { StateValue } from '../types';
 
-export interface StoreOptions<T extends State> {
+export interface StoreOptions<T extends StateValue> {
 	name?: string;
 
 	/**

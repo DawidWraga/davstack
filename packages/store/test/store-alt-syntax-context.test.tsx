@@ -1,17 +1,10 @@
-import {
-	render,
-	screen,
-	fireEvent,
-	act,
-	waitFor,
-} from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 
-import { beforeEach, describe, expect, it, test, vi } from 'vitest';
-import { createStoreContext, store } from '../src';
-import { useEffect, useRef, useState } from 'react';
-import { state } from '../src/utils/create-inner-store';
-import { createContextFromStoreCreator } from '../src/create-store-context-alt';
-import { computed } from '../src/utils/create-computed-methods';
+import { describe, expect, test } from 'vitest';
+import { store } from '../src';
+import { computed } from '../src/create-computed/create-computed-methods';
+import { createContextFromStoreCreator } from '../src/create-store-context/create-store-context-alt';
+import { state } from '../src/create-store/create-inner-immer-store';
 const testIds = {
 	count: 'count',
 	doubledCount: 'doubled-count',
@@ -73,11 +66,17 @@ type CreateCounterStoreInput = {
 	initialCount?: number;
 };
 
-const createCountStore = (input: CreateCounterStoreInput) => {
-	const count = state(input.initialCount);
+const createCountStore = ({ initialCount = 0 }: { initialCount: number }) => {
+	const count = state(initialCount);
+
+	const doubled = computed((getOrUse) => ({
+		get: () => count[getOrUse]() * 2,
+		set: (value: number) => count.set(value / 2),
+	}));
 
 	return {
 		count,
+		doubled,
 		increment: () => count.set(count.get() + 1),
 		decrement: () => count.set(count.get() - 1),
 		effects: {
@@ -85,6 +84,9 @@ const createCountStore = (input: CreateCounterStoreInput) => {
 		},
 	};
 };
+
+
+
 describe('local component store', () => {
 	test('should create local stores with different initial values', async () => {
 		const counterStoreContext = createContextFromStoreCreator(createCountStore);
@@ -228,8 +230,15 @@ describe('local component store', () => {
 		}: {
 			initialValue: { count: number };
 		}) => {
-			const count = store(initialValue.count);
-			const doubledCount = computed(count, (count) => count.get() * 2);
+			const count = state(initialValue.count);
+			const doubledCount = computed((getOrUse) => count[getOrUse]() * 2);
+			const trippledCount = computed((getOrUse) => ({
+				get: () => count[getOrUse]() * 3,
+				set: (value: number) => count.set(value / 3),
+			}));
+			const multipliedCount = computed((getOrUse) => ({
+				get: (factor: number) => count[getOrUse]() * factor,
+			}));
 			const syncedCount = state(initialValue.count);
 
 			const increment = () => count.set(count.get() + 1);

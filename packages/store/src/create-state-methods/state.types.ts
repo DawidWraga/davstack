@@ -1,15 +1,19 @@
 /* eslint-disable no-unused-vars */
 
-import { EqualityChecker, Simplify } from '../types';
+import { EqualityChecker, Simplify, StateValue } from '../types';
 
-export type State = unknown;
+export type State<TStateValue extends StateValue> = _State<TStateValue>;
 
-export type StateMethods<TState> = {
+export type _State<TStateValue extends StateValue> = (TStateValue extends object
+	? {
+			[TKey in keyof TStateValue]: State<TStateValue[TKey]>;
+		}
+	: {}) & {
 	/**
 	 * @returns The current state of the entire store
 	 * @note This does not subscribe to changes in the store
 	 */
-	get: () => TState;
+	get: () => TStateValue;
 	/**
 		 * Set a new state for the entire store using Immer
 		 * @param fn A function that mutates the current state
@@ -24,11 +28,13 @@ export type StateMethods<TState> = {
 		 })
 
 		 */
-	set: (newValueOrFn: TState | ((prev: TState) => TState | void)) => void;
+	set: (
+		newValueOrFn: TStateValue | ((prev: TStateValue) => TStateValue | void)
+	) => void;
 	/**
 	 * @returns A Reactive version of the store
 	 */
-	use: () => TState;
+	use: () => TStateValue;
 
 	/**
 	 * Subscribe to changes in the store
@@ -36,8 +42,8 @@ export type StateMethods<TState> = {
 	 * @returns A function to unsubscribe from the store
 	 */
 	onChange: (
-		callback: (value: TState, prevValue: TState) => void,
-		options?: OnChangeOptions<TState>
+		callback: (value: TStateValue, prevValue: TStateValue) => void,
+		options?: OnChangeOptions<TStateValue>
 	) => UnsubscribeFn;
 
 	/**
@@ -46,7 +52,7 @@ export type StateMethods<TState> = {
 		 * @example ts
 		 user.assign({ name: 'John Doe' })
 		 */
-	assign: (partial: Partial<TState>) => void;
+	assign: (partial: Partial<TStateValue>) => void;
 };
 
 export type UnsubscribeFn = () => void;
@@ -84,10 +90,3 @@ export type OnChangeOptions<TState> = {
 		? Partial<keyof TState>[] | ((state: TState) => any)
 		: never;
 };
-
-export type NestedStateMethods<TState> = StateMethods<TState> &
-	(TState extends object
-		? {
-				[TKey in keyof TState]: NestedStateMethods<TState[TKey]>;
-			}
-		: {});

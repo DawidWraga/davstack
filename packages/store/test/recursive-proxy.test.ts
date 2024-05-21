@@ -1,4 +1,4 @@
-import { isFunction } from '../src/utils/create-methods-proxy';
+import { isFunction } from '../src/create-state-methods/create-methods-proxy';
 import { createRecursiveProxy } from '../src/utils/create-recursive-proxy';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 

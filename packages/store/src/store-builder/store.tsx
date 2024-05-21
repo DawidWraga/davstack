@@ -1,18 +1,19 @@
 /* eslint-disable no-unused-vars */
 
-import { EffectBuilder, State, StoreApi, StoreDef } from './types';
-import { StoreOptions } from './types/CreateStoreOptions';
+import { EffectBuilder, StateValue, StoreApi, StoreDef } from '../types';
+import { StoreOptions } from '../create-store/CreateStoreOptions';
 
 import {
 	ComputedBuilder,
 	ComputedProps,
 	createComputedMethods,
-} from './utils/create-computed-methods';
-import { createStore } from './utils/create-inner-store';
-import { createStoreApiProxy } from './utils/create-store-proxy';
-import { createSplitProps } from './utils/split-props';
+} from '../create-computed/create-computed-methods';
+import { createStore } from '../create-store/create-inner-immer-store';
+import { createStoreApiProxy } from '../create-store/create-store-proxy';
+import { createSplitProps } from '../utils/split-props';
+import { isObject } from '../utils/assertions';
 
-export function getDefaultStoreDef<TState extends State>(
+export function getDefaultStoreDef<TState extends StateValue>(
 	initialState?: TState
 ) {
 	const _def = {
@@ -35,7 +36,7 @@ export function getDefaultStoreDef<TState extends State>(
 	return _def satisfies StoreDef<TState>;
 }
 
-export const store = <TState extends State>(
+export const store = <TState extends StateValue>(
 	initialState?: TState,
 	options?: StoreOptions<TState>
 ): StoreApi<TState> => {
@@ -151,7 +152,3 @@ export const store = <TState extends State>(
 
 	return storeApi as unknown as StoreApi<TState>;
 };
-
-export function isObject(value: any): value is Record<string, any> {
-	return value instanceof Object && !(value instanceof Array);
-}

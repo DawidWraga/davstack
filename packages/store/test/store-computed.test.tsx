@@ -54,6 +54,8 @@ describe('store with computed properties', () => {
 				},
 			}));
 
+			
+
 		test('initial computed property value', () => {
 			expect(countStore.count.get()).toBe(10);
 			expect(countStore.doubled.get()).toBe(20);
@@ -151,93 +153,6 @@ describe('store with computed properties', () => {
 
 	describe('computed properties', () => {
 		// Define a store with an initial count state and a computed property for the doubled count
-		const countStore = store()
-			.state({ count: 0 })
-			.computed((store) => ({
-				doubled: () => store.count.use() * 2,
-			}))
-			.extend((store) => ({
-				useDoubled() {
-					return store.count.use() * 2;
-				},
-				increment() {
-					store.count.set(store.count.get() + 1);
-				},
-				decrement() {
-					store.count.set(store.count.get() - 1);
-				},
-			}));
-
-		const Counter = () => {
-			const count = countStore.doubled.use();
-
-			return (
-				<div>
-					<p data-testid={testIds.count}>Count: {count}</p>
-
-					<button
-						data-testid={testIds.increment}
-						onClick={countStore.increment}
-					>
-						Increment
-					</button>
-					<button
-						data-testid={testIds.decrement}
-						onClick={countStore.decrement}
-					>
-						Decrement
-					</button>
-				</div>
-			);
-		};
-		const Doubled = () => {
-			const doubled = countStore.doubled.get();
-			// const doubled = countStore.useDoubled();
-			return (
-				<div>
-					<p data-testid={testIds.doubledCount}>Doubled: {doubled}</p>
-				</div>
-			);
-		};
-
-		function Counters() {
-			return (
-				<div>
-					<Counter />
-					<Doubled />
-				</div>
-			);
-		}
-
-		test('computed property updates on state change', () => {
-			const ui = getUi(render(<Counters />));
-
-			expect(ui.count).toBe('Count: 0');
-			expect(ui.doubledCount).toBe('Doubled: 0');
-			// const ui = getUi(render(<Counters />));
-
-			// console.log(ui.debug());
-
-			act(() => {
-				ui.fireIncrement();
-			});
-
-			waitFor(() => {
-				expect(ui.count).toBe('Count: 1');
-				expect(ui.doubledCount).toBe('Doubled: 2');
-			});
-
-			act(() => {
-				ui.fireDecrement();
-			});
-			waitFor(() => {
-				expect(ui.count).toBe('Count: 0');
-				expect(ui.doubledCount).toBe('Doubled: 0');
-			});
-		});
-	});
-	describe('computed properties', () => {
-		// Define a store with an initial count state and a computed property for the doubled count
 		const countStore = store(0)
 			.computed((state) => ({
 				doubled: () => state.use() * 2,
@@ -314,6 +229,83 @@ describe('store with computed properties', () => {
 			});
 			expect(ui.count).toBe('Count: 0');
 			expect(ui.doubledCount).toBe('Doubled: 0');
+		});
+	});
+
+	describe('computed properties - read and write', () => {
+		const countStore = store({ count: 0 })
+			.computed((store) => ({
+				doubled: {
+					read: () => store.count.get() * 2,
+					write: (value: number) => store.count.set(value / 2),
+				},
+			}))
+			.actions((store) => ({
+				increment() {
+					store.count.set(store.count.get() + 1);
+				},
+				decrement() {
+					store.count.set(store.count.get() - 1);
+				},
+			}));
+
+		test('initial computed property value', () => {
+			expect(countStore.count.get()).toBe(0);
+			expect(countStore.doubled.get()).toBe(0);
+		});
+
+		test('updating computed property updates the state', () => {
+			countStore.doubled.set(10);
+			expect(countStore.count.get()).toBe(5);
+			expect(countStore.doubled.get()).toBe(10);
+		});
+
+		test('updating state updates the computed property', () => {
+			countStore.increment();
+			expect(countStore.count.get()).toBe(6);
+			expect(countStore.doubled.get()).toBe(12);
+
+			countStore.decrement();
+			expect(countStore.count.get()).toBe(5);
+			expect(countStore.doubled.get()).toBe(10);
+		});
+	});
+
+	describe('computed property with input', () => {
+		const countStore = store({ count: 0 })
+			.computed((store) => ({
+				multiplied: (factor: number) => store.count.use() * factor,
+			}))
+			.actions((store) => ({
+				increment() {
+					store.count.set(store.count.get() + 1);
+				},
+				decrement() {
+					store.count.set(store.count.get() - 1);
+				},
+			}));
+
+		test('initial computed property value with input', () => {
+			expect(countStore.count.get()).toBe(0);
+			expect(countStore.multiplied.get(2)).toBe(0);
+			expect(countStore.multiplied.get(3)).toBe(0);
+		});
+
+		test('computed property updates with input on state change', () => {
+			countStore.increment();
+			expect(countStore.count.get()).toBe(1);
+			expect(countStore.multiplied.get(2)).toBe(2);
+			expect(countStore.multiplied.get(3)).toBe(3);
+
+			countStore.increment();
+			expect(countStore.count.get()).toBe(2);
+			expect(countStore.multiplied.get(2)).toBe(4);
+			expect(countStore.multiplied.get(3)).toBe(6);
+
+			countStore.decrement();
+			expect(countStore.count.get()).toBe(1);
+			expect(countStore.multiplied.get(2)).toBe(2);
+			expect(countStore.multiplied.get(3)).toBe(3);
 		});
 	});
 });
