@@ -2,7 +2,10 @@ import { Callout } from 'nextra/components';
 
 # Local State Management
 
-Davstack Store provides an easy way to manage locally scoped state using the `createStoreContext` helper. This allows you to create multiple instances of a store within different components, each with its own initial state.
+The `createStoreContext` helper makes locally scoped state easy and computed properties, actions, and effects are automatically scoped to the local store instance.
+
+However, it is essential to encapsulate your store definition within the `.computed`, `.actions`,
+and `.effects` methods. If you create any computed values/actions/effects elsewhere, they will not be scoped to the local store instance.
 
 ## Creating a Store Context
 
@@ -11,32 +14,30 @@ To create a store context, use the `createStoreContext` function and pass in the
 ```tsx
 import { store, createStoreContext } from '@davstack/store';
 
-const globalStore = store({
+const counterStore = store({
 	count: 0,
-});
+}).actions((store) => ({
+	increment: () => store.count.set(store.count.get() + 1),
+}));
 
-const storeContext = createStoreContext(globalStore);
+export const {
+	useStore: useCounterStore,
+	Provider: CounterStoreProvider,
+	withProvider: withCounterStoreProvider,
+} = createStoreContext(counterStore);
 ```
 
-## Using the Store Context
-
-Once you have created a store context, you can use it to provide locally scoped state to different parts of your application.
-
-### Providing Local State
-
-To provide local state to a component subtree, wrap the components with the `Provider` component from the store context:
+### Usage with `Provider`
 
 ```tsx
-const Counter = () => {
-	const store = storeContext.useStore();
-	const count = store.count.use();
+const Counter = ({ customProp }: { customProp: string }) => {
+	const counterStore = useCounterStore();
+	const count = counterStore.count.use();
 
 	return (
 		<div>
 			<p>Count: {count}</p>
-			<button onClick={() => store.count.set(store.count.get() + 1)}>
-				Increment
-			</button>
+			<button onClick={counterStore.increment}>Increment</button>
 		</div>
 	);
 };
@@ -45,7 +46,7 @@ const App = () => {
 	return (
 		<>
 			<storeContext.Provider initialValue={{ count: 1 }}>
-				<Counter />
+				<Counter customProp="example" />
 			</storeContext.Provider>
 			<storeContext.Provider initialValue={{ count: 5 }}>
 				<Counter />
@@ -55,55 +56,32 @@ const App = () => {
 };
 ```
 
-In this example, we have two instances of the `Counter` component, each wrapped with a different `Provider` component from the store context. Each `Provider` component receives a different `initialValue` prop, which is used to initialize the local state for that instance of the store.
-
-### Accessing Local State
-
-To access the local state within a component, use the `useStore` hook from the store context:
+### Usage with `withProvider`
 
 ```tsx
-const store = storeContext.useStore();
+const Counter = withCounterStoreProvider(
+	({ customProp }: { customProp: string }) => {
+		const counterStore = useCounterStore();
+		const count = counterStore.count.use();
+
+		return (
+			<div>
+				<p>Count: {count}</p>
+				<button onClick={counterStore.increment}>Increment</button>
+			</div>
+		);
+	}
+);
+
+const App = () => {
+	return (
+		<>
+			<Counter initialValue={{ count: 1 }} customProp="example" />
+			<Counter initialValue={{ count: 5 }} customProp="example" />
+		</>
+	);
+};
 ```
-
-This will give you access to the local instance of the store, which you can then use to access and update the state:
-
-```tsx
-const count = store.count.use();
-store.count.set(store.count.get() + 1);
-```
-
-<Callout type="info" emoji="ℹ️">
-	The `useStore` hook will return the closest instance of the store in the
-	component tree. If there is no `Provider` component above the current
-	component, it will throw an error.
-</Callout>
-
-## Computed Properties, Actions, and Effects
-
-Computed properties, actions, and effects defined on the global store will be automatically scoped to each local instance of the store when using `createStoreContext`.
-
-```tsx
-const globalStore = store({ count: 0 })
-	.computed((store) => ({
-		doubledCount: () => store.count.use() * 2,
-	}))
-	.actions((store) => ({
-		increment: () => store.count.set(store.count.get() + 1),
-	}))
-	.effects((store) => ({
-		logCount: () => store.count.onChange(console.log),
-	}));
-
-const storeContext = createStoreContext(globalStore);
-```
-
-In this example, the `doubledCount` computed property, `increment` action, and `logCount` effect will be scoped to each local instance of the store created with the `storeContext`.
-
-<Callout type="warning" emoji="⚠️">
-	Make sure to encapsulate your store definition within `.computed`, `.actions`,
-	and `.effects` methods. If you create any computed values/actions/effects
-	elsewhere, they will not be scoped to the local store instance.
-</Callout>
 
 ## Merging Local and Global State
 
@@ -128,3 +106,49 @@ const App = () => {
 ```
 
 In this example, the local instance of the store will have a `count` of 5, but the `name` property will still be "John" from the global store.
+
+## What's going on inside the provider?
+
+The provider will automatically subscribe to all effects on mount and unsubscribe from all effects on unmount.
+
+Each provider will create a new store instance, so be careful when nesting providers to avoid creating unnecessary store instances.
+
+For example
+
+```tsx
+function WrapperComponent(props: { children: ReactNode }) {
+	return <>{children}</>;
+}
+
+const WrapperWithProvider = myStore.withProvider(WrapperComponent);
+
+function App() {
+	<>
+		// one store is created here
+		<WrapperWithProvider>
+			// another store is created here
+			<WrapperWithProvider>
+				<div />
+			</WrapperWithProvider>
+		</WrapperWithProvider>
+	</>;
+}
+```
+
+## Is it possible to create a local store, witout creating a global store?
+
+Yes this is actually the default behaviour. This is because the `store` function does NOT create a store instance until a non-builder method is called.
+
+For example, calling `store().state().computed()` will NOT create a global store because all the methods called are the store builder methods.
+
+However, once a non-builder method is called then the store will check if an instance already exists and if it does not then a global store instance will be created.
+
+For example, state methods such as `get` `set` `use`, or custom actions/computed values, are non-builder methods, so calling them will implicity create a global instance if it does not exist.
+
+```tsx
+const counterStore = store({ count: 1 });
+// no global store instance just yet
+
+counterStore.count.get();
+// a global store instance is created if it didn't previously exist
+```
