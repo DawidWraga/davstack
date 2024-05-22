@@ -67,14 +67,14 @@ export const createInnerStore = <TState extends StateValue>(
 	middlewares.push(subscribeWithSelector);
 	middlewares.push(createVanillaStore);
 
-	// cannot use nullish here as it breaks when initial value is eg 0
-	if (initialState === undefined) {
-		// consider making this throw? most a bug if there is a store without a state
-		// throw new Error('Store must have an initial state');
-		console.warn(
-			'store initialized without an initial state. This could indicate a bug.'
-		);
-	}
+	// // cannot use nullish here as it breaks when initial value is eg 0
+	// if (initialState === undefined) {
+	// 	// consider making this throw? most a bug if there is a store without a state
+	// 	// throw new Error('Store must have an initial state');
+	// 	console.warn(
+	// 		'store initialized without an initial state. This could indicate a bug.'
+	// 	);
+	// }
 
 	const immerStoreApi = pipeMiddlewares(() => initialState as TState);
 
