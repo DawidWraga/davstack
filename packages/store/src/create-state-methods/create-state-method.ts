@@ -95,8 +95,8 @@ export const createStateMethod = <T extends StateValue>(options: {
 		};
 	}
 
-	const setState: SetImmerState<T> = (fnOrNewValue, actionName) => {
-		immerStore.setState(fnOrNewValue, actionName || `@@${storeName}/setState`);
+	const setState = (callback: SetImmerState<T>, actionName: string) => {
+		immerStore.setState(callback, actionName || `@@${storeName}/setState`);
 	};
 
 	const set = (newValueOrFn: any) => {
@@ -112,7 +112,16 @@ export const createStateMethod = <T extends StateValue>(options: {
 
 		return setState((draft) => {
 			if (isRootPath && isValue) {
+				const isArray = Array.isArray(prevValue);
+
+				if (isArray) {
+					// @ts-expect-error
+					draft.splice(0, draft.length, ...newValueOrFn);
+					return draft;
+				}
+
 				draft = newValueOrFn;
+
 				return draft;
 			}
 
