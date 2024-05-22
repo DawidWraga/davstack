@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import { Simplify, StoreApi } from '../types';
+import { isObject } from '../utils/assertions';
 
 type ComputedDef<TReadValue, TWriteInput = TReadValue, TReadInput = void> =
 	| {
@@ -76,18 +77,6 @@ export function createComputedMethods<
 			const computedProperty = computedProperties[key];
 			const isFunction = typeof computedProperty === 'function';
 
-			// use: () => computedProperties[key](),
-			// get: () => {
-			// 	// @ts-expect-error
-			// 	store._replaceUseWithGet = true;
-
-			// 	const result = computedCallback(store)[key]();
-			// 	// @ts-expect-error
-			// 	store._replaceUseWithGet = false;
-
-			// 	return result;
-			// },
-
 			if (isFunction) {
 				return [
 					key,
@@ -154,18 +143,24 @@ export function computed<TReturnType>(
 ): ComputedStandalone<TReturnType> {
 	const result: any = {
 		get: (...args: any[]) => {
-			const proxyResult = fn('get');
-			if (typeof proxyResult === 'function') {
-				return proxyResult(...args);
+			const fnReturnValue = fn('get');
+			const isObjValue = isObject(fnReturnValue);
+
+			if (isObjValue && 'get' in fnReturnValue) {
+				return fnReturnValue.get(...args);
+			} else {
+				return fnReturnValue;
 			}
-			return proxyResult;
 		},
 		use: (...args: any[]) => {
-			const proxyResult = fn('use');
-			if (typeof proxyResult === 'function') {
-				return proxyResult(...args);
+			const fnReturnValue = fn('use');
+			const isObjValue = isObject(fnReturnValue);
+
+			if (isObjValue && 'get' in fnReturnValue) {
+				return fnReturnValue.get(...args);
+			} else {
+				return fnReturnValue;
 			}
-			return proxyResult;
 		},
 	};
 
