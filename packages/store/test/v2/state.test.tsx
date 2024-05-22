@@ -91,6 +91,23 @@ describe('store', () => {
 			const count = state({ hello: 'world' });
 			expect(count.get()).toEqual({ hello: 'world' });
 		});
+
+		test('array - empty', () => {
+			const count = state([]);
+			expect(count.get()).toEqual([]);
+		});
+
+		test('array - non-empty', () => {
+			const count = state([1, 2, 3]);
+			expect(count.get()).toEqual([1, 2, 3]);
+		});
+
+		test('array - after changes', () => {
+			const count = state([1, 2, 3]);
+			expect(count.get()).toEqual([1, 2, 3]);
+			count.set([4, 5, 6]);
+			expect(count.get()).toEqual([4, 5, 6]);
+		});
 	});
 
 	const createCountStore = ({ id }: { id: string }) => {
@@ -106,6 +123,8 @@ describe('store', () => {
 			},
 		};
 	};
+
+
 
 	// type TempType = State<number>;
 
