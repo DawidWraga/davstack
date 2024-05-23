@@ -2,7 +2,7 @@
 import { act, fireEvent, render } from '@testing-library/react';
 import { useRef } from 'react';
 import { describe, expect, test } from 'vitest';
-import { state } from '../../src/create-store/create-inner-immer-store';
+import { state } from '../../src/create-store/create-zustand-store';
 import { State } from '../../src/create-state-methods';
 import { store } from '../../src';
 
@@ -124,6 +124,14 @@ describe('store', () => {
 		};
 	};
 
+	test("setter with callback shouldn't work for primatives", () => {
+		const count = state(0);
+		count.set((prevNumber) => {
+			return prevNumber + 1;
+		});
+		expect(count.get()).toBe(1);
+	});
+
 	// type TempType = State<number>;
 
 	describe('basic methods', () => {
@@ -140,10 +148,11 @@ describe('store', () => {
 				expect(countStore.count.get()).toBe(10);
 			});
 
-			test('assign', () => {
-				countStore.count.assign(20);
-				expect(countStore.count.get()).toBe(20);
-			});
+			// ? has been removed from non nested state
+			// test('assign', () => {
+			// 	countStore.assign(20);
+			// 	expect(countStore.count.get()).toBe(20);
+			// });
 		});
 
 		test('should subscribe to state changes and update the state', () => {
