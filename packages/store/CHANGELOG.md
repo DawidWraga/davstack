@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 1.3.0
+
+### Minor Changes
+
+- add support for root level array state and standalone computed method
+
 ## 1.2.0
 
 ### Minor Changes
