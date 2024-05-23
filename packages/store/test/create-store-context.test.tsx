@@ -89,10 +89,10 @@ describe('local component store', () => {
 		const MultipleCounters = () => {
 			return (
 				<>
-					<counterStoreContext.Provider initialValue={{ count: 1 }}>
+					<counterStoreContext.Provider initialState={{ count: 1 }}>
 						<Counter />
 					</counterStoreContext.Provider>
-					<counterStoreContext.Provider initialValue={{ count: 5 }}>
+					<counterStoreContext.Provider initialState={{ count: 5 }}>
 						<Counter />
 					</counterStoreContext.Provider>
 				</>
@@ -148,7 +148,7 @@ describe('local component store', () => {
 
 		const Comp1 = () => {
 			return (
-				<userStoreContext.Provider initialValue={{ name: 'comp1' }}>
+				<userStoreContext.Provider initialState={{ name: 'comp1' }}>
 					<InnerComp id="comp1" />
 				</userStoreContext.Provider>
 			);
@@ -156,7 +156,7 @@ describe('local component store', () => {
 
 		const Comp2 = () => {
 			return (
-				<userStoreContext.Provider initialValue={{ name: 'comp2' }}>
+				<userStoreContext.Provider initialState={{ name: 'comp2' }}>
 					<InnerComp id="comp2" />
 				</userStoreContext.Provider>
 			);
@@ -241,8 +241,8 @@ describe('local component store', () => {
 		const ui = getUi(
 			render(
 				<>
-					<CompWithProvider id="comp1" initialValue={{ name: 'comp1' }} />
-					<CompWithProvider id="comp2" initialValue={{ name: 'comp2' }} />
+					<CompWithProvider id="comp1" initialState={{ name: 'comp1' }} />
+					<CompWithProvider id="comp2" initialState={{ name: 'comp2' }} />
 				</>
 			)
 		);
@@ -327,10 +327,10 @@ describe('should integrate with actions, effects and computed', () => {
 		const renderComponents = () =>
 			render(
 				<>
-					<storeContext.Provider initialValue={{ count: 5 }}>
+					<storeContext.Provider initialState={{ count: 5 }}>
 						<Counter id="comp1" />
 					</storeContext.Provider>
-					<storeContext.Provider initialValue={{ count: 10 }}>
+					<storeContext.Provider initialState={{ count: 10 }}>
 						<Counter id="comp2" />
 					</storeContext.Provider>
 				</>
@@ -376,10 +376,10 @@ describe('should integrate with actions, effects and computed', () => {
 		const ui = getUi(
 			render(
 				<>
-					<storeContext.Provider initialValue={{ count: 5 }}>
+					<storeContext.Provider initialState={{ count: 5 }}>
 						<Counter id="comp1" />
 					</storeContext.Provider>
-					<storeContext.Provider initialValue={{ count: 10 }}>
+					<storeContext.Provider initialState={{ count: 10 }}>
 						<Counter id="comp2" />
 					</storeContext.Provider>
 				</>
@@ -405,10 +405,10 @@ describe('should integrate with actions, effects and computed', () => {
 		const renderComponents = () =>
 			render(
 				<>
-					<storeContext.Provider initialValue={{ count: 5 }}>
+					<storeContext.Provider initialState={{ count: 5 }}>
 						<Counter id="comp1" />
 					</storeContext.Provider>
-					<storeContext.Provider initialValue={{ count: 10 }}>
+					<storeContext.Provider initialState={{ count: 10 }}>
 						<Counter id="comp2" />
 					</storeContext.Provider>
 				</>

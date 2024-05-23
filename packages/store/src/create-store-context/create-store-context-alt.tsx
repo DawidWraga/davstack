@@ -55,7 +55,7 @@ export function createContextFromStoreCreator<TStoreCreator extends AnyFn>(
 		const WrappedComponent = forwardRef(
 			(props: TProps & StoreCreatorParams, ref) => {
 				return (
-					<Provider initialValue={props.initialValue as any}>
+					<Provider initialState={props.initialState as any}>
 						<Component {...props} ref={ref} />
 					</Provider>
 				);

@@ -1,10 +1,10 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 
 import { describe, expect, test } from 'vitest';
-import { store } from '../src';
+import { createStoreContext, store } from '../src';
 import { computed } from '../src/create-computed/create-computed-methods';
-import { createContextFromStoreCreator } from '../src/create-store-context/create-store-context-alt';
-import { state } from '../src/create-store/create-inner-immer-store';
+
+import { state } from '../src/create-store/create-zustand-store';
 const testIds = {
 	count: 'count',
 	doubledCount: 'doubled-count',
@@ -61,16 +61,11 @@ const getUi = ({ getByTestId, ...rest }: ReturnType<typeof render>) => {
 	};
 };
 
-type CreateCounterStoreInput = {
-	id?: string;
-	initialCount?: number;
-};
-
 const createCountStore = ({ initialCount = 0 }: { initialCount: number }) => {
 	const count = state(initialCount);
 
-	const doubled = computed((getOrUse) => ({
-		get: () => count[getOrUse]() * 2,
+	const doubled = computed((method) => ({
+		get: () => count[method]() * 2,
 		set: (value: number) => count.set(value / 2),
 	}));
 
@@ -85,11 +80,9 @@ const createCountStore = ({ initialCount = 0 }: { initialCount: number }) => {
 	};
 };
 
-
-
 describe('local component store', () => {
 	test('should create local stores with different initial values', async () => {
-		const counterStoreContext = createContextFromStoreCreator(createCountStore);
+		const counterStoreContext = createStoreContext(createCountStore);
 
 		const Counter = () => {
 			const counterStore = counterStoreContext.useStore();
@@ -143,7 +136,7 @@ describe('local component store', () => {
 			};
 		};
 
-		const userStoreContext = createContextFromStoreCreator(createUserStore);
+		const userStoreContext = createStoreContext(createUserStore);
 
 		const InnerComp = ({ id }: { id: string }) => {
 			const userStore = userStoreContext.useStore();
@@ -226,20 +219,20 @@ describe('local component store', () => {
 
 	describe('local store scoping', () => {
 		const createMyStore = ({
-			initialValue,
+			initialState,
 		}: {
-			initialValue: { count: number };
+			initialState: { count: number };
 		}) => {
-			const count = state(initialValue.count);
-			const doubledCount = computed((getOrUse) => count[getOrUse]() * 2);
-			const trippledCount = computed((getOrUse) => ({
-				get: () => count[getOrUse]() * 3,
+			const count = state(initialState.count);
+			const doubledCount = computed((method) => count[method]() * 2);
+			const trippledCount = computed((method) => ({
+				get: () => count[method]() * 3,
 				set: (value: number) => count.set(value / 3),
 			}));
-			const multipliedCount = computed((getOrUse) => ({
-				get: (factor: number) => count[getOrUse]() * factor,
+			const multipliedCount = computed((method) => ({
+				get: (factor: number) => count[method]() * factor,
 			}));
-			const syncedCount = state(initialValue.count);
+			const syncedCount = state(initialState.count);
 
 			const increment = () => count.set(count.get() + 1);
 			const decrement = () => count.set(count.get() - 1);
@@ -257,7 +250,7 @@ describe('local component store', () => {
 			};
 		};
 
-		const storeContext = createContextFromStoreCreator(createMyStore);
+		const storeContext = createStoreContext(createMyStore);
 
 		const Counter = ({ id }: { id: string }) => {
 			const store = storeContext.useStore();
@@ -294,10 +287,10 @@ describe('local component store', () => {
 			const renderComponents = () =>
 				render(
 					<>
-						<storeContext.Provider initialValue={{ count: 5 }}>
+						<storeContext.Provider initialState={{ count: 5 }}>
 							<Counter id="comp1" />
 						</storeContext.Provider>
-						<storeContext.Provider initialValue={{ count: 10 }}>
+						<storeContext.Provider initialState={{ count: 10 }}>
 							<Counter id="comp2" />
 						</storeContext.Provider>
 					</>
@@ -343,10 +336,10 @@ describe('local component store', () => {
 			const ui = getUi(
 				render(
 					<>
-						<storeContext.Provider initialValue={{ count: 5 }}>
+						<storeContext.Provider initialState={{ count: 5 }}>
 							<Counter id="comp1" />
 						</storeContext.Provider>
-						<storeContext.Provider initialValue={{ count: 10 }}>
+						<storeContext.Provider initialState={{ count: 10 }}>
 							<Counter id="comp2" />
 						</storeContext.Provider>
 					</>
@@ -372,10 +365,10 @@ describe('local component store', () => {
 			const renderComponents = () =>
 				render(
 					<>
-						<storeContext.Provider initialValue={{ count: 5 }}>
+						<storeContext.Provider initialState={{ count: 5 }}>
 							<Counter id="comp1" />
 						</storeContext.Provider>
-						<storeContext.Provider initialValue={{ count: 10 }}>
+						<storeContext.Provider initialState={{ count: 10 }}>
 							<Counter id="comp2" />
 						</storeContext.Provider>
 					</>
