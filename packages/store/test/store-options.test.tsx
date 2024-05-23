@@ -3,11 +3,12 @@ import { createStoreContext, store } from '../src';
 
 describe('should access and update the entire state', () => {
 	const countStoreBuilder = store()
-		.identify('countStore')
-		.devtools()
-		.input({ setting: false })
+		.options({
+			name: 'countStore',
+		})
 		.state({
 			count: 2,
+			nums: [] as number[],
 		})
 		.computed((store) => ({
 			doubled: () => store.count.get() * 2,
@@ -39,6 +40,21 @@ describe('should access and update the entire state', () => {
 
 		expect(countStore.count.get()).toBe(10);
 	});
+	test('set nested callback', () => {
+		countStore.count.set((draft) => {
+			// draft = 20;
+			return 11;
+		});
+
+		expect(countStore.count.get()).toBe(11);
+	});
+	test('set nested callback with array', () => {
+		countStore.nums.set((draft) => {
+			draft.push(1);
+		});
+
+		expect(countStore.nums.get()).toStrictEqual([1]);
+	});
 
 	test('assign', () => {
 		// console.log('INSIDE ASSIGN NESTED OBJ: ', countStore);
@@ -46,18 +62,6 @@ describe('should access and update the entire state', () => {
 			count: 30,
 		});
 
-		expect(countStore.get()).toStrictEqual({
-			count: 30,
-		});
-	});
-
-	test('input', () => {
-		expect(countStore.setting).toBe(false);
-	});
-	test('input with different instnes', () => {
-		const countStore2 = countStoreBuilder.create({ setting: true });
-
-		expect(countStore.setting).toBe(false);
-		expect(countStore2.setting).toBe(true);
+		expect(countStore.count.get()).toBe(30);
 	});
 });

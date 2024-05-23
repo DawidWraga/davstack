@@ -1,4 +1,3 @@
-export * from './create-inner-immer-store';
+export * from './create-zustand-store';
 export * from './create-store-proxy';
-export * from './CreateStoreOptions';
-export * from './immer.middleware';
+export * from './create-store-options';

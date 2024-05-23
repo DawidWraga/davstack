@@ -1,40 +1,16 @@
 /* eslint-disable no-unused-vars */
 
+import { StoreOptions } from '../create-store/create-store-options';
 import { EffectBuilder, StateValue, StoreApi, StoreDef } from '../types';
-import { StoreOptions } from '../create-store/CreateStoreOptions';
 
 import {
 	ComputedBuilder,
 	ComputedProps,
 	createComputedMethods,
 } from '../create-computed/create-computed-methods';
-import { createStore } from '../create-store/create-inner-immer-store';
+import { createEffectMethods } from '../create-effects';
 import { createStoreApiProxy } from '../create-store/create-store-proxy';
-import { createSplitProps } from '../utils/split-props';
-import { isObject } from '../utils/assertions';
-
-export function getDefaultStoreDef<TState extends StateValue>(
-	initialState?: TState
-) {
-	const _def = {
-		initialState,
-		extensions: [],
-		options: {},
-		get name() {
-			const options = _def.options as StoreOptions<TState>;
-			const name = options.name as string;
-			if (name) return name;
-
-			const defaultName = `(davstack/store)initialValue=${
-				_def.initialState ? JSON.stringify(_def.initialState) : 'no-state'
-			}`;
-			Object.assign(_def.options, { name: defaultName });
-			return defaultName as string;
-		},
-	};
-
-	return _def satisfies StoreDef<TState>;
-}
+import { createStore } from '../create-store/create-zustand-store';
 
 export const store = <TState extends StateValue>(
 	initialState?: TState,
@@ -46,7 +22,6 @@ export const store = <TState extends StateValue>(
 		builder: (store: StoreApi<TState, {}>) => TNewExtendedProps
 	) {
 		_def.extensions.push(builder);
-
 		return storeApi;
 	}
 
@@ -56,88 +31,40 @@ export const store = <TState extends StateValue>(
 			Object.assign(_def.options, newOpts);
 			return storeApi;
 		},
-		state: (initialValue: TState) => {
-			Object.assign(_def, { initialState: initialValue });
+		state: (initialState: TState) => {
+			Object.assign(_def, { initialState: initialState });
 			return storeApi;
 		},
-
-		identify: (newName: string) => {
-			Object.assign(_def.options, { name: newName });
-			return storeApi;
-		},
-
-		devtools: (enabled = true) => {
-			Object.assign(_def.options, { devtools: { enabled } });
-			return storeApi;
-		},
-
 		/**
 		 * extend based methods:
 		 */
 		extend,
 		actions: extend,
-		input: (initialInput: Record<string, any>) => {
-			return extend((store) => initialInput);
-		},
 		effects: <TBuilder extends EffectBuilder<StoreApi<TState, {}>>>(
 			builder: TBuilder
 		): StoreApi<TState, {}> => {
 			return extend((store) => {
-				const effectNameToFn = builder(store);
-				const unsubMethods: Record<string, () => void> = {};
-
-				const subscribeToEffects = () => {
-					Object.entries(effectNameToFn).forEach(([key, fn]) => {
-						// @ts-expect-error
-						unsubMethods[key] = fn();
-					});
-				};
-
-				const unsubscribeFromEffects = () => {
-					Object.values(unsubMethods).forEach((fn) => fn());
-				};
-
-				const extraProps = {
-					_effects: effectNameToFn,
-					subscribeToEffects,
-					unsubscribeFromEffects,
-				};
-
-				return extraProps;
+				const effectDefs = builder(store);
+				return { _effects: effectDefs };
 			});
 		},
 		computed: <TComputedProps extends ComputedProps>(
-			computedCallback: ComputedBuilder<TState, TComputedProps>
+			builder: ComputedBuilder<TState, TComputedProps>
 		) => {
 			return extend((store) =>
 				// @ts-expect-error
-				createComputedMethods(store, computedCallback)
+				createComputedMethods(store, builder)
 			);
 		},
-		create: (initialValue: Partial<TState> & Record<string, any>) => {
-			if (!initialValue) {
+		create: (initialState: Partial<TState>) => {
+			if (!initialState) {
 				const instance = createStore(_def);
 
 				Object.assign(instance, storeApi);
 				return instance;
 			}
 
-			if (!isObject(_def.initialState)) {
-				console.warn(
-					'WARNING: passing if your initial state is not an object then input props passed to the create funciton will be ignored. To use input props you must pass an object as the initial state.'
-				);
-				return createStore(_def, initialValue);
-			}
-
-			const splitInputFromState = createSplitProps(
-				Object.keys(_def.initialState as object)
-			);
-
-			const [stateInitialValue, inputInitialValue] =
-				splitInputFromState(initialValue);
-
-			// @ts-expect-error
-			return createStore(_def, stateInitialValue, inputInitialValue);
+			return createStore(_def, initialState);
 		},
 	});
 
@@ -152,3 +79,27 @@ export const store = <TState extends StateValue>(
 
 	return storeApi as unknown as StoreApi<TState>;
 };
+
+export function getDefaultStoreDef<TState extends StateValue>(
+	initialState?: TState
+) {
+	const _def = {
+		initialState,
+		extensions: [],
+		options: {},
+		get name() {
+			const options = _def.options as StoreOptions<TState>;
+			const name = options.name as string;
+			if (name) return name;
+
+			const stateString = _def.initialState
+				? JSON.stringify(_def.initialState)
+				: 'no-state';
+			const defaultName = `(davstack/store)initialState=${stateString}`;
+			Object.assign(_def.options, { name: defaultName });
+			return defaultName as string;
+		},
+	};
+
+	return _def satisfies StoreDef<TState>;
+}
