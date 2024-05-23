@@ -110,60 +110,66 @@ userStore.address.assign({
 });
 ```
 
+Note: the `assign` method only exists on object data type
+
 ## Using set with Callbacks
 
-### store.set
+When passing a callback to to the `set` function, the type of callback you need to pass depends on the state datatype.
 
-Calling `.set` on the store itself allows you to mutate a draft copy of the state using a callback function, and all changes will be applied immutably with immer.
+The types fully reflect which type of callback is required and therefore your IDE guide you.
+
+### using `set(draft=>{})` with objects/arrays
+
+Calling `.set` on an object/array uses immer under the hook, allowing you to mutate a draft copy of the state while maininaining immutability.
 
 ```tsx
+const userStore = store({ name: 'John', age: 20 });
+
+// settings objects uses immer
 userStore.set((draft) => {
 	draft.name = 'Jane';
 	draft.age = 30;
 });
+
+//
+const todosStore = store([
+	{ id: 1, text: 'write docs' },
+	{ id: 2, text: 'sleep' },
+]);
+
+todosStore.set((draft) => {
+	draft.push('another task');
+});
+
+todosStore.set(draft=>{
+	cosnt firstTodo = todosStore[0];
+	firstTodo.text = "new text"
+})
 ```
 
-### store.property.set
+### Using `set(preValue=>...) with primatives
 
-Calling `set` on a property behaves slightly differently than calling `set` on the store itself.
+Calling `set` on other data types behaves slightly differently.
 You are given the previous value of the property and you must return the new value from the callback.
 
 ```tsx
 userStore.age.set((prevAge) => prevAge + 1);
 ```
 
-### Differences between `store.set` and `store.property.set`
+### Key differences between using set callback
 
-- `store.set` gets the entire state as a draft, you can directly modify the draft and you dont need to return anything
-- `store.property.set` gets the previous value of the property, you must return the new value from the callback
+- objects/arrays:
 
-### Common pitfalls
+  - you can directly modify the draft and you dont need to return anything
 
-Since `set` uses immer under the hood, it is a good idea to familiarize yourself with [immerjs.github.io/immer/pitfalls](https://immerjs.github.io/immer/pitfalls) to avoid common pitfalls when using immer
+- primative values:
 
-For example, when using array state make to use `store({items: []})` instead of `store([])` for arrays.
+  - gets the previous value of the property, you must return the new value from the callback
 
-```tsx
-const todosStore = store
-	.state({
-		todos: [
-			{ id: 1, text: 'Buy milk', completed: false },
-			{ id: 2, text: 'Do laundry', completed: false },
-		],
-	})
-	.actions((store) => ({
-		addTodo(text) {
-			store.todos.set((draft) => {
-				draft.push({ id: draft.length + 1, text, completed: false });
-			});
-		},
-		toggleTodo(id) {
-			store.todos.set((draft) => {
-				const todo = draft.find((todo) => todo.id === id);
-				if (todo) {
-					todo.completed = !todo.completed;
-				}
-			});
-		},
-	}));
-```
+## Additional notes:
+
+- calling `.set(value)` on arrays/object behaves the same as other values. The difference only arises when passing a callback to the `set` function.
+
+- Since `@davstack/store 1.3.0` root level array stores are fully supported
+
+- You no longer need to consider the limitations of immer as non-draftable values eg MediaRecorder or window will default to regular zustand setters.
