@@ -2,11 +2,6 @@ import React, { forwardRef } from 'react';
 import { createEffectMethods } from '../create-effects';
 import { StoreApi } from '../types';
 
-// type StoreProviderProps<TState> = {
-// 	initialState?: Partial<TState>;
-// 	children: React.ReactNode;
-// };
-
 type AnyFn = (...args: any[]) => any;
 
 export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
@@ -20,24 +15,18 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 
 	type StoreParams = TCreator extends AnyFn
 		? Parameters<TCreator>[0]
-		: Partial<
-				StoreInstance extends StoreApi<infer TState, any> ? TState : never
-			>;
-
-	type ProviderProps = TCreator extends AnyFn
-		? StoreParams
-		: TCreator extends StoreApi<infer TState, any>
-			? {
-					initialState?: Partial<TState>;
-				}
+		: TCreator extends StoreApi<infer TState, infer TExtensions>
+			? { initialState?: Partial<TState> }
 			: never;
 
 	const createInstance = (props: StoreParams): StoreInstance => {
 		if (typeof creator === 'function') {
-			return creator(props as any);
+			return creator(props as StoreParams);
 		}
 
-		return (creator as StoreInstance).create(props.initialState as any);
+		return (creator as StoreInstance).create(
+			(props as StoreParams).initialState
+		);
 	};
 
 	const Context = React.createContext<StoreInstance | null>(null);
@@ -45,11 +34,11 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 	const Provider = (
 		props: {
 			children: React.ReactNode;
-		} & ProviderProps
+		} & StoreParams
 	) => {
 		const { children, ...restProps } = props;
 		const storeInstance = React.useRef<StoreInstance>(
-			createInstance(restProps as any)
+			createInstance(restProps as StoreParams)
 		);
 
 		React.useEffect(() => {
@@ -66,7 +55,7 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 		}, []);
 
 		return (
-			<Context.Provider value={storeInstance.current as any}>
+			<Context.Provider value={storeInstance.current as StoreInstance}>
 				{children}
 			</Context.Provider>
 		);
@@ -81,15 +70,13 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 	};
 
 	const withProvider = <TProps extends object>(Component: React.FC<TProps>) => {
-		const WrappedComponent = forwardRef(
-			(props: TProps & ProviderProps, ref) => {
-				return (
-					<Provider {...props}>
-						<Component {...props} ref={ref} />
-					</Provider>
-				);
-			}
-		);
+		const WrappedComponent = forwardRef((props: TProps & StoreParams, ref) => {
+			return (
+				<Provider {...props}>
+					<Component {...props} ref={ref} />
+				</Provider>
+			);
+		});
 
 		WrappedComponent.displayName = `withProvider(${
 			Component.displayName || Component.name || 'Component'
