@@ -6,52 +6,70 @@ export type State<TStateValue extends StateValue> = (TStateValue extends object
 	? {
 			[TKey in keyof TStateValue]: State<TStateValue[TKey]>;
 		}
-	: {}) & {
-	/**
-	 * @returns The current state of the entire store
-	 * @note This does not subscribe to changes in the store
-	 */
-	get: () => TStateValue;
-	/**
+	: {}) &
+	(TStateValue extends Record<any, any>
+		? {
+				/**
+			 * Assign a partial state to the store using Immer
+			 * @param state The partial state to assign
+			 * @example ts
+			 user.assign({ name: 'John Doe' })
+			 */
+				assign: (partial: Partial<TStateValue>) => void;
+			}
+		: {}) & {
+		/**
+		 * @returns The current state of the entire store
+		 * @note This does not subscribe to changes in the store
+		 */
+		get: <
+			TSelector extends (state: TStateValue) => unknown = (
+				state: TStateValue
+			) => TStateValue,
+		>(
+			selector?: TSelector
+		) => TSelector extends (state: TStateValue) => infer TReturnType
+			? TReturnType
+			: TStateValue;
+		/**
 		 * Set a new state for the entire store using Immer
 		 * @param fn A function that mutates the current state
 		 * @param actionName An optional name for the action
-		 * 
-		 * @NOTE Current if using nested.set callback then it just RETURN the value, as using the regular immer `draft = value` doesn't work as expected
-		 * 
-		 * @example ts
-		
-		 user.set((draft) => {
-		   draft.name = 'John Doe'
-		 })
-
+		 *
+		 * @NOTE Current if the state is an array or object, then the function should mutate the state directly. If the state is a primitive value, then the function should return the new value.
+		 *
 		 */
-	set: (
-		newValueOrFn: TStateValue | ((prev: TStateValue) => TStateValue | void)
-	) => void;
-	/**
-	 * @returns A Reactive version of the store
-	 */
-	use: () => TStateValue;
-
-	/**
-	 * Subscribe to changes in the store
-	 * @param callback A callback that is called whenever the store changes
-	 * @returns A function to unsubscribe from the store
-	 */
-	onChange: (
-		callback: (value: TStateValue, prevValue: TStateValue) => void,
-		options?: OnChangeOptions<TStateValue>
-	) => UnsubscribeFn;
-
-	/**
-		 * Assign a partial state to the store using Immer
-		 * @param state The partial state to assign
-		 * @example ts
-		 user.assign({ name: 'John Doe' })
+		set: (
+			newValueOrFn:
+				| TStateValue
+				| ((
+						prev: TStateValue
+				  ) => TStateValue extends object ? void : TStateValue)
+		) => void;
+		/**
+		 * @returns A Reactive version of the store
 		 */
-	assign: (partial: Partial<TStateValue>) => void;
-};
+		use: <
+			TSelector extends (state: TStateValue) => unknown = (
+				state: TStateValue
+			) => TStateValue,
+		>(
+			selector?: TSelector,
+			equalityFn?: EqualityChecker<TStateValue>
+		) => TSelector extends (state: TStateValue) => infer TReturnType
+			? TReturnType
+			: TStateValue;
+
+		/**
+		 * Subscribe to changes in the store
+		 * @param callback A callback that is called whenever the store changes
+		 * @returns A function to unsubscribe from the store
+		 */
+		onChange: (
+			callback: (value: TStateValue, prevValue: TStateValue) => void,
+			options?: OnChangeOptions<TStateValue>
+		) => UnsubscribeFn;
+	};
 
 export type UnsubscribeFn = () => void;
 
