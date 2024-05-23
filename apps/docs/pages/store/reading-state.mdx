@@ -44,6 +44,18 @@ function Counter() {
 	necessary, as it may lead to excessive re-renders and performance issues.
 </Callout>
 
+### Using `use` with selector
+
+You can pass a selector function as the first parameter of use to only subscribe to a subsect of that state.
+
+This is useful for optimizing performance eg for long lists.
+
+```tsx
+const activeTodo = todosStore.use((todos) => {
+	return todos.find((todo) => todo.id === activeTodoId);
+});
+```
+
 ### Nested Methods
 
 You can use the `get` and `use` methods to access deeply nested state properties.
@@ -86,9 +98,32 @@ In this example, the `UserProfile` component only subscribes to changes in the `
 
 ## Computed Properties
 
-Computed properties, defined using the `computed` method, can also be accessed using `get` and `use`. However, they cannot be directly modified using `set` or `assign`.
+Computed properties, defined using the `computed` method, can also be accessed using `get` and `use`.
 
 ```tsx
 const fullName = userStore.fullName.get();
 const fullName = userStore.fullName.use();
 ```
+
+### Example computed values with read/write
+
+```tsx
+const countStore = store({ count: 0 })
+	.computed((store) => ({
+		doubled: {
+			// optional input here
+			read: () => store.count.use() * 2,
+			write: (value: number) => store.count.set(value / 2),
+		},
+	}))
+	.actions((store) => ({
+		increment() {
+			store.count.set(store.count.get() + 1);
+		},
+		decrement() {
+			store.count.set(store.count.get() - 1);
+		},
+	}));
+```
+
+Note: inputs are optional for both read/write and strongly typed.
