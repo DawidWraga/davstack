@@ -112,13 +112,13 @@ export const createStateMethod = <T extends StateValue>(options: {
 
 		return setState((draft) => {
 			if (isRootPath && isValue) {
-				const isArray = Array.isArray(prevValue);
+				// const isArray = Array.isArray(prevValue);
 
-				if (isArray) {
-					// @ts-expect-error
-					draft.splice(0, draft.length, ...newValueOrFn);
-					return draft;
-				}
+				// if (isArray) {
+				// 	// @ts-expect-error
+				// 	draft.splice(0, draft.length, ...newValueOrFn);
+				// 	return draft;
+				// }
 
 				draft = newValueOrFn;
 

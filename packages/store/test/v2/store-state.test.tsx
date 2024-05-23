@@ -124,8 +124,6 @@ describe('store', () => {
 		};
 	};
 
-
-
 	// type TempType = State<number>;
 
 	describe('basic methods', () => {
