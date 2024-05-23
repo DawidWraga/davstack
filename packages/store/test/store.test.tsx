@@ -1,15 +1,9 @@
 /* eslint-disable no-unused-vars */
-import {
-	render,
-	screen,
-	fireEvent,
-	act,
-	waitFor,
-} from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 
+import { useEffect, useRef, useState } from 'react';
 import { beforeEach, describe, expect, it, test } from 'vitest';
 import { store } from '../src';
-import { useEffect, useRef, useState } from 'react';
 const testIds = {
 	count: 'count',
 	doubledCount: 'doubled-count',
@@ -201,7 +195,6 @@ describe('store', () => {
 
 			test('correct render', async () => {
 				await waitFor(() => {
-					console.log('ui.count', ui.count);
 					expect(ui.count).toBe('Count: 30');
 				});
 			});
@@ -224,10 +217,21 @@ describe('store', () => {
 
 			test('correct render after state change with assign', async () => {
 				counterStore.assign({ count: 60 });
+
 				await waitFor(() => {
 					expect(ui.count).toBe('Count: 60');
 				});
 			});
+
+			// OLD VERSION:
+			// test('correct render after state change with nested callback', async () => {
+			// 	counterStore.count.set((prev) => prev + 1);
+			// 	await waitFor(() => {
+			// 		expect(ui.count).toBe('Count: 61');
+			// 	});
+			// });
+
+			// NEW API:
 			test('correct render after state change with nested callback', async () => {
 				counterStore.count.set((prev) => prev + 1);
 				await waitFor(() => {
