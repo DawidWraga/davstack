@@ -15,13 +15,13 @@ Additionally, it helps to keep your code organized and provides useful autocompl
 ```tsx filename="stores/user-store.ts"
 import { store } from '@davstack/store';
 
-export const userStore = store
+export const userStore = store()
 	.state({
 		name: 'John',
 		age: 25,
 	})
 	.computed((store) => ({
-		fullName: () => `${store.name.get()} Doe`,
+		fullName: () => `${store.name.use()} Doe`,
 	}))
 	.actions((store) => ({
 		incrementAge() {
@@ -38,7 +38,7 @@ userStore.name.get();
 
 - **State**: a single source of truth that can be accessed and modified.
 - **Actions**: functions that modify the state.
-- **Computed Properties**: read-only derived values that are automatically updated when the state changes.
+- **Computed Properties**: derived values that are updated when the state changes.
 
 ### Additional store concepts:
 
