@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, expectTypeOf, test } from 'vitest';
 import { computed, store } from '../../src';
 type Todo = {
 	id: number;
@@ -12,9 +12,12 @@ const createTodoStore = () => {
 
 	const $activeTodo = computed((method) => {
 		const get = () => {
-			const todos = $todos[method]();
 			const activeTodoId = $activeTodoId[method]();
-			return todos.find((todo) => todo.id === activeTodoId);
+			const activetodo = $todos[method]((todos) => {
+				const found = todos.find((todo) => todo.id === activeTodoId);
+				return found;
+			});
+			return activetodo;
 		};
 
 		const set = (todo: Todo) => {
@@ -67,6 +70,14 @@ const createTodoStore = () => {
 };
 
 describe('todo store', () => {
+	test('selector should return correct type', () => {
+		const { $activeTodo } = createTodoStore();
+		expectTypeOf($activeTodo.get()).toEqualTypeOf<Todo | undefined>();
+		expectTypeOf(() => $activeTodo.use()).returns.toEqualTypeOf<
+			Todo | undefined
+		>();
+	});
+
 	test('add todo item', () => {
 		const { $todos, addTodo } = createTodoStore();
 		addTodo({ id: 1, text: 'Buy groceries', completed: false });

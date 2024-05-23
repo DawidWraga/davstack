@@ -1,14 +1,12 @@
 /* eslint-disable no-unused-vars */
 import { shallow } from 'zustand/shallow';
-import { useStoreWithEqualityFn } from 'zustand/traditional';
-
 import {
-	EqualityChecker,
-	ImmerStoreApi,
-	SetImmerState,
-	StateValue,
-	UseImmerStore,
-} from '../types';
+	UseBoundStoreWithEqualityFn,
+	useStoreWithEqualityFn,
+} from 'zustand/traditional';
+
+import { isDraftable, produce } from 'immer';
+import { EqualityChecker, StateValue, ZustandStoreApi } from '../types';
 import { isFunction, isObject } from '../utils/assertions';
 import { OnChangeOptions } from './state.types';
 
@@ -21,38 +19,42 @@ export const stateMethodKeys = [
 ] as const;
 export type StateMethodKey = (typeof stateMethodKeys)[number];
 
-export const createStateMethod = <T extends StateValue>(options: {
-	immerStore: ImmerStoreApi<T>;
+export const createStateMethod = <TStateValue extends StateValue>(options: {
+	zustandStore: ZustandStoreApi<TStateValue>;
 	storeName: string;
 	path: string[];
 	method: StateMethodKey;
 }) => {
-	const { immerStore, storeName, path, method } = options;
+	const { zustandStore, storeName, path, method } = options;
 
 	const isRootPath = path.length === 0;
 
-	if (method === 'get') {
-		return () => getPathValue(immerStore.getState(), path);
-	}
+	const get = (selector?: (state: TStateValue) => unknown | undefined) => {
+		const pathValue = getPathValue(zustandStore.getState(), path);
+		return selector ? selector(pathValue) : pathValue;
+	};
+
+	if (method === 'get') return get;
 
 	if (method === 'use') {
 		const useStore = ((selector, equalityFn) =>
 			useStoreWithEqualityFn(
-				immerStore as any,
+				zustandStore as any,
 				selector as any,
 				equalityFn as any
-			)) as UseImmerStore<T>;
+			)) as UseBoundStoreWithEqualityFn<ZustandStoreApi<TStateValue>>;
 
-		return (equalityFn?: EqualityChecker<any>) => {
+		return (selector: any, equalityFn?: EqualityChecker<any>) => {
 			return useStore((state) => {
-				return getPathValue(state, path);
+				const pathValue = getPathValue(state, path);
+				return selector ? selector(pathValue) : pathValue;
 			}, equalityFn);
 		};
 	}
 
 	if (method === 'onChange') {
-		return (listener: any, options: OnChangeOptions<T> = {}) => {
-			return immerStore.subscribe(
+		return (listener: any, options: OnChangeOptions<TStateValue> = {}) => {
+			return zustandStore.subscribe(
 				(state) => {
 					if (!options.deps) {
 						// default to subscribing to the part of the store which is being dot-notated
@@ -95,56 +97,58 @@ export const createStateMethod = <T extends StateValue>(options: {
 		};
 	}
 
-	const setState = (callback: SetImmerState<T>, actionName: string) => {
-		immerStore.setState(callback, actionName || `@@${storeName}/setState`);
-	};
-
 	const set = (newValueOrFn: any) => {
 		const isCallback = isFunction(newValueOrFn);
 		const isValue = !isCallback;
 
-		const prevValue = getPathValue(immerStore.getState(), path);
+		const prevValue = get();
 		if (isValue && prevValue === newValueOrFn) {
 			return;
 		}
+		const isNestedPath = !isRootPath;
 
-		const actionKey = method.replace(/^\S/, (s) => s.toUpperCase());
-
-		return setState((draft) => {
+		zustandStore.setState((state) => {
 			if (isRootPath && isValue) {
-				// const isArray = Array.isArray(prevValue);
-
-				// if (isArray) {
-				// 	// @ts-expect-error
-				// 	draft.splice(0, draft.length, ...newValueOrFn);
-				// 	return draft;
-				// }
-
-				draft = newValueOrFn;
-
-				return draft;
+				return newValueOrFn;
 			}
 
-			if (isValue) {
-				setPathValue(draft, path, newValueOrFn);
-			}
-
-			if (isCallback) {
-				if (isRootPath) {
-					newValueOrFn(draft);
-					return;
+			if (isRootPath && isCallback) {
+				if (isDraftable(state)) {
+					return produce(state, newValueOrFn);
+				} else {
+					return newValueOrFn(state);
 				}
-
-				setPathValue(draft, path, newValueOrFn(prevValue));
-				return;
 			}
-		}, `@@${storeName}/set${actionKey}`);
-	};
 
+			if (isNestedPath && isValue) {
+				return produce(state, (draft) => {
+					setPathValue(draft, path, newValueOrFn);
+				});
+			}
+
+			if (isNestedPath && isCallback) {
+				return produce(state, (draft) => {
+					const draftValue = getPathValue(draft, path);
+
+					const isDraftableValue = isDraftable(draftValue);
+					const callbackReturnValue = newValueOrFn(draftValue);
+
+					// must check whether the NESTED PATH VALUE is draftable, not the state itself
+					// eg  store({ count: number }) ; store.count.set will actually try to turn the count NUMBER into a draftable object, not the entire store. This is why we need to check the pathValue
+
+					if (!isDraftableValue) {
+						setPathValue(draft, path, callbackReturnValue);
+					}
+				});
+			}
+
+			return state;
+		}, true);
+	};
 	if (method === 'set') return set;
 
 	if (method === 'assign')
-		return (state: Partial<T>) => {
+		return (state: Partial<TStateValue>) => {
 			if (!isObject(state)) {
 				return set(state);
 			}
