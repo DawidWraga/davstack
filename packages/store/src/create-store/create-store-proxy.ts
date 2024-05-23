@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
+import { createEffectMethods } from '../create-effects';
 import { StoreApi } from '../types';
-import { createStore } from './create-inner-immer-store';
+import { createStore } from './create-zustand-store';
 
 /**
  *  allows for lazy .create() of the store
@@ -9,7 +10,7 @@ import { createStore } from './create-inner-immer-store';
  *
  * However, if you want to define a store without creating it eg only for context, it won't unnecessarily create the store instance
  */
-export const createStoreApiProxy = <TStore extends StoreApi<any, any, any>>(
+export const createStoreApiProxy = <TStore extends StoreApi<any, any>>(
 	storeApi: Partial<TStore>
 ) => {
 	let instance: any;
@@ -40,11 +41,12 @@ export const createStoreApiProxy = <TStore extends StoreApi<any, any, any>>(
 				Object.assign(instance, storeApi);
 
 				// because it's the global store we want to call the subscribeToEffects method
-				if ('subscribeToEffects' in instance) {
-					const fn = instance.subscribeToEffects;
-					if (typeof fn === 'function') fn();
-				}
 				// (for the context stores we call them inside useEffect instead)
+				const effectMethods = createEffectMethods(instance);
+
+				effectMethods.subscribeToEffects();
+
+				Object.assign(instance, effectMethods);
 			}
 
 			return instance[key];
