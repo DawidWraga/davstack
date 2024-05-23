@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import React, { forwardRef } from 'react';
+import { createEffectMethods, getEffectDefs } from '../create-effects';
 
 type AnyFn = (...args: any[]) => any;
 
@@ -16,26 +17,20 @@ export function createContextFromStoreCreator<TStoreCreator extends AnyFn>(
 		props: StoreCreatorParams & { children: React.ReactNode }
 	) => {
 		const { children, ...storeCreatorParams } = props;
-		const storeInstance = React.useRef<StoreCreatorResult>(
+		const storeInstance = React.useRef<StoreCreatorResult | null>(
 			storeCreator(storeCreatorParams)
 		);
 
 		React.useEffect(() => {
 			const instance = storeInstance.current;
+			if (!instance) return;
 
-			const unsubMethods: Record<string, () => void> = {};
-			if (instance && 'effects' in instance) {
-				const subscribeToEffects = () => {
-					Object.entries(instance.effects).forEach(([key, fn]) => {
-						// @ts-expect-error
-						unsubMethods[key] = fn();
-					});
-				};
-				subscribeToEffects();
-			}
+			const effectMethods = createEffectMethods(instance);
+
+			effectMethods.subscribeToEffects();
 
 			return () => {
-				Object.values(unsubMethods).forEach((fn) => fn());
+				effectMethods.unsubscribeFromEffects();
 			};
 		}, []);
 
