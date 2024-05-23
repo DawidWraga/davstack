@@ -121,11 +121,13 @@ Here is a super simplified version of `createStoreContext` to show how the effec
 ```tsx
 export function createStoreContext(store) {
 	const Provider = () => {
-		const storeInstance = React.useRef(store.create(localInitialValue));
+		const storeInstance = React.useRef(store.create(localinitialState));
 
 		React.useEffect(() => {
+			const instance = storeInstance.current;
+			insatnce.subscribeToEffecs();
 			return () => {
-				storeInstance.current.unsubscribeFromEffects();
+				instance.unsubscribeFromEffects();
 			};
 		}, []);
 
@@ -137,5 +139,3 @@ export function createStoreContext(store) {
 	};
 }
 ```
-
-

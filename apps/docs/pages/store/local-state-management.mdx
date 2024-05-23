@@ -45,12 +45,12 @@ const Counter = ({ customProp }: { customProp: string }) => {
 const App = () => {
 	return (
 		<>
-			<storeContext.Provider initialValue={{ count: 1 }}>
+			<CounterStoreProvider initialState={{ count: 1 }}>
 				<Counter customProp="example" />
-			</storeContext.Provider>
-			<storeContext.Provider initialValue={{ count: 5 }}>
+			</CounterStoreProvider>
+			<CounterStoreProvider initialState={{ count: 5 }}>
 				<Counter />
-			</storeContext.Provider>
+			</CounterStoreProvider>
 		</>
 	);
 };
@@ -76,8 +76,8 @@ const Counter = withCounterStoreProvider(
 const App = () => {
 	return (
 		<>
-			<Counter initialValue={{ count: 1 }} customProp="example" />
-			<Counter initialValue={{ count: 5 }} customProp="example" />
+			<Counter initialState={{ count: 1 }} customProp="example" />
+			<Counter initialState={{ count: 5 }} customProp="example" />
 		</>
 	);
 };
@@ -85,7 +85,7 @@ const App = () => {
 
 ## Merging Local and Global State
 
-When creating a local instance of a store with `<Provider initialValue={...}>`, the `initialValue` will be merged with the global store's initial value:
+When creating a local instance of a store with `<Provider initialState={...}>`, the `initialState` will be merged with the global store's initial value:
 
 ```tsx
 const globalStore = store({
@@ -97,7 +97,7 @@ const storeContext = createStoreContext(globalStore);
 
 const App = () => {
 	return (
-		<storeContext.Provider initialValue={{ count: 5 }}>
+		<storeContext.Provider initialState={{ count: 5 }}>
 			{/* count will be 5, but name will still be 'John' from the global store */}
 			<Counter />
 		</storeContext.Provider>
@@ -135,7 +135,7 @@ function App() {
 }
 ```
 
-## Is it possible to create a local store, witout creating a global store?
+## Is it possible to create a local store, without creating a global store?
 
 Yes this is actually the default behaviour. This is because the `store` function does NOT create a store instance until a non-builder method is called.
 

@@ -97,7 +97,7 @@ const counterStore: StoreApi<
 
 ```
 
-Note: store(initialValue) and store.state(initialValue) are equivalent, it's just a matter of preference.
+Note: store(initialState) and store.state(initialState) are equivalent, it's just a matter of preference.
 
 ### Nested object store example:
 
@@ -159,4 +159,3 @@ Contributions are welcome! Please read our [contributing guide](link-to-contribu
 ### License
 
 This project is licensed under the [MIT License](link-to-license). See the LICENSE file for details.
-
