@@ -1,16 +1,17 @@
 /* eslint-disable no-unused-vars */
-import { ImmerStoreApi } from '../types';
+
+import { ZustandStoreApi } from '../types';
 import {
 	createStateMethod,
 	StateMethodKey,
 	stateMethodKeys,
 } from './create-state-method';
 
-export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
-	immerStore,
+export const createMethodsProxy = <TStore extends ZustandStoreApi<any>>({
+	zustandStore,
 	storeName,
 }: {
-	immerStore: TStore;
+	zustandStore: TStore;
 	storeName: string;
 }) => {
 	function createInnerProxy(
@@ -59,7 +60,7 @@ export const createMethodsProxy = <TStore extends ImmerStoreApi<any>>({
 
 				// Create the store method function using the createMethod utility
 				const methodFn = createStateMethod({
-					immerStore,
+					zustandStore,
 					storeName,
 					path,
 					method,

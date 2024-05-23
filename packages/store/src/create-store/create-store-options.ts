@@ -16,11 +16,6 @@ export interface StoreOptions<T extends StateValue> {
 	devtools?: DevtoolsOptions;
 
 	/**
-	 * Immer middleware options.
-	 */
-	immer?: ImmerOptions;
-
-	/**
 	 * Persist middleware options.
 	 */
 	persist?: PersistOptions<T>;
@@ -33,20 +28,8 @@ export interface StoreOptions<T extends StateValue> {
 	// mode?: 'CREATE' | 'DEFINE';
 }
 
-export interface ImmerOptions {
-	/**
-	 * Enable autofreeze.
-	 */
-	enabledAutoFreeze?: boolean;
-	enableMapSet?: boolean;
-}
-
 import { PersistOptions as ZustandPersistOptions } from 'zustand/middleware';
 
-export type StateStorage = {
-	getItem: (name: string) => string | null | Promise<string | null>;
-	setItem: (name: string, value: string) => void | Promise<void>;
-};
 export type StorageValue<S> = { state: S; version: number };
 
 type PersistOptionsWithoutName<S> = Omit<ZustandPersistOptions<S>, 'name'>;

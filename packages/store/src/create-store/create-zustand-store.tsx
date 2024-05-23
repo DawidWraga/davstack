@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-import { enableMapSet, setAutoFreeze } from 'immer';
 
 import {
 	devtools as devtoolsMiddleware,
@@ -7,15 +6,8 @@ import {
 } from 'zustand/middleware';
 import { createStore as createVanillaStore } from 'zustand/vanilla';
 
-import {
-	ImmerStoreApi,
-	SetImmerState,
-	StateValue,
-	StoreApi,
-	StoreDef,
-} from '../types';
+import { StateValue, StoreApi, StoreDef, ZustandStoreApi } from '../types';
 import { pipe } from '../utils/pipe';
-import { immerMiddleware } from './immer.middleware';
 
 import type { StateCreator } from 'zustand';
 
@@ -25,29 +17,17 @@ import { State } from '../create-state-methods/state.types';
 import { getDefaultStoreDef } from '../store-builder/store';
 import { isObject } from '../utils/assertions';
 /** creates the internal store with middlwares */
-export const createInnerStore = <TState extends StateValue>(
+export const createZustandStore = <TState extends StateValue>(
 	storeDef: StoreDef<TState>
 ) => {
 	const { options, initialState, name } = storeDef;
 
-	const {
-		middlewares: _middlewares = [],
-		devtools,
-		persist,
-		immer,
-	} = options ?? {};
+	const { middlewares: _middlewares = [], devtools, persist } = options ?? {};
 
-	const pipeMiddlewares = (
-		// @ts-expect-error
-		createState: StateCreator<TState, SetImmerState<TState>>
-	) => pipe(createState as any, ...middlewares) as ImmerStoreApi<TState>;
+	const pipeMiddlewares = (createState: StateCreator<TState>) =>
+		pipe(createState as any, ...middlewares) as ZustandStoreApi<TState>;
 
-	setAutoFreeze(immer?.enabledAutoFreeze ?? false);
-	if (immer?.enableMapSet) {
-		enableMapSet();
-	}
-
-	const middlewares: any[] = [immerMiddleware, ..._middlewares];
+	const middlewares: any[] = [..._middlewares];
 
 	if (persist?.enabled) {
 		const opts = {
@@ -76,25 +56,18 @@ export const createInnerStore = <TState extends StateValue>(
 	// 	);
 	// }
 
-	const immerStoreApi = pipeMiddlewares(() => initialState as TState);
+	const zustandStore = pipeMiddlewares(() => initialState as TState);
 
-	return immerStoreApi;
+	return zustandStore;
 };
 
 export function createStore<
 	TState extends StateValue,
 	TExtendedProps extends Record<string, any> = {},
-	TInput extends Record<string, any> = {},
->(
-	storeDef: StoreDef<TState>,
-	instanceInitialValue?: Partial<TState>,
-	instanceInput: Partial<TInput> = {}
-) {
+>(storeDef: StoreDef<TState>, instanceInitialValue?: Partial<TState>) {
 	const { initialState, extensions, name } = storeDef;
 
-	if (instanceInput) {
-		storeDef.extensions.push((store) => instanceInput);
-	}
+	// if (instanceInput) {
 
 	// if is object then merge, otherwise use the localInitialValue and fallback to initialState
 	const mergedInitialState = isObject(initialState)
@@ -104,13 +77,13 @@ export function createStore<
 			}
 		: ((instanceInitialValue ?? initialState) as TState);
 
-	const innerStore = createInnerStore({
+	const zustandStore = createZustandStore({
 		...storeDef,
 		initialState: mergedInitialState,
 	});
 
 	const methods = createMethodsProxy({
-		immerStore: innerStore,
+		zustandStore: zustandStore,
 		storeName: name,
 	});
 
@@ -136,13 +109,13 @@ export function state<TState extends StateValue>(
 	const defaultDef = getDefaultStoreDef(initialState) as StoreDef<TState>;
 	const defWithDefaults = { ...defaultDef, ...storeDef };
 
-	const innerStore = createInnerStore({
+	const zustandStore = createZustandStore({
 		...defWithDefaults,
 		initialState: initialState,
 	});
 
 	return createMethodsProxy({
-		immerStore: innerStore,
+		zustandStore: zustandStore,
 		storeName: defWithDefaults.name,
 	}) as unknown as State<TState>;
 }
