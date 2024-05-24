@@ -69,7 +69,10 @@ export type State<TStateValue extends StateValue> = (TStateValue extends object
 			callback: (value: TStateValue, prevValue: TStateValue) => void,
 			options?: OnChangeOptions<TStateValue>
 		) => UnsubscribeFn;
-	};
+	} & /**
+	 * Using this & Simplify<{}> does not change the types in any way, it's just a weird work around that I found that changes how the types are displayed. Instead of showing the entire type on hover, it just shows the name of the type - making it much easier to read.
+	 */
+	Simplify<{}>;
 
 export type UnsubscribeFn = () => void;
 

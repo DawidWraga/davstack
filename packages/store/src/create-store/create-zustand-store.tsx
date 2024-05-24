@@ -117,5 +117,5 @@ export function state<TState extends StateValue>(
 	return createMethodsProxy({
 		zustandStore: zustandStore,
 		storeName: defWithDefaults.name,
-	}) as unknown as State<TState>;
+	}) as State<TState>;
 }

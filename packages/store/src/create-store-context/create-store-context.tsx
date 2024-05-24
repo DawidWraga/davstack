@@ -15,7 +15,8 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 
 	type StoreParams = TCreator extends AnyFn
 		? Parameters<TCreator>[0]
-		: TCreator extends StoreApi<infer TState, infer TExtensions>
+		: // we must infer the TState AND TExtensions here for the ts complier to work correctly at build time
+			TCreator extends StoreApi<infer TState, infer TExtensions>
 			? { initialState?: Partial<TState> }
 			: never;
 
