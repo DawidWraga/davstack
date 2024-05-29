@@ -1,18 +1,12 @@
 # Davstack Service
 
-Davstack Service is beautifly simple and flexible library for building backend services with TypeScript.
-
-The API is heavily inspired by the [tRPC](https://trpc.io/) procedure builder, providing an extremely intuitive and familiar DX.
-
-The key difference is that Davstack Service is a **service** builder, not a procedure API builder.
+Davstack Service is simple and flexible library for building backend services with TypeScript.
 
 ### Why Use Davstack Service?
 
-- **Full Reusability**: Services can be called directly from anywhere in your backend, including within other services, without the overhead of unnecessary API calls.
-
-- **Flexible & Portable**: Services are lightweight wrappers around typescript functions, so they can be integrated into any backend eg Next.js server components / actions and support broad range of content types (eg files, streams).
-
-- **Seamless Integration with tRPC**: Davstack Service is built to complement tRPC. You can easily turn your services into tRPC procedures / routers with 0 boilerplate.
+- 🏠 Simple and familiar syntax - middleware, input and outputs inspired by trpc procedures
+- 🧩 Flexible - Works well with next js server actions as well as trpc
+- ✅ Typescript first - inferred input/output types and middleware
 
 ### Installation
 
@@ -27,6 +21,8 @@ Visit the [DavStack Service Docs](https://davstack.com/service/overview) for mor
 - The service definition replaces tRPC procedures, but the syntax is very similar.
 - Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
 
+## Composing Services example
+
 ```ts
 // api/services/invoice.ts
 import { authedService, publicService } from '@/lib/service';
@@ -36,13 +32,10 @@ import { authedService, publicService } from '@/lib/service';
 export const mailAiGeneratedInvoice = authedService
 	.input(z.object({ to: z.string(), projectId: z.string() }))
 	.query(async ({ ctx, input }) => {
-		// each service is called directly, no API calls
 		await checkSufficientCredits(ctx, { amount: 10 });
 
-		// The inputs / outputs are type safe and validated by Zod
 		const pdf = await generatePdf(ctx, { html: project.invoiceHtml });
 
-		// Services are just functions - so no limitaitons of content types (eg files, streams, etc)
 		await sendEmail(ctx, {
 			to: input.to,
 			subject: 'Invoice',
@@ -54,9 +47,6 @@ export const mailAiGeneratedInvoice = authedService
 
 		return 'Invoice sent';
 	});
-
-// Each service is a small, reusable function
-// Easy to test, easy to understand, easy to maintain
 
 export const generatePdf = authedService
 	.input(z.object({ html: z.string() }))
@@ -99,11 +89,9 @@ export const appRouter = createTRPCRouter({
 });
 ```
 
-## Getting Started
+### Middleware Example
 
-### Set up services in your project
-
-Define your services in a separate file, and export them for use in your backend.
+Define your services with reusable middleware in a separate file, and export them for reuse.
 
 ```ts
 // lib/service.ts
@@ -136,9 +124,7 @@ export function createServiceCtx() {
 }
 ```
 
-### Defining a Service
-
-Import the public / authed service builders from the service file, and define your services. You can use the `query` or `mutation` methods to define the service function.
+Import the public / authed service builders from the service
 
 ```ts
 // api/services/some-service.ts
@@ -167,8 +153,6 @@ const getTasks = service()
 		return ctx.db.tasks.findMany({ where: { projectId: input.projectId } });
 	});
 ```
-
-### Using Services
 
 ### Direct Service Usage
 
@@ -220,20 +204,6 @@ const appRouter = t.router({
 ```
 
 NOTE: it is recommended to use the `* as yourServicesName` syntax. Otherwise, ctrl+click on the tRPC client handler will navigate you to the app router file, instead of the specific service definition.
-
-# Comparison with tRPC
-
-## Similarities
-
-The fluent API is heavily inspired by the [tRPC](https://trpc.io/) procedure builder, providing an extremely intuitive and familiar DX.
-
-Services still have access to ctx from middleware, use input/output schemas, and outputs can also be inferred from the query/mutation function, just like tRPC.
-
-## Differences
-
-The key difference is that Davstack Service is a **service** builder, not a procedure API builder.
-
-This brings several benefits by decoupling your _service logic_ (eg database read/write operations), from the _transport layer_ (eg REST or tRPC APIs).
 
 ### Acknowledgements
 
