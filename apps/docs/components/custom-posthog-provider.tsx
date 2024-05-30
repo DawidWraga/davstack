@@ -15,7 +15,6 @@ if (typeof window !== 'undefined') {
 	// posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
 	posthog.init('phc_dzrTzS4S8mQgrBlxZ6a8YDaz4X9xp04svIoXPSJNznG', {
 		api_host: 'https://eu.posthog.com',
-		persistence: 'memory',
 		loaded: (posthog) => {
 			if (process.env.NODE_ENV === 'development') posthog.debug();
 		},
