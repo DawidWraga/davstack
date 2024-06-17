@@ -1,0 +1,104 @@
+Here's a more concise version of the documentation with a focus on examples:
+
+### Example
+
+To upload files on the front end, you can either use a form action or direct call a server action
+
+#### Form action
+
+```tsx
+// UploadFileViaForm.tsx
+'use client';
+import { uploadFile } from './file.action';
+
+export function UploadFileViaForm() {
+	return (
+		<form action={uploadFile}>
+			{/** The name attribute must match the server action input name */}
+			<input type="file" name="file" />
+			<button type="submit">Upload via form action</button>
+		</form>
+	);
+}
+```
+
+#### Direct call
+
+```tsx
+// UploadFileViaActionCall.tsx
+'use client';
+import { objectToFormData } from '@davstack/action';
+import { uploadFile } from './file.action';
+
+export default function UploadFileViaActionCall() {
+	return (
+		<button
+			onClick={async () => {
+				const file = new Blob([], { type: 'text/plain' });
+				// must convert object to form data if using direct call
+				await uploadFile(objectToFormData({ file }));
+			}}
+		>
+			upload via direct action call
+		</button>
+	);
+}
+```
+
+When directly calling a server action is is essential to wrap the input in `objectToFormData` as otherwise next.js will not send the file to the backend.
+
+#### Backend
+
+```ts
+// file.action.ts
+'use server';
+import { action, zodFile } from '@davstack/action';
+
+export const uploadFile = action()
+	.input({
+		file: zodFile({ type: 'image/*' }),
+	})
+	.mutation(async ({ input, ctx }) => {
+		console.log('FILE UPLOADING! ');
+		const file = input.file;
+	});
+```
+
+Under the hood, davstack action converts formdata to objects so you can use the input as a normal object, no need for `formData.get`.
+
+#### `zodFile` Usage
+
+```ts
+// Accept only image files
+const imageFile = zodFile({ type: 'image/*' });
+
+// Accept only audio files
+const audioFile = zodFile({ type: 'audio/*' });
+
+// Accept only video files
+const videoFile = zodFile({ type: 'video/*' });
+
+// Accept only PDF files
+const pdfFile = zodFile({ type: 'application/pdf' });
+
+// Accept only text files
+const textFile = zodFile({ type: 'text/*' });
+
+// Accept specific file types
+const specificTypes = zodFile({ type: ['image/jpeg', 'image/png'] });
+
+// Accept custom file type
+const customType = zodFile({ type: 'application/custom' });
+
+// Set maximum file size (in bytes)
+const limitedSize = zodFile({ type: '*', maxSizeMb: 5 });
+```
+
+The `zodFile` validator allows you to specify the expected file type and maximum size:
+
+- Use `type: 'image/*'`, `type: 'audio/*'`, `type: 'video/*'`, etc., to accept files of a specific category.
+- Use `type: 'application/pdf'`, `type: 'text/*'`, etc., to accept files of a specific type.
+- Use an array of types, like `type: ['image/jpeg', 'image/png']`, to accept multiple specific types.
+- Use a custom type string, like `type: 'application/custom'`, to accept a custom file type.
+
+The `zodFile` validator returns a `ZodFile` object with properties and methods for working with the uploaded file.
