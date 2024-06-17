@@ -1,5 +1,11 @@
 # @davstack/store
 
+## 1.4.0
+
+### Minor Changes
+
+- add support for selectors, improve set callback types, improve store types (remove redundant), improve reliability by fixing several immer related set state issues
+
 ## 1.3.0
 
 ### Minor Changes
