@@ -13,8 +13,8 @@ export default async function Home() {
 
         {/* DEMOS:   */}
         <div className="m-1 flex flex-col items-center gap-2  *:min-w-[350px] *:border *:border-gray-500 *:p-4">
-          <CrudDemo />
-          <ServerApiCallerDemo />
+          {/* <CrudDemo />
+          <ServerApiCallerDemo /> */}
           <ServerSessionDemo />
         </div>
       </div>

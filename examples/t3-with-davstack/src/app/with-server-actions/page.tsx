@@ -2,20 +2,16 @@
 "use client";
 import { useState } from "react";
 
-import { api } from "@/api/react";
+import { api, queryClient } from "@/api/react";
 import { type Todo } from "@prisma/client";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
-import { getTodos } from "@/app/with-server-actions/actions";
-
-/**
- * This is the client side for a todo application.
- *
- * IMPORTANT: This is **THE EXACT SAME** as using regular tRPC + react query. Davstack store does not make any changes to regular tRPC usage.
- *
- * The only difference that Davstack store makes is how you define the tRPC router
- * (@see api folder)
- */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createTodo,
+  deleteTodo,
+  getTodos,
+  updateTodo,
+} from "@/app/with-server-actions/actions";
 
 export interface CrudDemoProps {}
 
@@ -28,7 +24,7 @@ export default function WithServerActionsPage(props: CrudDemoProps) {
   if (!isAuthed) return <>Sign in to see crud demo</>;
 
   return (
-    <div className="w-full max-w-xs" {...passThrough}>
+    <div className="mx-auto mt-10 w-full max-w-lg" {...passThrough}>
       <CreateTodoForm />
       <TodosList />
     </div>
@@ -43,9 +39,7 @@ export function TodosList(props: TodosListProps) {
     error,
   } = useQuery({
     queryKey: ["todos"],
-    queryFn: async () => {
-      return getTodos({} as any);
-    },
+    queryFn: () => getTodos(),
   });
 
   if (error) {
@@ -74,36 +68,18 @@ export function TodosList(props: TodosListProps) {
   );
 }
 
+const invalidateTodos = () =>
+  queryClient?.invalidateQueries({ queryKey: ["todos"] });
+
 function TodoItem({ todo }: { todo: Todo }) {
-  /**
-   * You may not be familiar with this way of handling optimistic updates as it is new in tanstack query v5. This is all react-query stuff, no Davstack magic here.
-   */
-  const apiUtils = api.useUtils();
-  const updateTodo = api.todo.updateTodo.useMutation({
-    onSettled: () => {
-      apiUtils.todo.getTodos.invalidate();
-    },
-  });
-
-  const deleteTodo = api.todo.deleteTodo.useMutation({
-    onSettled: () => {
-      apiUtils.todo.getTodos.invalidate();
-    },
-  });
-
-  if (deleteTodo.isPending || deleteTodo.variables?.id === todo.id) {
-    return null;
-  }
-
   return (
     <div className={"flex items-center gap-2 border border-gray-500 p-1 "}>
       <input
-        checked={updateTodo.variables?.completed ?? todo.completed}
+        checked={todo.completed}
         onChange={(e) => {
-          updateTodo.mutate({
-            id: todo.id,
-            completed: e.target.checked,
-          });
+          updateTodo({ id: todo.id, completed: e.target.checked }).then(
+            invalidateTodos,
+          );
         }}
         aria-label={`todo is ${todo.completed ? "completed" : "not completed"} `}
         type="checkbox"
@@ -114,7 +90,7 @@ function TodoItem({ todo }: { todo: Todo }) {
       </label>
       <button
         onClick={() => {
-          deleteTodo.mutate({ id: todo.id });
+          deleteTodo({ id: todo.id }).then(invalidateTodos);
         }}
       >
         Delete
@@ -126,21 +102,19 @@ function TodoItem({ todo }: { todo: Todo }) {
 function CreateTodoForm() {
   const [name, setName] = useState("");
 
-  const apiUtils = api.useUtils();
-
-  const createTodo = api.todo.createTodo.useMutation({
+  const createTodoMutation = useMutation({
+    mutationFn: createTodo,
     onSuccess: () => {
-      apiUtils.todo.getTodos.invalidate();
+      invalidateTodos();
       setName("");
     },
-    mutationKey: ["addTodo"],
   });
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        createTodo.mutate({ name });
+        createTodoMutation.mutate({ name });
       }}
       className="flex  "
     >
@@ -154,9 +128,9 @@ function CreateTodoForm() {
       <button
         type="submit"
         className="rounded-full bg-white/10 px-2 py-1 font-semibold transition hover:bg-white/20"
-        disabled={createTodo.isPending}
+        disabled={createTodoMutation.isPending}
       >
-        {createTodo.isPending ? "loading" : "add"}
+        {createTodoMutation.isPending ? "loading" : "add"}
       </button>
     </form>
   );

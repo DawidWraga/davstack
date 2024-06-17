@@ -245,6 +245,9 @@ importers:
       '@auth/prisma-adapter':
         specifier: ^1.4.0
         version: 1.5.2(@prisma/client@5.11.0)
+      '@davstack/action':
+        specifier: 'workspace:* '
+        version: link:../../packages/action
       '@davstack/service':
         specifier: workspace:*
         version: link:../../packages/service

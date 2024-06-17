@@ -1,28 +1,34 @@
 "use server";
+
+import { unstable_cache } from 'next/cache';
+import { authedAction } from "@/lib/action";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { authedService, publicService } from "@/lib/service";
-
-export const getTodos = authedService.query(async ({ ctx }) => {
+export const getTodos = authedAction.query(async ({ ctx }) => {
   return ctx.db.todo.findMany({
     where: {
-      createdBy: { id: ctx.user?.id },
+      createdBy: { id: ctx.user.id },
     },
   });
 });
 
-export const createTodo = authedService
+export const createTodo = authedAction
   .input({ name: z.string().min(1) })
   .mutation(async ({ ctx, input }) => {
-    return ctx.db.todo.create({
-      data: {
-        name: input.name,
-        createdBy: { connect: { id: ctx.user.id } },
-      },
-    });
+    return ctx.db.todo
+      .create({
+        data: {
+          name: input.name,
+          createdBy: { connect: { id: ctx.user.id } },
+        },
+      })
+      .then(() => {
+        // revalidatePath("/with-server-actions");
+      });
   });
 
-export const updateTodo = authedService
+export const updateTodo = authedAction
   .input({
     id: z.string(),
     completed: z.boolean().optional(),
@@ -36,7 +42,7 @@ export const updateTodo = authedService
     });
   });
 
-export const deleteTodo = authedService
+export const deleteTodo = authedAction
   .input({ id: z.string() })
   .mutation(async ({ ctx, input }) => {
     return ctx.db.todo.delete({ where: { id: input.id } });

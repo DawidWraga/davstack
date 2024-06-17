@@ -11,14 +11,14 @@ import { type ApiRouter } from "@/api/router";
 
 const createQueryClient = () => new QueryClient();
 
-let clientQueryClientSingleton: QueryClient | undefined = undefined;
+export let queryClient: QueryClient | undefined = undefined;
 const getQueryClient = () => {
   if (typeof window === "undefined") {
     // Server: always make a new query client
     return createQueryClient();
   }
   // Browser: use singleton pattern to keep the same query client
-  return (clientQueryClientSingleton ??= createQueryClient());
+  return (queryClient ??= createQueryClient());
 };
 
 export const api = createTRPCReact<ApiRouter>();
