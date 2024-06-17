@@ -1,8 +1,6 @@
 "use server";
 
-import { unstable_cache } from 'next/cache';
 import { authedAction } from "@/lib/action";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 export const getTodos = authedAction.query(async ({ ctx }) => {
@@ -16,16 +14,12 @@ export const getTodos = authedAction.query(async ({ ctx }) => {
 export const createTodo = authedAction
   .input({ name: z.string().min(1) })
   .mutation(async ({ ctx, input }) => {
-    return ctx.db.todo
-      .create({
-        data: {
-          name: input.name,
-          createdBy: { connect: { id: ctx.user.id } },
-        },
-      })
-      .then(() => {
-        // revalidatePath("/with-server-actions");
-      });
+    return ctx.db.todo.create({
+      data: {
+        name: input.name,
+        createdBy: { connect: { id: ctx.user.id } },
+      },
+    });
   });
 
 export const updateTodo = authedAction
