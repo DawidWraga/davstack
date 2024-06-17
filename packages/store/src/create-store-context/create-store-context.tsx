@@ -70,7 +70,9 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 		throw new Error('useLocalStore must be used within a LocalProvider');
 	};
 
-	const withProvider = <TProps extends unknown>(Component: React.FC<TProps>) => {
+	const withProvider = <TProps extends Record<string, any>>(
+		Component: React.FC<TProps>
+	) => {
 		const WrappedComponent = forwardRef((props: TProps & StoreParams, ref) => {
 			return (
 				<Provider {...props}>
