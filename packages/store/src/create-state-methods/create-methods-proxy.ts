@@ -18,7 +18,11 @@ export const createMethodsProxy = <TStore extends ZustandStoreApi<any>>({
 		path: string[] = [],
 		// py passing the innerObj, we allow for the proxy to be used as a normal object
 		// this is useful for accessing the target methods of store directly eg store.extend()
-		innerObj: any = {}
+		innerObj: any = {
+			// __STORE_META__: {
+			// 	isDavstackStore: true,
+			// },
+		}
 	) {
 		const proxy: unknown = new Proxy(innerObj, {
 			get(target, key, receiver) {

@@ -65,12 +65,12 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 	const useStore = () => {
 		const localStore = React.useContext(Context);
 
-		if (localStore) return localStore;
+		if (localStore) return localStore as StoreInstance;
 
 		throw new Error('useLocalStore must be used within a LocalProvider');
 	};
 
-	const withProvider = <TProps extends object>(Component: React.FC<TProps>) => {
+	const withProvider = <TProps extends unknown>(Component: React.FC<TProps>) => {
 		const WrappedComponent = forwardRef((props: TProps & StoreParams, ref) => {
 			return (
 				<Provider {...props}>
@@ -83,7 +83,8 @@ export function createStoreContext<TCreator extends StoreApi<any, any> | AnyFn>(
 			Component.displayName || Component.name || 'Component'
 		})`;
 
-		return WrappedComponent;
+		// casting this type here makes it simpler in the IDE but not sure if it has any unintended side effects
+		return WrappedComponent as React.FC<TProps & StoreParams>;
 	};
 
 	return {
