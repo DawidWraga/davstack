@@ -1,13 +1,5 @@
 /* eslint-disable no-unused-vars */
-import {
-	z,
-	// infer as _infer,
-	ZodObject,
-	ZodRawShape,
-	ZodSchema,
-	ZodTypeAny,
-	ZodType,
-} from 'zod';
+import { z, ZodObject, ZodRawShape, ZodSchema, ZodTypeAny, ZodType } from 'zod';
 import { Simplify, zInfer } from './utils/type-utils';
 
 // Generic type for resolver functions
@@ -19,8 +11,6 @@ export type Resolver<
 	input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null;
 	ctx: Simplify<TContext>;
 }) => Promise<TOutputSchema extends ZodTypeAny ? zInfer<TOutputSchema> : void>;
-
-// Define the builder interface capturing generic types for input and output
 
 export type ZodSchemaOrRawShape = ZodSchema<any> | ZodRawShape;
 export type InferZodSchemaOrRawShape<T extends ZodSchemaOrRawShape> =
@@ -117,7 +107,7 @@ export function action<
 					resolver,
 					type: 'mutation',
 				};
-				return createResolver(newDef) as unknown as Action<
+				return createAction(newDef) as unknown as Action<
 					TResolver,
 					TInputSchema,
 					TOutputSchema,
@@ -143,7 +133,7 @@ export function action<
 					resolver,
 					type: 'query',
 				};
-				return createResolver(newDef) as unknown as Action<
+				return createAction(newDef) as unknown as Action<
 					TResolver,
 					TInputSchema,
 					TOutputSchema,
@@ -158,6 +148,7 @@ export function action<
 		...initialDef,
 	});
 }
+
 export interface ActionBuilder<
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined,
@@ -194,17 +185,17 @@ export type Action<
 	TType extends 'mutation' | 'query' | undefined,
 	TContext extends Record<string, any> | unknown = unknown,
 > = ActionDef<TResolver, TInputSchema, TOutputSchema, TType, TContext> & {
-	callerWithoutParser: (
+	raw: (
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
-	) => ReturnType<TResolver>;
-} & {
-	(
-		ctx: TContext,
+	) => Simplify<ReturnType<TResolver>>;
+} & ((
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void
-	): ReturnType<TResolver>;
-};
-export function createResolver<
+	) => ReturnType<TResolver>);
+
+//
+
+export function createAction<
 	TResolver extends Resolver<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined,
@@ -214,7 +205,7 @@ export function createResolver<
 	/**
 	 * Invokes the resolver with middleware logic
 	 */
-	const callerWithMiddleware = async (
+	const invokeWithMiddleware = async (
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null,
 		middlewares: Middleware<TContext, TContext>[] = def.middleware
@@ -240,25 +231,28 @@ export function createResolver<
 	};
 
 	/**
-	 * Calls the resolver function without parsing input/output
-	 * Useful for calling the resolver when the input/output is already parsed
+	 * Invokes the resolver without parsing input/output
+	 * Useful for raw calls from the backend
 	 */
-	const callerWithoutParser = async (
+	const rawCall = async (
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null
 	) => {
-		return callerWithMiddleware(ctx, input);
+		return invokeWithMiddleware(ctx, input);
 	};
 
 	/**
 	 * Invokes the resolver with parsing input/output and middleware logic
-	 * Useful for safe calling the resolver directly
+	 * Useful for safe calls from the frontend
 	 */
-	const callerWithParser = async (ctx: TContext, input: any) => {
+	const safeCall = async (input: any) => {
 		const maybeParsedInput = def.inputSchema
 			? def.inputSchema.parse(input)
 			: input;
-		const result = await callerWithMiddleware(ctx, maybeParsedInput);
+		const result = await invokeWithMiddleware(
+			undefined as any,
+			maybeParsedInput
+		);
 
 		const maybeParsedOutput = def.outputSchema
 			? def.outputSchema.parse(result)
@@ -266,5 +260,5 @@ export function createResolver<
 		return maybeParsedOutput;
 	};
 
-	return Object.assign(callerWithParser, def, { callerWithoutParser });
+	return Object.assign(safeCall, def, { raw: rawCall });
 }

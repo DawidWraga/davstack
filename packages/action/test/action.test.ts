@@ -24,20 +24,22 @@ const d = {
 	},
 };
 
-type ApiContext = {
+type PublicActionCtx = {
 	user?: { id: string };
 };
 
-const publicAction = action<ApiContext>();
+type AuthedActionCtx = {
+	user: { id: string };
+};
 
-const authedAction = action<Required<ApiContext>>().use(
-	async ({ ctx, next }) => {
-		if (!ctx.user) {
-			throw new Error('No user');
-		}
-		return await next();
+const publicAction = action<PublicActionCtx>();
+
+const authedAction = action<AuthedActionCtx>().use(async ({ ctx, next }) => {
+	if (!ctx.user) {
+		throw new Error('No user');
 	}
-);
+	return await next();
+});
 
 describe('Action', () => {
 	expect(false).toBe(false);
@@ -118,8 +120,8 @@ describe('Action', () => {
 			const createUser = action()
 				.input({ name: z.string() })
 				.output(z.boolean())
-				.mutation(async ({ input }) => {
-					return input.name === 'test123';
+				.mutation(async ({ input, ctx }) => {
+					return input?.name === 'test123';
 				});
 
 			const result = await createUser.raw(d.ctx, { name: 'test123' });
@@ -128,10 +130,13 @@ describe('Action', () => {
 			const result2 = await createUser.raw(d.ctx, { name: 'test' });
 			expect(result2).toBe(false);
 
+			// These should not throw errors since .raw doesn't parse inputs
+			await expect(
+				// @ts-expect-error
+				createUser.raw(d.ctx, { name: 1 })
+			).resolves.not.toThrowError();
 			// @ts-expect-error
-			expect(() => createUser.raw(d.ctx, { name: 1 })).rejects.toThrowError();
-			// @ts-expect-error
-			expect(() => createUser.raw(d.ctx)).rejects.toThrowError();
+			await expect(createUser.raw(d.ctx)).resolves.not.toThrowError();
 
 			const inputSchema = createUser.inputSchema;
 		});
@@ -217,7 +222,6 @@ describe('Action', () => {
 				});
 
 			await expect(async () => {
-				// @ts-expect-error
 				await createUser({ name: 'test' });
 			}).rejects.toThrowError();
 
