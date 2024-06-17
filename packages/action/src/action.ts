@@ -231,21 +231,21 @@ export function createAction<
 	};
 
 	/**
-	 * Invokes the resolver without parsing input/output
-	 * Useful for raw calls from the backend
+	 * Invokes the resolver without parsing input/output or middleware logic
 	 */
 	const rawCall = async (
 		ctx: TContext,
 		input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null
 	) => {
-		return invokeWithMiddleware(ctx, input);
+		return def.resolver({ input, ctx });
 	};
 
 	/**
 	 * Invokes the resolver with parsing input/output and middleware logic
 	 * Useful for safe calls from the frontend
 	 */
-	const safeCall = async (input: any) => {
+	const safeCall = async (_input: any) => {
+		const input = getMaybeFormDataValue(_input);
 		const maybeParsedInput = def.inputSchema
 			? def.inputSchema.parse(input)
 			: input;
@@ -262,3 +262,4 @@ export function createAction<
 
 	return Object.assign(safeCall, def, { raw: rawCall });
 }
+import { getMaybeFormDataValue } from './utils/form-data';
