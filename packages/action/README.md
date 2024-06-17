@@ -1,240 +1,308 @@
 # Davstack Action
 
-Davstack Action is simple and flexible library for building backend services with TypeScript.
+Davstack Action is a simple and flexible library for building backend services with TypeScript. It is designed to work seamlessly with Next.js server actions and tRPC.
 
 ### Why Use Davstack Action?
 
-- 🏠 Simple and familiar syntax - middleware, input and outputs inspired by trpc procedures
-- 🧩 Flexible - Works well with next js server actions as well as trpc
-- ✅ Typescript first - inferred input/output types and middleware
+- ⚡️ Super Simple API with zero boiler plate
+- 🔋 Batteries included - input/output parsing, auth middlewares, file uploads
+- 🏠 Simple and familiar syntax, works well with react query and react hook form
+- ✅ TypeScript-first - inputs, outputs and middleware are inferred
 
 ### Installation
 
 ```bash
-npm install zod @davstack/service
+npm install zod @davstack/action
 ```
 
-Visit the [DavStack Action Docs](https://davstack.com/service/overview) for more information and examples, such as this [trpc usage example](https://davstack.com/service/trpc-usage-example).
+Visit the [DavStack Action Docs](https://davstack.com/action/overview) for more information and examples.
 
 ## Demo Usage
 
-- The service definition replaces tRPC procedures, but the syntax is very similar.
-- Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
+### Defining Actions
 
-## directly calling service example
-
-```tsx
-export const generatePdf = authedAction
-	.input(z.object({ html: z.string() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return pdf;
-	});
-
-/**
- * safe call  eg from front end (usign nextjs server actions)
- * - will run authed middleware
- * - will parse inputs/outputs if defined
- */
-const pdf = await generatePdf({ html: '...' });
-
-/**
- * raw call eg from backend such inside another action
- * - will NOT run middlweare
- * - will NOT parse inputs/outputs
- */
-const pdf = await generatePdf.raw(ctx, { html: '...' });
-```
-
-## Composing Services example
+Import the public/authed action builders from the action file, and define your actions. You can use the `query` or `mutation` methods to define the action function.
 
 ```ts
-// api/services/invoice.ts
-import { authedAction, publicAction } from '@/lib/service';
+// api/actions/todo-actions.ts
+'use server';
+import { authedAction } from '@/lib/action';
+import { z } from 'zod';
 
-// Action composed from range of other services:
+export const getTodos = authedAction.query(async ({ ctx }) => {
+	return ctx.db.todo.findMany({
+		where: {
+			createdBy: { id: ctx.user.id },
+		},
+	});
+});
 
-export const mailAiGeneratedInvoice = authedAction
-	.input(z.object({ to: z.string(), projectId: z.string() }))
+export const createTodo = authedAction
+	.input({ name: z.string().min(1) })
+	.mutation(async ({ ctx, input }) => {
+		return ctx.db.todo.create({
+			data: {
+				name: input.name,
+				createdBy: { connect: { id: ctx.user.id } },
+			},
+		});
+	});
+
+export const updateTodo = authedAction
+	.input({
+		id: z.string(),
+		completed: z.boolean().optional(),
+		name: z.string().optional(),
+	})
+	.mutation(async ({ ctx, input }) => {
+		const { id, ...data } = input;
+		return ctx.db.todo.update({
+			where: { id },
+			data,
+		});
+	});
+
+export const deleteTodo = authedAction
+	.input({ id: z.string() })
+	.mutation(async ({ ctx, input }) => {
+		return ctx.db.todo.delete({ where: { id: input.id } });
+	});
+```
+
+### Using Actions
+
+#### Direct usage
+
+Actions can also be called safely from the frontend without the need to provide the `ctx` manually.
+
+```typescript
+const todos = await getTodos();
+```
+
+Safe calls will run the defined middleware and parse the inputs/outputs based on the specified schemas.
+
+This means that inputs and auth states will be validate with very little boilerplate.
+
+#### Frontend Usage with React Query
+
+Here's an example of using actions in a frontend component with React Query:
+
+```tsx
+// components/TodoList.tsx
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import {
+	createTodo,
+	deleteTodo,
+	getTodos,
+	updateTodo,
+} from '@/app/actions/todo';
+
+export function TodosList() {
+	const {
+		data: todos,
+		isPending,
+		error,
+	} = useQuery({
+		queryKey: ['todos'],
+		queryFn: () => getTodos(),
+	});
+
+	// ...
+
+	return (
+		<div className="flex flex-col gap-1 py-4">
+			{todos.map((todo) => (
+				<TodoItem key={todo.id} todo={todo} />
+			))}
+		</div>
+	);
+}
+
+function TodoItem({ todo }) {
+	return (
+		<div className="flex items-center gap-2 border border-gray-500 p-1">
+			<input
+				checked={todo.completed}
+				onChange={(e) => {
+					updateTodo({ id: todo.id, completed: e.target.checked }).then(
+						invalidateTodos
+					);
+				}}
+				type="checkbox"
+				name={todo.name}
+			/>
+			<label htmlFor={todo.name} className="flex-1">
+				{todo.name}
+			</label>
+			<button
+				onClick={() => {
+					deleteTodo({ id: todo.id }).then(invalidateTodos);
+				}}
+			>
+				Delete
+			</button>
+		</div>
+	);
+}
+
+function CreateTodoForm() {
+	const [name, setName] = useState('');
+
+	const createTodoMutation = useMutation({
+		mutationFn: createTodo,
+		onSuccess: () => {
+			invalidateTodos();
+			setName('');
+		},
+	});
+
+	return (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				createTodoMutation.mutate({ name });
+			}}
+			className="flex"
+		>
+			<input
+				type="text"
+				placeholder="Enter todo name"
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+				className="w-full rounded-full px-2 py-1 text-black"
+			/>
+			<button
+				type="submit"
+				className="rounded-full bg-white/10 px-2 py-1 font-semibold transition hover:bg-white/20"
+				disabled={createTodoMutation.isPending}
+			>
+				{createTodoMutation.isPending ? 'loading' : 'add'}
+			</button>
+		</form>
+	);
+}
+```
+
+### Defining middlwares / auth protected actions
+
+Define your actions in a separate file, and export them for use in your backend.
+
+```ts
+// lib/action.ts
+import { getServerAuthSession } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { action } from '@davstack/action';
+import { type User } from 'next-auth';
+
+export const createActionCtx = async () => {
+	const session = await getServerAuthSession();
+	const user = session?.user;
+	return { db, user };
+};
+
+export type PublicActionCtx = {
+	user?: User;
+	db: typeof db;
+};
+
+export const publicAction = action<PublicActionCtx>().use(
+	async ({ ctx, next }) => {
+		const nextCtx = await createActionCtx();
+		return next({
+			...ctx,
+			...nextCtx,
+		});
+	}
+);
+
+export type AuthedActionCtx = {
+	user: User;
+	db: typeof db;
+};
+
+export const authedAction = action<AuthedActionCtx>().use(
+	async ({ ctx, next }) => {
+		const nextCtx = await createActionCtx();
+
+		if (!nextCtx.user) {
+			throw new Error('Unauthorized');
+		}
+		return next({
+			...ctx,
+			...nextCtx,
+			user: nextCtx.user as User,
+		});
+	}
+);
+```
+
+### File uploads
+
+##### Frontend
+
+```tsx
+'use client';
+import { objectToFormData } from '@davstack/action';
+import { uploadFile } from './file.action';
+
+export default function UploadFileViaActionCall() {
+	return (
+		<button
+			onClick={async () => {
+				const file = new Blob([], { type: 'text/plain' });
+				await uploadFile(objectToFormData({ file }));
+			}}
+		>
+			upload via direct action call
+		</button>
+	);
+}
+```
+
+##### Backend
+
+```ts
+// file.action.ts
+'use server';
+import { action, zodFile } from '@davstack/action';
+
+export const uploadFile = action()
+	.input({
+		file: zodFile({ type: 'image/*' }),
+	})
+	.mutation(async ({ input, ctx }) => {
+		console.log('FILE UPLOADING! ', { input, ctx });
+	});
+```
+
+See the docs for more info
+
+### Direct Action Usage
+
+You can call an action WITHOUT invoking the middleware or input/output parsing
+
+This is useful for composing actions together without unnecessarily validating auth state
+
+```typescript
+export const mailAiGeneratedInvoice = authedService
+	.input({ to: z.string(), projectId: z.string() })
 	.query(async ({ ctx, input }) => {
-		await checkSufficientCredits(ctx, { amount: 10 });
+		await checkSufficientCredits.raw(ctx, { amount: 10 });
 
-		const pdf = await generatePdf(ctx, { html: project.invoiceHtml });
+		const project = await getProject.raw(ctx, { id: input.projectId });
+		const pdf = await generatePdf.raw(ctx, { html: project.invoiceHtml });
 
-		await sendEmail(ctx, {
+		await sendEmail.raw(ctx, {
 			to: input.to,
-			subject: 'Invoice',
-			body: 'Please find attached your invoice',
-			attachments: [{ filename: 'invoice.pdf', content: pdf }],
+			attachments: [pdf],
 		});
 
 		await deductCredits(ctx, { amount: 10 });
 
 		return 'Invoice sent';
 	});
-
-export const generatePdf = authedAction
-	.input(z.object({ html: z.string() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return pdf;
-	});
-
-export const sendEmail = authedAction
-	.input(z.object({ to: z.string(), subject: z.string(), body: z.string() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return 'Email sent';
-	});
-
-export const checkSufficientCredits = authedAction
-	.input(z.object({ amount: z.number() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return 'Sufficient funds';
-	});
-
-// ... etc
 ```
-
-Integrate your services with tRPC with 0 boilerplate. Works just like any other tRPC router.
-
-```ts
-// api/router.ts
-
-import * as invoiceServices from '@/api/services/invoice';
-import { createTRPCRouter } from '@/lib/trpc';
-import {
-	createTrpcProcedureFromService,
-	createTrpcRouterFromServices,
-} from '@davstack/service';
-
-export const appRouter = createTRPCRouter({
-	invoice: createTrpcRouterFromServices(invoiceServices),
-});
-```
-
-### Middleware Example
-
-Define your services with reusable middleware in a separate file, and export them for reuse.
-
-```ts
-// lib/service.ts
-import { service } from '@davstack/service';
-import { db } from '@/lib/db';
-
-// Define the context types for your services
-export type PublicServiceCtx = {
-	user: { id: string; role: string } | undefined;
-	db: typeof db;
-};
-export type AuthedServiceCtx = Required<PublicServiceCtx>;
-
-// export your services
-export const publicAction = service<PublicServiceCtx>();
-
-export const authedAction = service<AuthedServiceCtx>().use(
-	async ({ ctx, next }) => {
-		// Only allows authenticate users to access this service
-		if (!ctx.user) {
-			throw new Error('Unauthorized');
-		}
-		return next(ctx);
-	}
-);
-
-export function createServiceCtx() {
-	const user = auth();
-	return { user, db };
-}
-```
-
-Import the public / authed service builders from the service
-
-```ts
-// api/services/some-service.ts
-import { publicAction, authedAction } from '@/lib/service';
-
-export const getSomePublicData = publicAction.query(async ({ ctx }) => {
-	return 'Public data';
-});
-
-export const getSomeUserData = authedAction.query(async ({ ctx }) => {
-	// will throw an error if ctx.user is undefined
-	return 'Protected data';
-});
-```
-
-Specify the input and output schemas for your service for validation and type safety, and use the ctx/input arguments to access the service context and input data.
-
-```ts
-// api/services/task-services.ts
-import { service } from '@davstack/service';
-import { z } from 'zod';
-
-const getTasks = service()
-	.input(z.object({ projectId: z.string() }))
-	.query(async ({ ctx, input }) => {
-		return ctx.db.tasks.findMany({ where: { projectId: input.projectId } });
-	});
-```
-
-### Direct Action Usage
-
-Unlike tRPC procedures, services can be called directly from anywhere in your backend, including within other services.
-
-```typescript
-const ctx = createServiceCtx(); // or get ctx from parent service
-const tasks = await getTasks(ctx, { projectId: '...' });
-```
-
-This allows you to build complex service logic by composing multiple services together.
-
-```typescript
-const getProjectDetails = service()
-	.input(z.object({ projectId: z.string() }))
-	.output(
-		z.object({
-			id: z.string(),
-			name: z.string(),
-			tasks: getTasks.outputSchema,
-		})
-	)
-	.query(async ({ ctx, input }) => {
-		const project = await getProject(ctx, { projectId: input.projectId });
-		const tasks = await getTasks(ctx, { projectId: input.projectId });
-		return { ...project, tasks };
-	});
-```
-
-### tRPC Integration
-
-Seamlessly integrate with tRPC to create type-safe API endpoints.
-
-```ts
-import { initTRPC } from '@trpc/server';
-import { createTrpcRouterFromServices } from '@davstack/service';
-import * as taskServices from './services/tasks';
-import * as projectServices from './services/projects';
-import { sendFeedback } from './services/send-feedback';
-
-const t = initTRPC();
-
-const appRouter = t.router({
-	tasks: createTrpcRouterFromServices(taskServices),
-	projects: createTrpcRouterFromServices(projectServices),
-	// or create a single procedure from a service
-	sendFeedback: createTrpcProcedureFromService(sendFeedback),
-});
-```
-
-NOTE: it is recommended to use the `* as yourServicesName` syntax. Otherwise, ctrl+click on the tRPC client handler will navigate you to the app router file, instead of the specific service definition.
-
-### Acknowledgements
-
-Davstack Store has been heavily inspired by [tRPC](https://trpc.io/), a fantastic library for building type-safe APIs. A big shout-out to the tRPC team for their amazing work.
-
-Nick-Lucas, a tRPC contributor, inspired the creation of Davstack Action with his [github comment](https://github.com/trpc/trpc/discussions/4839#discussioncomment-8224476). He suggested "making controllers minimal" and "to separate your business logic from the API logic", which is exactly what Davstack Action aims to do.
 
 ### Contributing
 
