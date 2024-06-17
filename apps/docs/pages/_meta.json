@@ -7,8 +7,8 @@
 		"title": "Store",
 		"type": "page"
 	},
-	"service": {
-		"title": "Service",
+	"action": {
+		"title": "Action",
 		"type": "page"
 	},
 	"sound": {
