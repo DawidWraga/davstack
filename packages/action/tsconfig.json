@@ -1,0 +1,5 @@
+{
+	"extends": "@davstack/tsconfig/node14.json",
+	"include": ["."],
+	"exclude": ["dist", "build", "node_modules"]
+}

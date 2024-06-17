@@ -1,0 +1,34 @@
+{
+	"name": "@davstack/action",
+	"version": "0.0.1",
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"license": "MIT",
+	"files": [
+		"dist/**"
+	],
+	"scripts": {
+		"build": "tsup src/index.ts --format esm,cjs --dts --dts-resolve",
+		"dev": "tsup src/index.ts --format esm,cjs --watch --dts --dts-resolve",
+		"lint": "eslint \"src/**/*.ts*\"",
+		"clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+	},
+	"devDependencies": {
+		"@davstack/eslint-config": "workspace:*",
+		"@davstack/tsconfig": "workspace:*",
+		"@types/react": "^18.2.61",
+		"@types/react-dom": "^18.2.19",
+		"eslint": "^8.57.0",
+		"react": "^18.2.0",
+		"tsup": "^8.0.2",
+		"typescript": "^5.3.3"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"zod": "^3.22.4"
+	}
+}
