@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { silentTestConsoleError, silentTestConsoleLog } from './test-utils';
 
 import { describe, expect, expectTypeOf, test } from 'vitest';
-import { service } from '../src';
+import { action } from '../src';
 const d = {
 	input: z.object({
 		name: z.string(),
@@ -28,9 +28,9 @@ type ApiContext = {
 	user?: { id: string };
 };
 
-const publicService = service<ApiContext>();
+const publicAction = action<ApiContext>();
 
-const privateService = service<Required<ApiContext>>().use(
+const authedAction = action<Required<ApiContext>>().use(
 	async ({ ctx, next }) => {
 		if (!ctx.user) {
 			throw new Error('No user');
@@ -40,9 +40,10 @@ const privateService = service<Required<ApiContext>>().use(
 	}
 );
 
-describe('Service', () => {
+describe('Action', () => {
+	expect(false).toBe(false);
 	describe('Schema definitions', () => {
-		const createUser = service()
+		const createUser = action()
 			.input(d.input)
 			.output(d.output)
 			.mutation(async ({ input, ctx }) => {
@@ -63,7 +64,7 @@ describe('Service', () => {
 	});
 
 	describe('Direct calls', () => {
-		const createUser = service()
+		const createUser = action()
 			.input(d.input)
 			.output(d.output)
 			.mutation(async ({ input, ctx }) => {
@@ -84,7 +85,7 @@ describe('Service', () => {
 		});
 
 		test('should parse the output', async () => {
-			const differentCreateUser = service()
+			const differentCreateUser = action()
 				.input(z.any())
 				.output(z.string())
 				.mutation(async ({ input, ctx }) => {
@@ -100,7 +101,7 @@ describe('Service', () => {
 	});
 
 	describe('Should handle input and ctx', () => {
-		const createUser = service()
+		const createUser = action()
 			.input(d.input)
 			.output(z.object({ input: d.input, ctx: z.any() }))
 			.mutation(async ({ input, ctx }) => {
@@ -116,7 +117,7 @@ describe('Service', () => {
 		});
 
 		test('should access ctx correctly', async () => {
-			const createUser = service()
+			const createUser = action()
 				.input({ name: z.string() })
 				.output(z.boolean())
 				.mutation(async ({ input, ctx }) => {
@@ -147,7 +148,7 @@ describe('Service', () => {
 	});
 
 	describe('Should handle no input', () => {
-		const createUser = service()
+		const createUser = action()
 			.output(d.output)
 			.mutation(async () => {
 				return d.defaultOutput;
@@ -164,7 +165,7 @@ describe('Service', () => {
 	});
 
 	describe('Should handle no output', () => {
-		const createUser = service()
+		const createUser = action()
 			.input(d.input)
 			.mutation(async ({ input, ctx }) => {
 				return d.defaultOutput;
@@ -187,7 +188,7 @@ describe('Service', () => {
 	});
 
 	describe('should support query', () => {
-		const getUser = service()
+		const getUser = action()
 			.input(z.object({ id: z.string() }))
 			.output(z.string())
 			.query(async ({ input, ctx }) => {
@@ -201,8 +202,8 @@ describe('Service', () => {
 	});
 
 	describe('Should handle middleware correctly', () => {
-		test('public service: should pass with no user', async () => {
-			const createUser = publicService
+		test('public action: should pass with no user', async () => {
+			const createUser = publicAction
 				.input(d.input)
 				.output(d.output)
 				.mutation(async ({ input, ctx }) => {
@@ -214,8 +215,8 @@ describe('Service', () => {
 			).resolves.not.toThrowError();
 		});
 
-		test('private service: should throw on no user; should pass with user', async () => {
-			const createUser = privateService
+		test('private action: should throw on no user; should pass with user', async () => {
+			const createUser = authedAction
 				.input(d.input)
 				.output(d.output)
 				.mutation(async ({ input, ctx }) => {
@@ -233,7 +234,7 @@ describe('Service', () => {
 		});
 
 		test('should infer outputs', async () => {
-			const createUser = publicService
+			const createUser = publicAction
 				.input(d.input)
 				.mutation(async ({ input, ctx }) => {
 					return d.defaultOutput;
@@ -264,7 +265,7 @@ describe('Service', () => {
 		const db = {} as any;
 		type Headers = Record<string, string>;
 
-		const createServiceContext = async (opts: { headers: Headers }) => {
+		const createActionContext = async (opts: { headers: Headers }) => {
 			const session = await getServerAuthSession();
 
 			const user = session?.user;
@@ -278,11 +279,11 @@ describe('Service', () => {
 
 		type WithUser<T> = Omit<T, 'user'> & { user: { id: string } };
 
-		type ServiceContext = Awaited<ReturnType<typeof createServiceContext>>;
-		type ServiceContextAuthed = WithUser<ServiceContext>;
+		type PublicActionCtx = Awaited<ReturnType<typeof createActionContext>>;
+		type AuthedActionCtx = WithUser<PublicActionCtx>;
 
-		const publicService = service<ServiceContext>();
-		const authedService = service<ServiceContextAuthed>().use(
+		const publicAction = action<PublicActionCtx>();
+		const authedAction = action<AuthedActionCtx>().use(
 			async ({ ctx, next }) => {
 				if (!ctx.user) {
 					throw new Error('Unauthorized');
@@ -291,7 +292,7 @@ describe('Service', () => {
 			}
 		);
 
-		const createUser = authedService
+		const createUser = authedAction
 			.input(d.input)
 			// .output(d.output)
 			.mutation(async ({ input, ctx }) => {
@@ -306,7 +307,7 @@ describe('Service', () => {
 			expect(user).toStrictEqual(d.defaultOutput);
 		});
 
-		const getLatestTodo = authedService.query(async ({ ctx }) => {
+		const getLatestTodo = authedAction.query(async ({ ctx }) => {
 			return 'hello' as const;
 		});
 

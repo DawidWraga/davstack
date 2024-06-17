@@ -1,8 +1,8 @@
-# Davstack Service
+# Davstack Action
 
-Davstack Service is simple and flexible library for building backend services with TypeScript.
+Davstack Action is simple and flexible library for building backend services with TypeScript.
 
-### Why Use Davstack Service?
+### Why Use Davstack Action?
 
 - 🏠 Simple and familiar syntax - middleware, input and outputs inspired by trpc procedures
 - 🧩 Flexible - Works well with next js server actions as well as trpc
@@ -14,22 +14,47 @@ Davstack Service is simple and flexible library for building backend services wi
 npm install zod @davstack/service
 ```
 
-Visit the [DavStack Service Docs](https://davstack.com/service/overview) for more information and examples, such as this [trpc usage example](https://davstack.com/service/trpc-usage-example).
+Visit the [DavStack Action Docs](https://davstack.com/service/overview) for more information and examples, such as this [trpc usage example](https://davstack.com/service/trpc-usage-example).
 
 ## Demo Usage
 
 - The service definition replaces tRPC procedures, but the syntax is very similar.
 - Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
 
+## directly calling service example
+
+```tsx
+export const generatePdf = authedAction
+	.input(z.object({ html: z.string() }))
+	.query(async ({ ctx, input }) => {
+		// complex business logic here
+		return pdf;
+	});
+
+/**
+ * safe call  eg from front end (usign nextjs server actions)
+ * - will run authed middleware
+ * - will parse inputs/outputs if defined
+ */
+const pdf = await generatePdf({ html: '...' });
+
+/**
+ * raw call eg from backend such inside another action
+ * - will NOT run middlweare
+ * - will NOT parse inputs/outputs
+ */
+const pdf = await generatePdf.raw(ctx, { html: '...' });
+```
+
 ## Composing Services example
 
 ```ts
 // api/services/invoice.ts
-import { authedService, publicService } from '@/lib/service';
+import { authedAction, publicAction } from '@/lib/service';
 
-// Service composed from range of other services:
+// Action composed from range of other services:
 
-export const mailAiGeneratedInvoice = authedService
+export const mailAiGeneratedInvoice = authedAction
 	.input(z.object({ to: z.string(), projectId: z.string() }))
 	.query(async ({ ctx, input }) => {
 		await checkSufficientCredits(ctx, { amount: 10 });
@@ -48,21 +73,21 @@ export const mailAiGeneratedInvoice = authedService
 		return 'Invoice sent';
 	});
 
-export const generatePdf = authedService
+export const generatePdf = authedAction
 	.input(z.object({ html: z.string() }))
 	.query(async ({ ctx, input }) => {
 		// complex business logic here
 		return pdf;
 	});
 
-export const sendEmail = authedService
+export const sendEmail = authedAction
 	.input(z.object({ to: z.string(), subject: z.string(), body: z.string() }))
 	.query(async ({ ctx, input }) => {
 		// complex business logic here
 		return 'Email sent';
 	});
 
-export const checkSufficientCredits = authedService
+export const checkSufficientCredits = authedAction
 	.input(z.object({ amount: z.number() }))
 	.query(async ({ ctx, input }) => {
 		// complex business logic here
@@ -106,9 +131,9 @@ export type PublicServiceCtx = {
 export type AuthedServiceCtx = Required<PublicServiceCtx>;
 
 // export your services
-export const publicService = service<PublicServiceCtx>();
+export const publicAction = service<PublicServiceCtx>();
 
-export const authedService = service<AuthedServiceCtx>().use(
+export const authedAction = service<AuthedServiceCtx>().use(
 	async ({ ctx, next }) => {
 		// Only allows authenticate users to access this service
 		if (!ctx.user) {
@@ -128,13 +153,13 @@ Import the public / authed service builders from the service
 
 ```ts
 // api/services/some-service.ts
-import { publicService, authedService } from '@/lib/service';
+import { publicAction, authedAction } from '@/lib/service';
 
-export const getSomePublicData = publicService.query(async ({ ctx }) => {
+export const getSomePublicData = publicAction.query(async ({ ctx }) => {
 	return 'Public data';
 });
 
-export const getSomeUserData = authedService.query(async ({ ctx }) => {
+export const getSomeUserData = authedAction.query(async ({ ctx }) => {
 	// will throw an error if ctx.user is undefined
 	return 'Protected data';
 });
@@ -154,7 +179,7 @@ const getTasks = service()
 	});
 ```
 
-### Direct Service Usage
+### Direct Action Usage
 
 Unlike tRPC procedures, services can be called directly from anywhere in your backend, including within other services.
 
@@ -209,7 +234,7 @@ NOTE: it is recommended to use the `* as yourServicesName` syntax. Otherwise, ct
 
 Davstack Store has been heavily inspired by [tRPC](https://trpc.io/), a fantastic library for building type-safe APIs. A big shout-out to the tRPC team for their amazing work.
 
-Nick-Lucas, a tRPC contributor, inspired the creation of Davstack Service with his [github comment](https://github.com/trpc/trpc/discussions/4839#discussioncomment-8224476). He suggested "making controllers minimal" and "to separate your business logic from the API logic", which is exactly what Davstack Service aims to do.
+Nick-Lucas, a tRPC contributor, inspired the creation of Davstack Action with his [github comment](https://github.com/trpc/trpc/discussions/4839#discussioncomment-8224476). He suggested "making controllers minimal" and "to separate your business logic from the API logic", which is exactly what Davstack Action aims to do.
 
 ### Contributing
 

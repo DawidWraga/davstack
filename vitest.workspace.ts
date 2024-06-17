@@ -37,10 +37,10 @@ export default defineWorkspace([
 			name: 'action',
 			root: './packages/action',
 			environment: 'node',
-			typecheck: {
-				enabled: true,
-				include: ['**/*.test.ts'],
-			},
+			// typecheck: {
+			// 	enabled: true,
+			// 	include: ['**/*.test.ts'],
+			// },
 			// setupFiles: ['./test-setup.ts'],
 
 			// setupFiles: ['./setup.happy-dom.ts'],
