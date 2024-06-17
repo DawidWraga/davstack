@@ -1,3 +1,4 @@
+"use server";
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { todoServices } from "@/api/services";
 import * as publicHelloWorldServices from "@/api/services/public-hello-word";

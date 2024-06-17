@@ -1,11 +1,12 @@
+"use server";
 import "server-only";
 import { headers } from "next/headers";
 import { cache } from "react";
 
 import { apiRouter } from "@/api/router";
 import { createCallerFactory } from "@/lib/trpc";
-import { createServiceContext } from "@/lib/service";
 
+import { createServiceContext } from "@/lib/service";
 /**
  * Can either use the tRPC API or the services directly.
  *

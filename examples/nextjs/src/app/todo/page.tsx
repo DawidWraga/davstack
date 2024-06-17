@@ -1,5 +1,6 @@
 'use client';
-import { store } from '@davstack/store';
+import { state, store } from '@davstack/store';
+import { useState } from 'react';
 
 type Todo = {
 	id: number;
@@ -69,39 +70,19 @@ function TodoItems() {
 	);
 }
 
-const todoFormStore = store({
-	todoText: '',
-});
+const $todoTextInput = state('');
 
 function NewTodoForm() {
-	const todoText = todoFormStore.todoText.use();
+	const todoText = $todoTextInput.use();
 
 	return (
-		<form
-			onSubmit={(ev) => {
-				ev.preventDefault();
-				if (!todoText.trim()) return;
-				// Add a new todo
-				todoStore.addTodo(todoText.trim());
-				// Clear the input
-				todoFormStore.todoText.set('');
-			}}
-			className="mb-8"
-		>
-			<input
-				type="text"
-				value={todoText}
-				onChange={(e) => todoFormStore.todoText.set(e.target.value)}
-				placeholder="Enter a new todo"
-				className="border border-gray-300 rounded px-4 py-2 mr-4"
-			/>
-			<button
-				type="submit"
-				className="bg-blue-500 text-white rounded px-4 py-2"
-			>
-				Add Todo
-			</button>
-		</form>
+		<input
+			type="text"
+			value={todoText}
+			onChange={(e) => $todoTextInput.set(e.target.value)}
+			placeholder="Enter a new todo"
+			className="border border-gray-300 rounded px-4 py-2 mr-4"
+		/>
 	);
 }
 

@@ -4,7 +4,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { type User } from "next-auth";
 
-export const createServiceContext = async (opts: { headers: Headers }) => {
+export const createServiceContext = async () => {
   const session = await getServerAuthSession();
 
   const user = session?.user;
@@ -12,7 +12,6 @@ export const createServiceContext = async (opts: { headers: Headers }) => {
   return {
     db,
     user,
-    ...opts,
   };
 };
 
