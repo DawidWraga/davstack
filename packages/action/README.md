@@ -1,12 +1,15 @@
 # Davstack Action
 
-Davstack Action is a simple and flexible library for building backend services with TypeScript. It is designed to work seamlessly with Next.js server actions and tRPC.
+Davstack Action is a simple and flexible library for building Next.js Server actions.
+
+It is designed to work seamlessly with React Query, react hook fo
 
 ### Why Use Davstack Action?
 
 - ⚡️ Super Simple API with zero boiler plate
 - 🔋 Batteries included - input/output parsing, auth middlewares, file uploads
-- 🏠 Simple and familiar syntax, works well with react query and react hook form
+- 🧩 Flexible - Works well with react query, react hook form, or form actions
+- 🏠 Familiar syntax, inspired by tRPC
 - ✅ TypeScript-first - inputs, outputs and middleware are inferred
 
 ### Installation
