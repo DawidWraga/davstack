@@ -112,26 +112,35 @@ userStore.address.assign({
 
 Note: the `assign` method only exists on object data type
 
-## Using set with Callbacks
+## Set with callback functions
 
-When passing a callback to to the `set` function, the type of callback you need to pass depends on the state datatype.
+The `set` function can accept a value or a callback function
 
-The types fully reflect which type of callback is required and therefore your IDE guide you.
+Set value example: `counterStore.set(5)`
+Set callback function example: `counterStore.set(()=>{...})`
 
-### using `set(draft=>{})` with objects/arrays
+### Datatype differences summary
+
+The type of callback function changes depending on the state datatype.
+
+**Objects/Arrays**: directly modify the draft, don't return anything
+**Primitives**: get previous value, return new value
+
+(The types fully reflect which type of callback is required and therefore your IDE will guide you.)
+
+### Object / Array set callback details
 
 Calling `.set` on an object/array uses immer under the hook, allowing you to mutate a draft copy of the state while maininaining immutability.
 
 ```tsx
 const userStore = store({ name: 'John', age: 20 });
 
-// settings objects uses immer
+// draft object uses immer
 userStore.set((draft) => {
 	draft.name = 'Jane';
 	draft.age = 30;
 });
 
-//
 const todosStore = store([
 	{ id: 1, text: 'write docs' },
 	{ id: 2, text: 'sleep' },
@@ -141,35 +150,24 @@ todosStore.set((draft) => {
 	draft.push('another task');
 });
 
-todosStore.set(draft=>{
-	cosnt firstTodo = todosStore[0];
-	firstTodo.text = "new text"
-})
+todosStore.set((draft) => {
+	const firstTodo = draft[0];
+	firstTodo.text = 'new text';
+});
 ```
 
-### Using `set(preValue=>...) with primatives
+### Primitives set callback details
 
 Calling `set` on other data types behaves slightly differently.
+
 You are given the previous value of the property and you must return the new value from the callback.
 
 ```tsx
 userStore.age.set((prevAge) => prevAge + 1);
 ```
 
-### Key differences between using set callback
-
-- objects/arrays:
-
-  - you can directly modify the draft and you dont need to return anything
-
-- primative values:
-
-  - gets the previous value of the property, you must return the new value from the callback
-
 ## Additional notes:
 
-- calling `.set(value)` on arrays/object behaves the same as other values. The difference only arises when passing a callback to the `set` function.
+- Non-draftable values (e.g., MediaRecorder or window) will be considered as primitive values
 
 - Since `@davstack/store 1.3.0` root level array stores are fully supported
-
-- You no longer need to consider the limitations of immer as non-draftable values eg MediaRecorder or window will default to regular zustand setters.
