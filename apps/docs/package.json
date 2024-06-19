@@ -15,6 +15,7 @@
 		"@davstack/service": "workspace:^",
 		"@davstack/sound": "workspace:*",
 		"@davstack/store": "workspace:*",
+		"@davstack/action": "workspace:*",
 		"@next/eslint-plugin-next": "^14.1.4",
 		"next": "^13.0.6",
 		"nextra": "latest",
