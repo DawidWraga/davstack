@@ -35,11 +35,14 @@ export function zodFile(options: ZodFileOptions): z.ZodType<ZodFile> {
 		.any()
 		.refine(
 			(file): file is File | Blob | Buffer =>
-				file instanceof File || file instanceof Blob || Buffer.isBuffer(file),
+				(typeof File !== 'undefined' && file instanceof File) ||
+				(typeof Blob !== 'undefined' && file instanceof Blob) ||
+				(typeof Buffer !== 'undefined' && Buffer.isBuffer(file)),
+
 			{ message: 'Invalid file provided.' }
 		)
 		.transform((file) => {
-			if (file instanceof File) {
+			if (typeof File !== 'undefined' && file instanceof File) {
 				return {
 					_type: 'ZodFile/File' as const,
 					lastModified: file.lastModified,
@@ -51,7 +54,7 @@ export function zodFile(options: ZodFileOptions): z.ZodType<ZodFile> {
 					text: () => file.text(),
 				};
 			}
-			if (file instanceof Blob) {
+			if (typeof Blob !== 'undefined' && file instanceof Blob) {
 				return {
 					_type: 'ZodFile/Blob' as const,
 					lastModified: 0,
@@ -65,7 +68,7 @@ export function zodFile(options: ZodFileOptions): z.ZodType<ZodFile> {
 					text: () => file.text(),
 				};
 			}
-			if (Buffer.isBuffer(file)) {
+			if (typeof Buffer !== 'undefined' && Buffer.isBuffer(file)) {
 				return {
 					_type: 'ZodFile/Buffer' as const,
 					lastModified: 0,
@@ -79,6 +82,7 @@ export function zodFile(options: ZodFileOptions): z.ZodType<ZodFile> {
 					text: () => Promise.resolve(file.toString()),
 				};
 			}
+
 			throw new Error('Unexpected file type');
 		})
 		.refine(
