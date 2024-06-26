@@ -2,15 +2,14 @@
 
 Davstack Action is a simple and flexible library for building Next.js Server actions.
 
-It is designed to work seamlessly with React Query, react hook fo
-
 ### Why Use Davstack Action?
 
-- ⚡️ Super Simple API with zero boiler plate
-- 🔋 Batteries included - input/output parsing, auth middlewares, file uploads
-- 🧩 Flexible - Works well with react query, react hook form, or form actions
-- 🏠 Familiar syntax, inspired by tRPC
-- ✅ TypeScript-first - inputs, outputs and middleware are inferred
+- ✅ Simple and familiar syntax
+- ✅ Input/output parsing
+- ✅ Auth in middleware
+- ✅ Easy file uploads
+- ✅ Works well with Zod, React Query and React-Hook-Form.
+- ✅ Strongly interred types
 
 ### Installation
 
@@ -21,6 +20,87 @@ npm install zod @davstack/action
 Visit the [DavStack Action Docs](https://davstack.com/action/overview) for more information and examples.
 
 ## Demo Usage
+
+```ts
+// api/actions/todo-actions.ts
+'use server';
+import { authedAction } from '@/lib/action';
+import { z } from 'zod';
+
+export const getTodos = authedAction.query(async ({ ctx }) => {
+	return ctx.db.todo.findMany({
+		where: {
+			createdBy: { id: ctx.user.id },
+		},
+	});
+});
+
+export const createTodo = authedAction
+	.input({ name: z.string().min(1) })
+	.mutation(async ({ ctx, input }) => {
+		return ctx.db.todo.create({
+			data: {
+				name: input.name,
+				createdBy: { connect: { id: ctx.user.id } },
+			},
+		});
+	});
+```
+
+```tsx
+'use client';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { createTodo, getTodos } from '@/app/actions/todo';
+
+export function TodosList() {
+	const { data: todos } = useQuery({
+		queryKey: ['todos'],
+		queryFn: () => getTodos(),
+	});
+	return (
+		<div className="flex flex-col gap-1 py-4">
+			{todos.map((todo) => (
+				<TodoItem key={todo.id} todo={todo} />
+			))}
+		</div>
+	);
+}
+
+function CreateTodoForm() {
+	const [name, setName] = useState('');
+
+	const createTodoMutation = useMutation({
+		mutationFn: createTodo,
+		onSuccess: () => {
+			invalidateTodos();
+			setName('');
+		},
+	});
+
+	return (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				createTodoMutation.mutate({ name });
+			}}
+			className="flex"
+		>
+			<input
+				type="text"
+				placeholder="Enter todo name"
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+			/>
+			<button type="submit" disabled={createTodoMutation.isPending}>
+				{createTodoMutation.isPending ? 'loading' : 'add'}
+			</button>
+		</form>
+	);
+}
+```
+
+## Usage Guide
 
 ### Defining Actions
 
