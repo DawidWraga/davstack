@@ -165,7 +165,7 @@ export function computed<TReturnType>(
 	};
 
 	const proxyResult = fn('get');
-	if (typeof proxyResult === 'object' && 'set' in (proxyResult as any)) {
+	if (isObject(proxyResult) && 'set' in (proxyResult as any)) {
 		result.set = (value: any) => (proxyResult as any).set(value);
 	}
 
