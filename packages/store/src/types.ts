@@ -12,11 +12,32 @@ export type StateValue = unknown;
 
 export type { StoreApi as ZustandStoreApi } from 'zustand';
 
-export interface StoreDef<TStateValue extends StateValue = {}> {
-	name: string;
+export class StoreDef<TStateValue extends StateValue = {}> {
+
 	extensions: Array<(store: StoreApi<TStateValue>) => Record<string, any>>;
 	options: StoreOptions<TStateValue>;
 	initialState: TStateValue | undefined;
+
+	constructor(def: Omit<StoreDef<TStateValue>, "name">) { 
+		this.extensions = def.extensions;
+		this.options = def.options;
+		this.initialState = def.initialState
+	}
+
+	get name() {
+		const _def = this;
+		const options = _def.options as StoreOptions<TStateValue>;
+		const name = options.name as string;
+		if (name) return name;
+
+		const stateString = _def.initialState
+			? JSON.stringify(_def.initialState)
+			: 'no-state';
+		const defaultName = `(davstack/store)initialState=${stateString}`;
+		Object.assign(_def.options, { name: defaultName });
+		return defaultName as string;
+	}
+
 }
 
 export type StoreBuilderMethods<
