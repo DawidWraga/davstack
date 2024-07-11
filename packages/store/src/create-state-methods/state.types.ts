@@ -2,6 +2,10 @@
 
 import { EqualityChecker, Simplify, StateValue } from '../types';
 
+type ReadonlyState<TSelector, TStateValue> = TSelector extends (state: TStateValue) => infer TReturnType
+	? Readonly<TReturnType>
+	: Readonly<TStateValue>;
+
 export type State<TStateValue extends StateValue> = (TStateValue extends object
 	? {
 			[TKey in keyof TStateValue]: State<TStateValue[TKey]>;
@@ -28,9 +32,7 @@ export type State<TStateValue extends StateValue> = (TStateValue extends object
 			) => TStateValue,
 		>(
 			selector?: TSelector
-		) => TSelector extends (state: TStateValue) => infer TReturnType
-			? TReturnType
-			: TStateValue;
+		) => ReadonlyState<TSelector, TStateValue>;
 		/**
 		 * Set a new state for the entire store using Immer
 		 * @param fn A function that mutates the current state
@@ -56,10 +58,7 @@ export type State<TStateValue extends StateValue> = (TStateValue extends object
 		>(
 			selector?: TSelector,
 			equalityFn?: EqualityChecker<TStateValue>
-		) => TSelector extends (state: TStateValue) => infer TReturnType
-			? TReturnType
-			: TStateValue;
-
+		) => ReadonlyState<TSelector, TStateValue>;
 		/**
 		 * Subscribe to changes in the store
 		 * @param callback A callback that is called whenever the store changes

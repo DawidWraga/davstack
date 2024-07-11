@@ -18,16 +18,16 @@ type ComputedDefToMethods<TComputedDef> = TComputedDef extends (
 	input: infer TReadInput
 ) => infer TReadValue
 	? {
-			use: (input: VoidIfUnknown<TReadInput>) => TReadValue;
-			get: (input: VoidIfUnknown<TReadInput>) => TReadValue;
+			use: (input: VoidIfUnknown<TReadInput>) => Readonly<TReadValue>;
+			get: (input: VoidIfUnknown<TReadInput>) => Readonly<TReadValue>;
 		}
 	: TComputedDef extends {
 				read: (input: infer TReadInput) => infer TReadValue;
 				write?: (value: infer TWriteInput) => void;
 		  }
 		? {
-				use: (input: VoidIfUnknown<TReadInput>) => TReadValue;
-				get: (input: VoidIfUnknown<TReadInput>) => TReadValue;
+				use: (input: VoidIfUnknown<TReadInput>) => Readonly<TReadValue>;
+				get: (input: VoidIfUnknown<TReadInput>) => Readonly<TReadValue>;
 				set: TComputedDef['write'] extends undefined
 					? never
 					: (value: TWriteInput) => void;
@@ -39,7 +39,7 @@ export type ComputedMethods<TComputedProps extends ComputedProps> = {
 };
 
 export type ComputedBuilder<TStore, TComputedProps extends ComputedProps> = (
-	store: TStore
+	store: Readonly<TStore>
 ) => TComputedProps;
 
 function hasWrite<TReadValue, TWriteInput, TReadInput>(

@@ -8,7 +8,6 @@ import {
 	ComputedProps,
 	createComputedMethods,
 } from '../create-computed/create-computed-methods';
-import { createEffectMethods } from '../create-effects';
 import { createStoreApiProxy } from '../create-store/create-store-proxy';
 import { createStore } from '../create-store/create-zustand-store';
 
@@ -83,23 +82,9 @@ export const store = <TState extends StateValue>(
 export function getDefaultStoreDef<TState extends StateValue>(
 	initialState?: TState
 ) {
-	const _def = {
+	return new StoreDef({
 		initialState,
 		extensions: [],
 		options: {},
-		get name() {
-			const options = _def.options as StoreOptions<TState>;
-			const name = options.name as string;
-			if (name) return name;
-
-			const stateString = _def.initialState
-				? JSON.stringify(_def.initialState)
-				: 'no-state';
-			const defaultName = `(davstack/store)initialState=${stateString}`;
-			Object.assign(_def.options, { name: defaultName });
-			return defaultName as string;
-		},
-	};
-
-	return _def satisfies StoreDef<TState>;
+	})
 }
