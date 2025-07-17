@@ -74,6 +74,13 @@ export default defineWorkspace([
 			// setupFiles: ['./setup.happy-dom.ts'],
 		},
 	},
+	{
+		test: {
+			name: 'fn',
+			root: './packages/fn',
+			environment: 'node',
+		},
+	},
 	// {
 	// 	test: {
 	// 		name: 'node',
