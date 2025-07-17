@@ -186,9 +186,8 @@ const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 			cause: result.error,
 			meta: { zodErrors: result.error.flatten() },
 		});
-	}
+	} // Pass validated input to the next middleware/handler
 
-	// Pass validated input to the next middleware/handler
 	return next(ctx);
 });
 
@@ -240,7 +239,7 @@ const withSafeResultFormatter = createMiddleware(
 	}
 );
 
-// #region ---  `createFn`
+// #region ---  `createFn`
 
 export function createFn<
 	TContext extends Record<string, any> | unknown = unknown,
@@ -254,65 +253,60 @@ export function createFn<
 >(
 	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
 ): Fn<TContext, TInputSchema, TOutputSchema, THandler> {
-	// The default call pipeline middleware
-
-	const callMiddleware = [
-		withDefaults,
-		withInputValidation,
-		withThrowingErrorHandler,
-		...(def.middleware || []),
-	];
-
-	// The safe call pipeline middleware
-	const safeCallMiddleware = [
-		withDefaults,
-		withInputValidation,
-		withOutputValidation,
-		withThrowingErrorHandler,
-		withSafeResultFormatter,
-		...(def.middleware || []),
-	];
-
 	const getArgs = (args: any) => {
 		const _args = args ?? {};
 		const input = 'input' in _args ? _args.input : null;
 		const ctx = 'ctx' in _args ? _args.ctx : {};
 		return { input, ctx };
-	};
+	}; // Create the main function (direct call)
 
-	// Create the main function
 	const callFn = async (args: any) => {
+		// Direct calls should not perform validation, only enhance errors.
+		const callMiddleware = [
+			withDefaults,
+			withThrowingErrorHandler,
+			...(def.middleware || []),
+		];
+
 		return executeMiddleware({
 			def: {
 				...def,
-				middleware: [...callMiddleware, ...(def.middleware || [])],
+				middleware: callMiddleware,
 			},
 			args: getArgs(args),
 		});
-	};
+	}; // Create the safe call function
 
-	// Create the safe call function
 	const safeCall = async (args: any) => {
+		// The safe call pipeline wraps the handler in layers.
+		// Order is critical: Outer layers must come first in the array.
+		const safeCallMiddleware = [
+			// 1. Outermost layer: Catches all errors and formats the result.
+			withSafeResultFormatter, // 2. Catches errors and enhances them before the formatter sees them.
+			withThrowingErrorHandler, // 3. Normalizes arguments.
+			withDefaults, // 4. Validates input.
+			withInputValidation, // 5. User-defined middleware.
+			...(def.middleware || []), // 6. Innermost layer: Validates output just before returning.
+			withOutputValidation,
+		];
+
 		return executeMiddleware({
 			def: {
 				...def,
-				middleware: [...safeCallMiddleware, ...(def.middleware || [])],
+				middleware: safeCallMiddleware,
 			},
 			args: getArgs(args),
 		});
-	};
+	}; // cannot assign the name property as it's readonly reserved word
 
-	// cannot assign the name property as it's readonly reserved word
-	const { name, ...defWithoutName } = def;
-	// Create the function first
+	const { name, ...defWithoutName } = def; // Create the function first
 	const result = Object.assign(callFn, defWithoutName, { safeCall }) as Fn<
 		TContext,
 		TInputSchema,
 		TOutputSchema,
 		THandler
-	>;
+	>; // Set the actual function name
 
-	// Set the actual function name
 	Object.defineProperty(result, 'name', {
 		value: def.name,
 		configurable: true,
