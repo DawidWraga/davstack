@@ -229,12 +229,20 @@ export function createFn<
 		(h) => withDefaults(h)
 	);
 
-	// We cast the final result. This is a safe assertion because we've
-	// constructed the object to match the `Fn` interface.
-	return Object.assign(callFn, def, { safeCall }) as Fn<
+	const { name, ...defWithoutName } = def;
+	// Create the function first
+	const result = Object.assign(callFn, defWithoutName, { safeCall }) as Fn<
 		TContext,
 		TInputSchema,
 		TOutputSchema,
 		THandler
 	>;
+
+	// Set the actual function name
+	Object.defineProperty(result, 'name', {
+		value: def.name,
+		configurable: true,
+	});
+
+	return result;
 }
