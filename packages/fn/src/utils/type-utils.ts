@@ -14,3 +14,5 @@ import { ZodType } from 'zod';
  * This is a workaround to avoid renaming the import, which would break the build.
  */
 export type zInfer<T extends ZodType<any, any, any>> = T['_output'];
+
+export type zInferInput<T extends ZodType<any, any, any>> = T['_input'];

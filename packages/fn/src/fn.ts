@@ -1,16 +1,16 @@
 /* eslint-disable no-unused-vars */
 import { z, ZodObject, ZodRawShape, ZodSchema, ZodTypeAny } from 'zod';
 import { FnError, isFnError } from './errors';
-import { Simplify, zInfer } from './utils/type-utils';
+import { Simplify, zInfer, zInferInput } from './utils/type-utils';
 import { redactSensitive } from './utils/zod-sensitive';
 
-// Generic type for resolver functions
-export type Resolver<
+// Generic type for handler functions
+export type FnHandler<
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown,
-	TContext extends Record<string, any> | unknown = unknown
+	TContext extends Record<string, any> | unknown = unknown,
 > = (opts: {
-	input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : null;
+	input: TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : null;
 	ctx: Simplify<TContext>;
 }) => Promise<TOutputSchema extends ZodTypeAny ? zInfer<TOutputSchema> : void>;
 
@@ -20,7 +20,7 @@ export type InferZodSchemaOrRawShape<T extends ZodSchemaOrRawShape> =
 
 export type Middleware<
 	TContext extends Record<string, any> | unknown,
-	TNewContext extends unknown = unknown
+	TNewContext extends unknown = unknown,
 > = (opts: {
 	ctx: TContext;
 	next: (ctx?: TNewContext) => Promise<TNewContext>;
@@ -50,15 +50,15 @@ export type FnMeta = {
 };
 
 export type FnDef<
-	TResolver extends Resolver<any, any, any>,
+	THandler extends FnHandler<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown,
 	TType extends 'mutation' | 'query' | undefined,
-	TContext extends Record<string, any> | unknown = unknown
+	TContext extends Record<string, any> | unknown = unknown,
 > = {
 	inputSchema: TInputSchema;
 	outputSchema: TOutputSchema;
-	resolver: TResolver;
+	handler: THandler;
 	type: TType;
 	middleware: Middleware<TContext, TContext>[];
 	options?: FnBuilderOptions;
@@ -68,7 +68,7 @@ export type FnDef<
 const initialDef = {
 	inputSchema: undefined,
 	outputSchema: undefined,
-	resolver: undefined,
+	handler: undefined,
 	type: undefined,
 	middleware: [] as Middleware<any, any>[],
 	options: undefined as FnBuilderOptions | undefined,
@@ -76,13 +76,13 @@ const initialDef = {
 };
 
 export function baseFn<
-	TContext extends Record<string, any> | unknown = undefined
+	TContext extends Record<string, any> | unknown = undefined,
 >() {
 	function createBuilder<
 		TInputSchema extends ZodTypeAny | undefined,
 		TOutputSchema extends ZodTypeAny | undefined,
 		TType extends 'mutation' | 'query' | undefined,
-		TContextOverride extends Record<string, any> | unknown = unknown
+		TContextOverride extends Record<string, any> | unknown = unknown,
 	>(
 		def: FnDef<any, TInputSchema, TOutputSchema, TType, TContextOverride>
 	): FnBuilder<TInputSchema, TOutputSchema, TType, TContextOverride> {
@@ -143,25 +143,25 @@ export function baseFn<
 				});
 			},
 			mutation<
-				TResolver extends Resolver<
+				THandler extends FnHandler<
 					TInputSchema,
 					TOutputSchema,
 					TContextOverride
-				>
-			>(resolver: TResolver) {
+				>,
+			>(handler: THandler) {
 				const newDef: FnDef<
-					TResolver,
+					THandler,
 					TInputSchema,
 					TOutputSchema,
 					'mutation',
 					TContextOverride
 				> = {
 					...def,
-					resolver,
+					handler,
 					type: 'mutation',
 				};
 				return createFn(newDef) as unknown as Fn<
-					TResolver,
+					THandler,
 					TInputSchema,
 					TOutputSchema,
 					'mutation',
@@ -169,25 +169,25 @@ export function baseFn<
 				>;
 			},
 			query<
-				TResolver extends Resolver<
+				THandler extends FnHandler<
 					TInputSchema,
 					TOutputSchema,
 					TContextOverride
-				>
-			>(resolver: TResolver) {
+				>,
+			>(handler: THandler) {
 				const newDef: FnDef<
-					TResolver,
+					THandler,
 					TInputSchema,
 					TOutputSchema,
 					'query',
 					TContextOverride
 				> = {
 					...def,
-					resolver,
+					handler,
 					type: 'query',
 				};
 				return createFn(newDef) as unknown as Fn<
-					TResolver,
+					THandler,
 					TInputSchema,
 					TOutputSchema,
 					'query',
@@ -208,7 +208,7 @@ export interface FnBuilder<
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined,
 	TType extends 'mutation' | 'query' | undefined,
-	TContext extends Record<string, any> | unknown = unknown
+	TContext extends Record<string, any> | unknown = unknown,
 > {
 	input: <TNewInputSchema extends ZodSchemaOrRawShape>(
 		schema: TNewInputSchema
@@ -237,12 +237,12 @@ export interface FnBuilder<
 		meta: FnMeta
 	) => FnBuilder<TInputSchema, TOutputSchema, TType, TContext>;
 
-	mutation: <TResolver extends Resolver<TInputSchema, TOutputSchema, TContext>>(
-		resolver: TResolver
-	) => Fn<TResolver, TInputSchema, TOutputSchema, 'mutation', TContext>;
-	query: <TResolver extends Resolver<TInputSchema, TOutputSchema, TContext>>(
-		resolver: TResolver
-	) => Fn<TResolver, TInputSchema, TOutputSchema, 'query', TContext>;
+	mutation: <THandler extends FnHandler<TInputSchema, TOutputSchema, TContext>>(
+		handler: THandler
+	) => Fn<THandler, TInputSchema, TOutputSchema, 'mutation', TContext>;
+	query: <THandler extends FnHandler<TInputSchema, TOutputSchema, TContext>>(
+		handler: THandler
+	) => Fn<THandler, TInputSchema, TOutputSchema, 'query', TContext>;
 }
 
 export type Result<T> =
@@ -252,7 +252,7 @@ export type Result<T> =
 export type OptionallyRequiredField<
 	K extends string,
 	Condition,
-	T extends Record<string, any>
+	T extends Record<string, any>,
 > = Condition extends undefined ? Omit<T, K> & Partial<Pick<T, K>> : T;
 
 /**
@@ -269,7 +269,7 @@ export type OptionallyRequiredField<
  */
 export type FnArgs<
 	TInputSchema extends ZodTypeAny | undefined,
-	TContext extends Record<string, any> | unknown
+	TContext extends Record<string, any> | unknown,
 > = Simplify<
 	OptionallyRequiredField<
 		'input',
@@ -287,18 +287,18 @@ export type FnArgs<
 >;
 
 export type Fn<
-	TResolver extends Resolver<any, any, any>,
+	THandler extends FnHandler<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown,
 	TType extends 'mutation' | 'query' | undefined,
-	TContext extends Record<string, any> | unknown = unknown
-> = FnDef<TResolver, TInputSchema, TOutputSchema, TType, TContext> & {
+	TContext extends Record<string, any> | unknown = unknown,
+> = FnDef<THandler, TInputSchema, TOutputSchema, TType, TContext> & {
 	safeCall: (
 		opts: FnArgs<TInputSchema, TContext>
-	) => Promise<Result<Simplify<Awaited<ReturnType<TResolver>>>>>;
+	) => Promise<Result<Simplify<Awaited<ReturnType<THandler>>>>>;
 } & ((
 		opts: FnArgs<TInputSchema, TContext>
-	) => Promise<Awaited<ReturnType<TResolver>>>);
+	) => Promise<Awaited<ReturnType<THandler>>>);
 
 // Helper function to enhance errors with metadata and report them
 function enhanceAndReportError(
@@ -409,7 +409,7 @@ async function validateWithSchema<TInput, TOutput>({
 					});
 				}
 				return result.data;
-		  })()
+			})()
 		: input;
 
 	// Execute with validated input
@@ -439,14 +439,14 @@ async function validateWithSchema<TInput, TOutput>({
 }
 
 export function createFn<
-	TResolver extends Resolver<any, any, any>,
+	THandler extends FnHandler<any, any, any>,
 	TInputSchema extends ZodTypeAny | undefined,
 	TOutputSchema extends ZodTypeAny | undefined,
 	TType extends 'mutation' | 'query',
-	TContext extends Record<string, any> | unknown
->(def: FnDef<TResolver, TInputSchema, TOutputSchema, TType, TContext>) {
+	TContext extends Record<string, any> | unknown,
+>(def: FnDef<THandler, TInputSchema, TOutputSchema, TType, TContext>) {
 	/**
-	 * Invokes the resolver with middleware logic and applies wrapper if configured
+	 * Invokes the handler with middleware logic and applies wrapper if configured
 	 */
 	const invokeWithMiddleware = async (
 		ctx: TContext,
@@ -458,7 +458,7 @@ export function createFn<
 
 		const executeMiddleware = async (index: number): Promise<any> => {
 			if (index >= middlewares.length) {
-				return def.resolver({ input, ctx: currentCtx });
+				return def.handler({ input, ctx: currentCtx });
 			} else {
 				const currentMiddleware = middlewares[index]!;
 				return await currentMiddleware({
@@ -471,7 +471,7 @@ export function createFn<
 			}
 		};
 
-		// This is the core resolver invocation
+		// This is the core handler invocation
 		const executeResolverWithMiddleware = async () => {
 			return executeMiddleware(0);
 		};
@@ -492,7 +492,7 @@ export function createFn<
 	};
 
 	/**
-	 * Invokes the resolver without parsing input/output, but with middleware logic.
+	 * Invokes the handler without parsing input/output, but with middleware logic.
 	 * Validates schemas if forceSchemaValidation option is enabled.
 	 */
 	const defaultCall = async (opts: FnArgs<TInputSchema, TContext>) => {
@@ -542,7 +542,7 @@ export function createFn<
 	};
 
 	/**
-	 * Invokes the resolver with parsing input/output and middleware logic
+	 * Invokes the handler with parsing input/output and middleware logic
 	 * Called via .safeCall() for schema validation
 	 */
 	const safeCall = async (
