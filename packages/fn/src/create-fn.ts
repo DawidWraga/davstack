@@ -1,12 +1,14 @@
 /* eslint-disable no-unused-vars */
 import { ZodTypeAny } from 'zod';
 import { FnError } from './errors';
-import { pipe } from './pipe';
-import { Simplify, zInfer, zInferInput } from './utils/type-utils';
+import { Simplify, zInferInput } from './utils/type-utils';
 import { redactSensitive } from './utils/zod-sensitive';
 
 // #region --- Type Definitions ---
 
+/**
+ * The core handler function's signature, generic over schemas for inference.
+ */
 export type FnHandler<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
@@ -16,6 +18,9 @@ export type FnHandler<
 	ctx: Simplify<TContext>;
 }) => Promise<TOutput>;
 
+/**
+ * The definition object for creating a function. This is the primary input for `createFn`.
+ */
 export type FnDef<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
@@ -35,63 +40,37 @@ export type FnDef<
 	middleware?: Middleware<TContext>[];
 };
 
+/**
+ * The standard result wrapper for safe calls.
+ */
 export type Result<T> =
 	| { data: T; error: null }
 	| { data: null; error: FnError | Error };
 
-export type OptionallyRequiredField<
-	K extends string,
-	Condition,
-	T extends Record<string, any>,
-> = Condition extends undefined ? Omit<T, K> & Partial<Pick<T, K>> : T;
-
 /**
- * Helper type for function arguments with optional input and context
- *
- * If there is no input, then the input field is optional (instead of just void)
- * If there is no ctx, then the ctx field is optional (instead of just void)
- *
- * this allows us to not have to call
- * myFn({ input: undefined, ctx }) or
- * myFn({ input: undefined, ctx: undefined })
- *
- * We can simply use myFn({ctx}) or myFn()
+ * Helper type for function arguments with optional input and context.
+ * This allows for calling functions with `myFn()` or `myFn({ ctx })`
+ * instead of requiring `myFn({ input: undefined, ctx: undefined })`.
  */
-export type FnArgs<
-	TInputSchema extends ZodTypeAny | undefined,
-	TContext extends Record<string, any> | unknown,
-> = Simplify<
-	OptionallyRequiredField<
-		'input',
-		TInputSchema,
-		OptionallyRequiredField<
-			'ctx',
-			TContext,
-			{
-				input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void;
-				ctx: TContext;
-				def?: Omit<FnDef<TContext, TInputSchema, any, any>, 'handler'>;
-			}
-		>
-	>
+export type FnArgs<TInput, TContext> = Simplify<
+	(void extends TInput ? { input?: TInput } : { input: TInput }) &
+		(unknown extends TContext ? { ctx?: TContext } : { ctx: TContext })
 >;
 
-export type Fn<
-	TContext extends Record<string, any> | unknown = unknown,
-	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
-	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
-		TContext,
-		TInputSchema,
-		any
-	>,
-> = FnDef<TContext, TInputSchema, TOutputSchema, THandler> & {
-	safeCall: (
-		args: FnArgs<TInputSchema, TContext>
-	) => Promise<Result<Awaited<ReturnType<THandler>>>>;
-} & ((
-		args: FnArgs<TInputSchema, TContext>
-	) => Promise<Awaited<ReturnType<THandler>>>);
+/**
+ * The main, user-facing Function type.
+ * It is generic over the clean data types for a better developer experience.
+ */
+export type Fn<TContext = unknown, TInput = void, TOutput = any> = Omit<
+	FnDef<any, any, any, any>,
+	'handler' | 'middleware'
+> & {
+	handler: FnHandler<any, any, any>;
+	middleware?: Middleware<TContext>[];
+	safeCall: (args: FnArgs<TInput, TContext>) => Promise<Result<TOutput>>;
+} & ((args: FnArgs<TInput, TContext>) => Promise<TOutput>);
+
+// #endregion
 
 // #region --- Middleware System ---
 
@@ -106,7 +85,7 @@ export type Middleware<
 }) => Promise<any>;
 
 /**
- * Helper to create properly typed middleware
+ * Helper to create properly typed middleware.
  */
 export function createMiddleware<
 	TContext extends Record<string, any> | unknown = unknown,
@@ -118,7 +97,7 @@ export function createMiddleware<
 }
 
 /**
- * Execute middleware chain
+ * Executes a chain of middleware and the final handler.
  */
 async function executeMiddleware<T>(opts: {
 	def: FnDef<any, any, any, any>;
@@ -127,8 +106,9 @@ async function executeMiddleware<T>(opts: {
 	const { def, args } = opts;
 	let index = 0;
 
-	async function next(newCtx = args.ctx): Promise<T> {
+	async function next(newCtx: any = args.ctx): Promise<T> {
 		if (index >= (def.middleware?.length ?? 0)) {
+			// Pass the potentially modified context to the final handler
 			return def.handler({ input: args.input, ctx: newCtx });
 		}
 
@@ -161,19 +141,20 @@ function enhanceError(
 	});
 }
 
+// #endregion
+
 // #region --- Built-in Middleware ---
 
 /**
  * Normalizes the args object to always have `input` and `ctx`.
  */
 const withDefaults = createMiddleware(({ ctx, input, next }) => {
-	const normalizedCtx = ctx ?? {};
-	const normalizedInput = input ?? undefined;
-	return next(normalizedCtx);
+	// The `next` call receives the normalized context.
+	return next(ctx ?? {});
 });
 
 /**
- * Input validation middleware
+ * Input validation middleware.
  */
 const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 	const schema = def.inputSchema;
@@ -186,13 +167,13 @@ const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 			cause: result.error,
 			meta: { zodErrors: result.error.flatten() },
 		});
-	} // Pass validated input to the next middleware/handler
-
+	}
+	// The validated input is implicitly passed along.
 	return next(ctx);
 });
 
 /**
- * Output validation middleware
+ * Output validation middleware.
  */
 const withOutputValidation = createMiddleware(
 	async ({ ctx, input, def, next }) => {
@@ -213,7 +194,7 @@ const withOutputValidation = createMiddleware(
 );
 
 /**
- * Error handling middleware
+ * Error handling middleware that enhances thrown errors.
  */
 const withThrowingErrorHandler = createMiddleware(
 	async ({ ctx, input, def, next }) => {
@@ -226,7 +207,7 @@ const withThrowingErrorHandler = createMiddleware(
 );
 
 /**
- * Safe result formatting middleware
+ * Middleware that formats the final result into a { data, error } object.
  */
 const withSafeResultFormatter = createMiddleware(
 	async ({ ctx, input, def, next }) => {
@@ -239,29 +220,37 @@ const withSafeResultFormatter = createMiddleware(
 	}
 );
 
-// #region ---  `createFn`
+// #endregion
 
+// #region --- createFn ---
+
+/**
+ * Creates a new function with middleware and validation capabilities.
+ *
+ * @param def The function definition, including schemas and the handler.
+ * @returns A callable function with an attached `.safeCall` method.
+ */
 export function createFn<
-	TContext extends Record<string, any> | unknown = unknown,
-	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
-	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
-		TContext,
-		TInputSchema,
-		any
-	>,
+	TContext extends Record<string, any> | unknown,
+	TInputSchema extends ZodTypeAny | undefined,
+	TOutputSchema extends ZodTypeAny | undefined | unknown,
+	THandler extends FnHandler<TContext, TInputSchema, any>,
 >(
 	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
-): Fn<TContext, TInputSchema, TOutputSchema, THandler> {
+): Fn<
+	TContext,
+	TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void,
+	Awaited<ReturnType<THandler>>
+> {
 	const getArgs = (args: any) => {
 		const _args = args ?? {};
 		const input = 'input' in _args ? _args.input : null;
 		const ctx = 'ctx' in _args ? _args.ctx : {};
 		return { input, ctx };
-	}; // Create the main function (direct call)
+	};
 
+	// The pipeline for the direct, throwing call.
 	const callFn = async (args: any) => {
-		// Direct calls should not perform validation, only enhance errors.
 		const callMiddleware = [
 			withDefaults,
 			withThrowingErrorHandler,
@@ -269,43 +258,34 @@ export function createFn<
 		];
 
 		return executeMiddleware({
-			def: {
-				...def,
-				middleware: callMiddleware,
-			},
+			def: { ...def, middleware: callMiddleware },
 			args: getArgs(args),
 		});
-	}; // Create the safe call function
+	};
 
+	// The pipeline for the non-throwing, safe call.
 	const safeCall = async (args: any) => {
-		// The safe call pipeline wraps the handler in layers.
-		// Order is critical: Outer layers must come first in the array.
 		const safeCallMiddleware = [
-			// 1. Outermost layer: Catches all errors and formats the result.
-			withSafeResultFormatter, // 2. Catches errors and enhances them before the formatter sees them.
-			withThrowingErrorHandler, // 3. Normalizes arguments.
-			withDefaults, // 4. Validates input.
-			withInputValidation, // 5. User-defined middleware.
-			...(def.middleware || []), // 6. Innermost layer: Validates output just before returning.
-			withOutputValidation,
+			withSafeResultFormatter, // 1. (Outer) Formats the final result.
+			withThrowingErrorHandler, // 2. Catches and enhances any errors.
+			withDefaults, // 3. Normalizes arguments.
+			withInputValidation, // 4. Validates input schema.
+			...(def.middleware || []), // 5. Executes user-defined middleware.
+			withOutputValidation, // 6. (Inner) Validates output schema.
 		];
 
 		return executeMiddleware({
-			def: {
-				...def,
-				middleware: safeCallMiddleware,
-			},
+			def: { ...def, middleware: safeCallMiddleware },
 			args: getArgs(args),
 		});
-	}; // cannot assign the name property as it's readonly reserved word
+	};
 
-	const { name, ...defWithoutName } = def; // Create the function first
+	const { name, ...defWithoutName } = def;
 	const result = Object.assign(callFn, defWithoutName, { safeCall }) as Fn<
 		TContext,
-		TInputSchema,
-		TOutputSchema,
-		THandler
-	>; // Set the actual function name
+		TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void,
+		Awaited<ReturnType<THandler>>
+	>;
 
 	Object.defineProperty(result, 'name', {
 		value: def.name,
@@ -314,3 +294,5 @@ export function createFn<
 
 	return result;
 }
+
+// #endregion

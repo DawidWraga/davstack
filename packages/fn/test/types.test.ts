@@ -1,223 +1,222 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, test, expect, expectTypeOf } from 'vitest';
 import { z } from 'zod';
-import { createFn, FnHandler, initCreateFn, createMiddleware } from '../src';
+import { createFn, FnError, createMiddleware } from '../src/create-fn';
 
-// Mock types for testing
-type ServerFnCtx = {
-	logger: {
-		info: (msg: string) => void;
-		error: (error: unknown, msg: string) => void;
-	};
-	db: {
-		users: { findById: (id: string) => Promise<{ id: string; name: string }> };
-	};
+// Mock context for testing
+type TestContext = {
 	user?: { id: string };
+	db?: {
+		users: {
+			find: (id: string) => Promise<{ id: string; name: string }>;
+		};
+	};
 };
 
-type AuthedServerFnCtx = Required<ServerFnCtx>;
-
-describe('fn type system', () => {
-	describe('basic createFn types', () => {
-		it('should properly infer handler input and output types', () => {
-			const inputSchema = z.object({ title: z.string() });
-			const myFn = createFn({
-				name: 'test',
-				inputSchema,
-				handler: async ({ input, ctx }) => {
-					// Test that input is properly typed
-					expectTypeOf(input).toEqualTypeOf<{ title: string }>();
-					// Test that ctx is properly typed as unknown by default
-					expectTypeOf(ctx).toEqualTypeOf<unknown>();
-					return { success: true };
-				},
-			});
-
-			// Test the return type is properly inferred
-			expectTypeOf(myFn).parameter(0).toEqualTypeOf<{
-				input: { title: string };
-				ctx?: unknown;
-			}>();
+describe('Type System', () => {
+	test('should infer types for handler with input and default context', () => {
+		const fn = createFn({
+			name: 'test',
+			inputSchema: z.object({ id: z.string() }),
+			handler: async ({ input, ctx }) => {
+				expectTypeOf(input).toEqualTypeOf<{ id: string }>();
+				expectTypeOf(ctx).toEqualTypeOf<{}>();
+				return { success: true, id: input.id };
+			},
 		});
 
-		it('should properly handle context types', () => {
-			const myFn = createFn<ServerFnCtx>({
-				name: 'test',
-				handler: async ({ input, ctx }) => {
-					// Test that ctx is properly typed
-					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
-					// Test that input is null when no schema provided
-					expectTypeOf(input).toEqualTypeOf<null>();
-					return ctx.user?.id ?? 'anonymous';
-				},
-			});
+		expectTypeOf(fn).parameter(0).toEqualTypeOf<{
+			input: { id: string };
+			ctx?: unknown;
+		}>();
+		expectTypeOf(fn).returns.resolves.toEqualTypeOf<{
+			success: boolean;
+			id: string;
+		}>();
+	});
 
-			expectTypeOf(myFn).parameter(0).toEqualTypeOf<{
-				input?: void;
-				ctx: ServerFnCtx;
-			}>();
+	test('should infer types for handler with context and no input', () => {
+		const fn = createFn<TestContext>({
+			name: 'test',
+			handler: async ({ input, ctx }) => {
+				expectTypeOf(input).toEqualTypeOf<null>();
+				expectTypeOf(ctx).toEqualTypeOf<TestContext>();
+				return ctx.user?.id ?? 'guest';
+			},
+		});
+
+		expectTypeOf(fn).parameter(0).toEqualTypeOf<{
+			input?: void;
+			ctx: TestContext;
+		}>();
+		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
+	});
+
+	test('should handle functions with no context and no input', () => {
+		const fn = createFn({
+			name: 'ping',
+			handler: async ({ input, ctx }) => {
+				expectTypeOf(input).toEqualTypeOf<null>();
+				expectTypeOf(ctx).toEqualTypeOf<unknown>();
+				return 'pong';
+			},
+		});
+
+		// Allows calling with no arguments at all
+		expectTypeOf(fn)
+			.parameter(0)
+			.toEqualTypeOf<{ input?: void; ctx?: unknown } | undefined>();
+		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
+	});
+});
+
+describe('Runtime Behavior', () => {
+	const testFn = createFn({
+		name: 'testFn',
+		inputSchema: z.object({ title: z.string() }),
+		outputSchema: z.object({ id: z.string(), title: z.string() }),
+		handler: async ({ input }) => {
+			if (input.title === 'throw') {
+				throw new Error('Handler error');
+			}
+			if (input.title === 'invalid-output') {
+				return { id: 123, title: 'bad-data' } as any;
+			}
+			return { id: '123', title: input.title };
+		},
+	});
+
+	describe('Direct Call', () => {
+		test('should return data directly on success', async () => {
+			const result = await testFn({ input: { title: 'hello' } });
+			expect(result).toEqual({ id: '123', title: 'hello' });
+		});
+
+		test('should throw an enhanced FnError on failure', async () => {
+			await expect(testFn({ input: { title: 'throw' } })).rejects.toThrow(
+				FnError
+			);
+			try {
+				await testFn({ input: { title: 'throw' } });
+			} catch (e) {
+				const err = e as FnError;
+				expect(err.code).toBe('INTERNAL_SERVER_ERROR');
+				expect(err.message).toBe('Handler error');
+				expect(err.meta.functionName).toBe('testFn');
+			}
+		});
+
+		test('should NOT validate input or output schemas', async () => {
+			// Does not throw on invalid input
+			const result1 = await testFn({ input: { title: 123 } } as any);
+			expect(result1.title).toBe(123);
+
+			// Does not throw on invalid output
+			const result2 = await testFn({ input: { title: 'invalid-output' } });
+			expect(result2.id).toBe(123);
 		});
 	});
 
-	describe('initCreateFn and middleware composition', () => {
-		it('should create typed middleware that preserves handler types', () => {
-			// Test createMiddleware helper
-			const loggingMiddleware = createMiddleware<ServerFnCtx>(
-				(def, handler) => {
-					return async (opts) => {
-						opts.ctx.logger.info(`-> Calling '${def.name}'`);
-						const result = await handler(opts);
-						opts.ctx.logger.info(`<- Finished '${def.name}'`);
-						return result;
-					};
-				}
-			);
-
-			// Middleware should preserve the exact handler type
-			expectTypeOf(loggingMiddleware).toEqualTypeOf<
-				<TInputSchema extends z.ZodTypeAny | undefined, TOutput>(
-					def: any,
-					handler: FnHandler<ServerFnCtx, TInputSchema, TOutput>
-				) => FnHandler<ServerFnCtx, TInputSchema, TOutput>
-			>();
-		});
-
-		it('should create properly typed function factory with middleware', () => {
-			const loggingMiddleware = createMiddleware<ServerFnCtx>(
-				(def, handler) => {
-					return async (opts) => {
-						opts.ctx.logger.info(`-> ${def.name}`);
-						return handler(opts);
-					};
-				}
-			);
-
-			const createServerFn = initCreateFn<ServerFnCtx>().use(loggingMiddleware);
-
-			// Test that the factory produces properly typed functions
-			const inputSchema = z.object({ userId: z.string() });
-			const myFn = createServerFn({
-				name: 'getUser',
-				inputSchema,
-				handler: async ({ input, ctx }) => {
-					// Input should be properly typed
-					expectTypeOf(input).toEqualTypeOf<{ userId: string }>();
-					// Context should be properly typed
-					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
-
-					return ctx.db.users.findById(input.userId);
-				},
+	describe('.safeCall()', () => {
+		test('should return { data, error: null } on success', async () => {
+			const { data, error } = await testFn.safeCall({
+				input: { title: 'good' },
 			});
-
-			// Function call signature should be properly typed
-			expectTypeOf(myFn).parameter(0).toEqualTypeOf<{
-				input: { userId: string };
-				ctx: ServerFnCtx;
-			}>();
-
-			// Return type should be properly inferred
-			expectTypeOf(myFn).returns.toEqualTypeOf<
-				Promise<{ id: string; name: string }>
-			>();
+			expect(error).toBeNull();
+			expect(data).toEqual({ id: '123', title: 'good' });
 		});
 
-		it('should handle multiple middleware with type preservation', () => {
-			const authMiddleware = createMiddleware<AuthedServerFnCtx>(
-				(def, handler) => {
-					return async (opts) => {
-						if (!opts.ctx.user?.id) {
-							throw new Error('Unauthorized');
-						}
-						return handler(opts);
-					};
-				}
-			);
-
-			const loggingMiddleware = createMiddleware<AuthedServerFnCtx>(
-				(def, handler) => {
-					return async (opts) => {
-						opts.ctx.logger.info(`-> ${def.name}`);
-						return handler(opts);
-					};
-				}
-			);
-
-			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>()
-				.use(authMiddleware)
-				.use(loggingMiddleware);
-
-			const myFn = createAuthedServerFn({
-				name: 'secureAction',
-				inputSchema: z.object({ data: z.string() }),
-				handler: async ({ input, ctx }) => {
-					// Should have access to required user
-					expectTypeOf(ctx.user).toEqualTypeOf<{ id: string }>();
-					expectTypeOf(input).toEqualTypeOf<{ data: string }>();
-					return { processed: input.data };
-				},
+		test('should return an INVALID_INPUT error', async () => {
+			const { data, error } = await testFn.safeCall({
+				input: { title: 123 } as any,
 			});
-
-			expectTypeOf(myFn).parameter(0).toEqualTypeOf<{
-				input: { data: string };
-				ctx: AuthedServerFnCtx;
-			}>();
+			expect(data).toBeNull();
+			expect(error).toBeInstanceOf(FnError);
+			expect((error as FnError).code).toBe('INVALID_INPUT');
 		});
 
-		it('should allow array-style middleware composition', () => {
-			const middleware1 = createMiddleware<ServerFnCtx>(
-				(def, handler) => handler
-			);
-			const middleware2 = createMiddleware<ServerFnCtx>(
-				(def, handler) => handler
-			);
+		test('should return an INVALID_OUTPUT error', async () => {
+			const { data, error } = await testFn.safeCall({
+				input: { title: 'invalid-output' },
+			});
+			expect(data).toBeNull();
+			expect(error).toBeInstanceOf(FnError);
+			expect((error as FnError).code).toBe('INVALID_OUTPUT');
+		});
 
-			// Should support both styles
-			const createFn1 = initCreateFn<ServerFnCtx>([middleware1, middleware2]);
-			const createFn2 = initCreateFn<ServerFnCtx>()
-				.use(middleware1)
-				.use(middleware2);
-
-			// Both should produce equivalent types
-			expectTypeOf(createFn1).toEqualTypeOf(createFn2);
+		test('should return an INTERNAL_SERVER_ERROR', async () => {
+			const { data, error } = await testFn.safeCall({
+				input: { title: 'throw' },
+			});
+			expect(data).toBeNull();
+			expect(error).toBeInstanceOf(FnError);
+			expect((error as FnError).code).toBe('INTERNAL_SERVER_ERROR');
 		});
 	});
+});
 
-	describe('edge cases and optional types', () => {
-		it('should handle functions with no input schema', () => {
-			const createServerFn = initCreateFn<ServerFnCtx>();
+describe('Middleware', () => {
+	test('should execute middleware in order', async () => {
+		const executionOrder: string[] = [];
 
-			const noInputFn = createServerFn({
-				name: 'ping',
-				handler: async ({ input, ctx }) => {
-					expectTypeOf(input).toEqualTypeOf<null>();
-					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
-					return 'pong';
-				},
-			});
-
-			// Should allow calling without input
-			expectTypeOf(noInputFn).parameter(0).toEqualTypeOf<{
-				input?: void;
-				ctx: ServerFnCtx;
-			}>();
+		const mw1 = createMiddleware(async ({ next }) => {
+			executionOrder.push('mw1-in');
+			const result = await next();
+			executionOrder.push('mw1-out');
+			return result;
 		});
 
-		it('should handle functions with no context requirement', () => {
-			const createPureFn = initCreateFn();
-
-			const pureFn = createPureFn({
-				name: 'add',
-				inputSchema: z.object({ a: z.number(), b: z.number() }),
-				handler: async ({ input, ctx }) => {
-					expectTypeOf(input).toEqualTypeOf<{ a: number; b: number }>();
-					expectTypeOf(ctx).toEqualTypeOf<unknown>();
-					return input.a + input.b;
-				},
-			});
-
-			expectTypeOf(pureFn).parameter(0).toEqualTypeOf<{
-				input: { a: number; b: number };
-				ctx?: unknown;
-			}>();
+		const mw2 = createMiddleware(async ({ next }) => {
+			executionOrder.push('mw2-in');
+			const result = await next();
+			executionOrder.push('mw2-out');
+			return result;
 		});
+
+		const fnWithMiddleware = createFn({
+			name: 'mwTest',
+			middleware: [mw1, mw2],
+			handler: async () => {
+				executionOrder.push('handler');
+				return 'done';
+			},
+		});
+
+		await fnWithMiddleware.safeCall({});
+		expect(executionOrder).toEqual([
+			'mw1-in',
+			'mw2-in',
+			'handler',
+			'mw2-out',
+			'mw1-out',
+		]);
+	});
+
+	test('should allow middleware to modify context', async () => {
+		type CtxWithUser = { user: { id: string; name: string } };
+
+		const authMiddleware = createMiddleware<TestContext, CtxWithUser>(
+			async ({ ctx, next }) => {
+				// This middleware "authenticates" the user and passes a new context
+				// to the next function in the chain.
+				const newCtx = {
+					...ctx,
+					user: { id: 'user-123', name: 'Alice' },
+				};
+				return next(newCtx);
+			}
+		);
+
+		const fnWithAuth = createFn<TestContext>({
+			name: 'getProfile',
+			middleware: [authMiddleware],
+			handler: async ({ ctx }) => {
+				// The context here should be the one modified by the middleware.
+				expectTypeOf(ctx).toEqualTypeOf<CtxWithUser>();
+				return `Hello, ${ctx.user.name}`;
+			},
+		});
+
+		const { data } = await fnWithAuth.safeCall({});
+		expect(data).toBe('Hello, Alice');
 	});
 });
