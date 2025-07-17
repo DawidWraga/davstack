@@ -17,6 +17,8 @@ describe('Core `createFn` API', () => {
 	test('should create a function with definition properties attached', () => {
 		const createChat = createFn({
 			name: 'createChat',
+			description: 'Create a chat',
+			tags: ['chat'],
 			inputSchema: commonSchemas.createChatInput,
 			outputSchema: commonSchemas.createChatOutput,
 			handler: async ({ input }) => {
@@ -29,6 +31,11 @@ describe('Core `createFn` API', () => {
 		expect(createChat.name).toBe('createChat');
 		// The definition property is also available
 		expect(createChat.inputSchema).toBeDefined();
+		expect(createChat.inputSchema).toEqual(commonSchemas.createChatInput);
+		expect(createChat.description).toBe('Create a chat');
+		expect(createChat.tags).toEqual(['chat']);
+		expect(createChat.outputSchema).toBeDefined();
+		expect(createChat.handler).toBeDefined();
 	});
 
 	describe('Direct Call', () => {

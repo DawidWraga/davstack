@@ -229,6 +229,7 @@ export function createFn<
 		(h) => withDefaults(h)
 	);
 
+	// cannot assign the name property as it's readonly reserved word
 	const { name, ...defWithoutName } = def;
 	// Create the function first
 	const result = Object.assign(callFn, defWithoutName, { safeCall }) as Fn<
