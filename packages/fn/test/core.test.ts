@@ -35,7 +35,7 @@ describe('Core `createFn` API', () => {
 		test('should return data directly on success', async () => {
 			const getChat = createFn({
 				name: 'getChat',
-				inputSchema: undefined,
+
 				handler: async () => {
 					return 'hello world';
 				},

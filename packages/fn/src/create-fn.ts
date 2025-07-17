@@ -10,23 +10,28 @@ import { redactSensitive } from './utils/zod-sensitive';
 export type FnHandler<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
+	TOutput = any,
 > = (opts: {
 	input: TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : null;
 	ctx: Simplify<TContext>;
-}) => Promise<TOutputSchema extends ZodTypeAny ? zInfer<TOutputSchema> : void>;
+}) => Promise<TOutput>;
 
 export type FnDef<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
+	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
+		TContext,
+		TInputSchema,
+		any
+	>,
 > = {
 	name: string;
 	description?: string;
 	tags?: string[];
-	inputSchema: TInputSchema;
+	inputSchema?: TInputSchema;
 	outputSchema?: TOutputSchema;
-	handler: FnHandler<TContext, TInputSchema, TOutputSchema>;
+	handler: THandler;
 };
 
 export type Result<T> =
@@ -73,24 +78,23 @@ export type Fn<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
-> = FnDef<TContext, TInputSchema, TOutputSchema> & {
+	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
+		TContext,
+		TInputSchema,
+		any
+	>,
+> = FnDef<TContext, TInputSchema, TOutputSchema, THandler> & {
 	safeCall: (
 		opts: FnArgs<TInputSchema, TContext>
-	) => Promise<
-		Result<
-			Awaited<ReturnType<FnHandler<TContext, TInputSchema, TOutputSchema>>>
-		>
-	>;
+	) => Promise<Result<Awaited<ReturnType<THandler>>>>;
 } & ((
 		opts: FnArgs<TInputSchema, TContext>
-	) => Promise<
-		Awaited<ReturnType<FnHandler<TContext, TInputSchema, TOutputSchema>>>
-	>);
+	) => Promise<Awaited<ReturnType<THandler>>>);
 
 // --- Helper Functions ---
 function enhanceError(
 	error: unknown,
-	def: FnDef<any, any, any>,
+	def: FnDef<any, any, any, any>,
 	input: unknown
 ): FnError {
 	if (error instanceof FnError) {
@@ -111,22 +115,22 @@ function enhanceError(
  * Normalizes the opts object to always have `input` and `ctx`.
  * This simplifies the signatures of all subsequent wrappers.
  */
-function withDefaults<TFnHandler extends FnHandler<any, any, any>>(
-	handler: TFnHandler
-): TFnHandler {
+function withDefaults<THandler extends FnHandler<any, any, any>>(
+	handler: THandler
+): THandler {
 	const wrappedHandler = (opts: any) => {
 		const _opts = opts ?? {};
 		const input = 'input' in _opts ? _opts.input : undefined;
 		const ctx = 'ctx' in _opts ? _opts.ctx : {};
 		return handler({ input, ctx });
 	};
-	return wrappedHandler as TFnHandler;
+	return wrappedHandler as THandler;
 }
 
-function withInputValidation<TFnHandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any>,
-	handler: TFnHandler
-): TFnHandler {
+function withInputValidation<THandler extends FnHandler<any, any, any>>(
+	def: FnDef<any, any, any, any>,
+	handler: THandler
+): THandler {
 	const schema = def.inputSchema;
 	if (!schema) return handler;
 
@@ -141,13 +145,13 @@ function withInputValidation<TFnHandler extends FnHandler<any, any, any>>(
 		}
 		return handler({ ...opts, input: result.data });
 	};
-	return wrappedHandler as TFnHandler;
+	return wrappedHandler as THandler;
 }
 
-function withOutputValidation<TFnHandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any>,
-	handler: TFnHandler
-): TFnHandler {
+function withOutputValidation<THandler extends FnHandler<any, any, any>>(
+	def: FnDef<any, any, any, any>,
+	handler: THandler
+): THandler {
 	const schema = def.outputSchema;
 	if (!schema) return handler;
 
@@ -163,13 +167,13 @@ function withOutputValidation<TFnHandler extends FnHandler<any, any, any>>(
 		}
 		return validationResult.data;
 	};
-	return wrappedHandler as TFnHandler;
+	return wrappedHandler as THandler;
 }
 
-function withThrowingErrorHandler<TFnHandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any>,
-	handler: TFnHandler
-): TFnHandler {
+function withThrowingErrorHandler<THandler extends FnHandler<any, any, any>>(
+	def: FnDef<any, any, any, any>,
+	handler: THandler
+): THandler {
 	const wrappedHandler = async (opts: any) => {
 		try {
 			return await handler(opts);
@@ -177,13 +181,13 @@ function withThrowingErrorHandler<TFnHandler extends FnHandler<any, any, any>>(
 			throw enhanceError(error, def, opts?.input);
 		}
 	};
-	return wrappedHandler as TFnHandler;
+	return wrappedHandler as THandler;
 }
 
-function withSafeResultFormatter<TFnHandler extends FnHandler<any, any, any>>(
-	_def: FnDef<any, any, any>,
-	handler: TFnHandler
-): (opts: any) => Promise<Result<Awaited<ReturnType<TFnHandler>>>> {
+function withSafeResultFormatter<THandler extends FnHandler<any, any, any>>(
+	_def: FnDef<any, any, any, any>,
+	handler: THandler
+): (opts: any) => Promise<Result<Awaited<ReturnType<THandler>>>> {
 	return async (opts) => {
 		try {
 			const data = await handler(opts);
@@ -200,9 +204,14 @@ export function createFn<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
+	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
+		TContext,
+		TInputSchema,
+		any
+	>,
 >(
-	def: FnDef<TContext, TInputSchema, TOutputSchema>
-): Fn<TContext, TInputSchema, TOutputSchema> {
+	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
+): Fn<TContext, TInputSchema, TOutputSchema, THandler> {
 	// The default call pipeline
 	const callFn = pipe(
 		def.handler,
@@ -225,6 +234,7 @@ export function createFn<
 	return Object.assign(callFn, def, { safeCall }) as Fn<
 		TContext,
 		TInputSchema,
-		TOutputSchema
+		TOutputSchema,
+		THandler
 	>;
 }
