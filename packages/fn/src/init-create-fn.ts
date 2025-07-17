@@ -1,25 +1,5 @@
 import { ZodTypeAny } from 'zod';
-import { createFn, FnDef, FnHandler, Fn } from './create-fn';
-
-// Middleware type that preserves handler types
-export type Middleware<
-	TContext extends Record<string, any> | unknown = unknown,
-> = <TInputSchema extends ZodTypeAny | undefined, TOutput>(
-	def: FnDef<
-		TContext,
-		TInputSchema,
-		any,
-		FnHandler<TContext, TInputSchema, TOutput>
-	>,
-	handler: FnHandler<TContext, TInputSchema, TOutput>
-) => FnHandler<TContext, TInputSchema, TOutput>;
-
-// Helper to create properly typed middleware
-export function createMiddleware<
-	TContext extends Record<string, any> | unknown = unknown,
->(middlewareFn: Middleware<TContext>): Middleware<TContext> {
-	return middlewareFn;
-}
+import { createFn, FnDef, FnHandler, Fn, Middleware } from './create-fn';
 
 // Factory function type that creates functions and has a use method
 export interface FnFactory<

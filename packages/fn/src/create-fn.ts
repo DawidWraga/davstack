@@ -5,7 +5,7 @@ import { pipe } from './pipe';
 import { Simplify, zInfer, zInferInput } from './utils/type-utils';
 import { redactSensitive } from './utils/zod-sensitive';
 
-// --- Type Definitions ---
+// #region --- Type Definitions ---
 
 export type FnHandler<
 	TContext extends Record<string, any> | unknown = unknown,
@@ -32,6 +32,7 @@ export type FnDef<
 	inputSchema?: TInputSchema;
 	outputSchema?: TOutputSchema;
 	handler: THandler;
+	middleware?: Middleware<TContext>[];
 };
 
 export type Result<T> =
@@ -91,7 +92,59 @@ export type Fn<
 		opts: FnArgs<TInputSchema, TContext>
 	) => Promise<Awaited<ReturnType<THandler>>>);
 
-// --- Helper Functions ---
+// #region --- Middleware System ---
+
+export type Middleware<
+	TContext extends Record<string, any> | unknown = unknown,
+	TNewContext extends Record<string, any> | unknown = TContext,
+> = (opts: {
+	ctx: TContext;
+	input: any;
+	def: FnDef<any, any, any, any>;
+	next: (ctx?: TNewContext) => Promise<any>;
+}) => Promise<any>;
+
+/**
+ * Helper to create properly typed middleware
+ */
+export function createMiddleware<
+	TContext extends Record<string, any> | unknown = unknown,
+	TNewContext extends Record<string, any> | unknown = TContext,
+>(
+	middlewareFn: Middleware<TContext, TNewContext>
+): Middleware<TContext, TNewContext> {
+	return middlewareFn;
+}
+
+/**
+ * Execute middleware chain
+ */
+async function executeMiddleware<T>(
+	middlewares: Middleware<any>[],
+	ctx: any,
+	input: any,
+	def: FnDef<any, any, any, any>,
+	finalHandler: () => Promise<T>
+): Promise<T> {
+	let index = 0;
+
+	async function next(newCtx = ctx): Promise<T> {
+		if (index >= middlewares.length) {
+			return finalHandler();
+		}
+
+		const middleware = middlewares[index++];
+		return middleware({
+			ctx: newCtx,
+			input,
+			def,
+			next,
+		});
+	}
+
+	return next(ctx);
+}
+
 function enhanceError(
 	error: unknown,
 	def: FnDef<any, any, any, any>,
@@ -109,54 +162,46 @@ function enhanceError(
 	});
 }
 
-// --- Composable Wrappers ---
+// #region --- Built-in Middleware ---
 
 /**
  * Normalizes the opts object to always have `input` and `ctx`.
- * This simplifies the signatures of all subsequent wrappers.
  */
-function withDefaults<THandler extends FnHandler<any, any, any>>(
-	handler: THandler
-): THandler {
-	const wrappedHandler = (opts: any) => {
-		const _opts = opts ?? {};
-		const input = 'input' in _opts ? _opts.input : undefined;
-		const ctx = 'ctx' in _opts ? _opts.ctx : {};
-		return handler({ input, ctx });
-	};
-	return wrappedHandler as THandler;
-}
+const withDefaults = createMiddleware(({ ctx, input, next }) => {
+	const normalizedCtx = ctx ?? {};
+	const normalizedInput = input ?? undefined;
+	return next(normalizedCtx);
+});
 
-function withInputValidation<THandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any, any>,
-	handler: THandler
-): THandler {
+/**
+ * Input validation middleware
+ */
+const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 	const schema = def.inputSchema;
-	if (!schema) return handler;
+	if (!schema) return next(ctx);
 
-	const wrappedHandler = async (opts: any) => {
-		const result = schema.safeParse(opts.input);
-		if (!result.success) {
-			throw new FnError({
-				code: 'INVALID_INPUT',
-				cause: result.error,
-				meta: { zodErrors: result.error.flatten() },
-			});
-		}
-		return handler({ ...opts, input: result.data });
-	};
-	return wrappedHandler as THandler;
-}
+	const result = schema.safeParse(input);
+	if (!result.success) {
+		throw new FnError({
+			code: 'INVALID_INPUT',
+			cause: result.error,
+			meta: { zodErrors: result.error.flatten() },
+		});
+	}
 
-function withOutputValidation<THandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any, any>,
-	handler: THandler
-): THandler {
-	const schema = def.outputSchema;
-	if (!schema) return handler;
+	// Pass validated input to the next middleware/handler
+	return next(ctx);
+});
 
-	const wrappedHandler = async (opts: any) => {
-		const result = await handler(opts);
+/**
+ * Output validation middleware
+ */
+const withOutputValidation = createMiddleware(
+	async ({ ctx, input, def, next }) => {
+		const schema = def.outputSchema;
+		if (!schema) return next(ctx);
+
+		const result = await next(ctx);
 		const validationResult = (schema as any).safeParse(result);
 		if (!validationResult.success) {
 			throw new FnError({
@@ -166,39 +211,37 @@ function withOutputValidation<THandler extends FnHandler<any, any, any>>(
 			});
 		}
 		return validationResult.data;
-	};
-	return wrappedHandler as THandler;
-}
+	}
+);
 
-function withThrowingErrorHandler<THandler extends FnHandler<any, any, any>>(
-	def: FnDef<any, any, any, any>,
-	handler: THandler
-): THandler {
-	const wrappedHandler = async (opts: any) => {
+/**
+ * Error handling middleware
+ */
+const withThrowingErrorHandler = createMiddleware(
+	async ({ ctx, input, def, next }) => {
 		try {
-			return await handler(opts);
+			return await next(ctx);
 		} catch (error) {
-			throw enhanceError(error, def, opts?.input);
+			throw enhanceError(error, def, input);
 		}
-	};
-	return wrappedHandler as THandler;
-}
+	}
+);
 
-function withSafeResultFormatter<THandler extends FnHandler<any, any, any>>(
-	_def: FnDef<any, any, any, any>,
-	handler: THandler
-): (opts: any) => Promise<Result<Awaited<ReturnType<THandler>>>> {
-	return async (opts) => {
+/**
+ * Safe result formatting middleware
+ */
+const withSafeResultFormatter = createMiddleware(
+	async ({ ctx, input, def, next }) => {
 		try {
-			const data = await handler(opts);
+			const data = await next(ctx);
 			return { data, error: null };
 		} catch (error) {
 			return { data: null, error: error as FnError };
 		}
-	};
-}
+	}
+);
 
-// --- The `createFn` Implementation ---
+// #region ---  `createFn`
 
 export function createFn<
 	TContext extends Record<string, any> | unknown = unknown,
@@ -212,22 +255,45 @@ export function createFn<
 >(
 	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
 ): Fn<TContext, TInputSchema, TOutputSchema, THandler> {
-	// The default call pipeline
-	const callFn = pipe(
-		def.handler,
-		(h) => withThrowingErrorHandler(def, h),
-		(h) => withDefaults(h)
-	);
+	// The default call pipeline middleware
+	const callMiddleware = [
+		withDefaults,
+		withInputValidation,
+		withThrowingErrorHandler,
+		...(def.middleware || []),
+	];
 
-	// The safe call pipeline
-	const safeCall = pipe(
-		def.handler,
-		(h) => withOutputValidation(def, h),
-		(h) => withInputValidation(def, h),
-		(h) => withThrowingErrorHandler(def, h),
-		(h) => withSafeResultFormatter(def, h),
-		(h) => withDefaults(h)
-	);
+	// The safe call pipeline middleware
+	const safeCallMiddleware = [
+		withDefaults,
+		withInputValidation,
+		withOutputValidation,
+		withThrowingErrorHandler,
+		withSafeResultFormatter,
+		...(def.middleware || []),
+	];
+
+	// Create the main function
+	const callFn = async (opts: any) => {
+		const _opts = opts ?? {};
+		const input = 'input' in _opts ? _opts.input : null;
+		const ctx = 'ctx' in _opts ? _opts.ctx : {};
+
+		return executeMiddleware(callMiddleware, ctx, input, def, () =>
+			def.handler({ input, ctx })
+		);
+	};
+
+	// Create the safe call function
+	const safeCall = async (opts: any) => {
+		const _opts = opts ?? {};
+		const input = 'input' in _opts ? _opts.input : null;
+		const ctx = 'ctx' in _opts ? _opts.ctx : {};
+
+		return executeMiddleware(safeCallMiddleware, ctx, input, def, () =>
+			def.handler({ input, ctx })
+		);
+	};
 
 	// cannot assign the name property as it's readonly reserved word
 	const { name, ...defWithoutName } = def;
