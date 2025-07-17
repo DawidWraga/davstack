@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import { Simplify, StoreApi } from '../types';
-import { isObject } from '../utils/assertions';
+import { isFunction, isObject } from '../utils/assertions';
 
 type ComputedDef<TReadValue, TWriteInput = TReadValue, TReadInput = void> =
 	| {
@@ -144,30 +144,38 @@ export function computed<TReturnType>(
 	const result: any = {
 		get: (...args: any[]) => {
 			const fnReturnValue = fn('get');
-			const isObjValue = isObject(fnReturnValue);
-
-			if (isObjValue && 'get' in fnReturnValue) {
-				return fnReturnValue.get(...args);
-			} else {
-				return fnReturnValue;
-			}
+			return handleComputedValue(fnReturnValue, args);
 		},
 		use: (...args: any[]) => {
 			const fnReturnValue = fn('use');
-			const isObjValue = isObject(fnReturnValue);
-
-			if (isObjValue && 'get' in fnReturnValue) {
-				return fnReturnValue.get(...args);
-			} else {
-				return fnReturnValue;
-			}
+			return handleComputedValue(fnReturnValue, args);
 		},
 	};
 
 	const proxyResult = fn('get');
-	if (isObject(proxyResult) && 'set' in (proxyResult as any)) {
-		result.set = (value: any) => (proxyResult as any).set(value);
+	if (
+		isObject(proxyResult) &&
+		'set' in proxyResult &&
+		typeof proxyResult.set === 'function'
+	) {
+		result.set = (value: any) => proxyResult.set(value);
 	}
 
 	return result as ComputedStandalone<TReturnType>;
+}
+
+function handleComputedValue(value: any, args: any[]) {
+	if (!isObject(value)) return value;
+
+	const isValid = 'get' in value && isFunction(value.get);
+
+	if (!isValid) {
+		// console.warn(
+		// 	'Computed value does not have a get function. Please check the computed value.',
+		// 	{ value, args }
+		// );
+		return value;
+	}
+
+	return value.get(...args);
 }

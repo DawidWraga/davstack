@@ -204,11 +204,30 @@ describe('local component store', () => {
 			incrementAge: () => store.age.set(store.age.get() + 1),
 		}));
 
+		type CreateUserStoreOptions = {
+			initialState?: { name?: string; age?: number };
+			onInit?: () => void;
+			onIncrementAge?: () => void;
+		};
+
+		function createUserStore(opts: CreateUserStoreOptions) {
+			opts.onInit?.();
+			return store({
+				name: opts.initialState?.name ?? '',
+				age: opts.initialState?.age ?? 25,
+			}).actions((store) => ({
+				incrementAge() {
+					store.age.set(store.age.get() + 1);
+					opts.onIncrementAge?.();
+				},
+			}));
+		}
+
 		const {
 			useStore: useUserStore,
 			Provider: UserStoreProvider,
 			withProvider: withUserStoreProvider,
-		} = createStoreContext(globalUserStore);
+		} = createStoreContext(createUserStore);
 
 		const CompWithProvider = withUserStoreProvider(({ id }: { id: string }) => {
 			const userStore = useUserStore();
