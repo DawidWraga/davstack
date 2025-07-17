@@ -11,7 +11,7 @@ export type FnHandler<
 	TContext extends Record<string, any> | unknown = unknown,
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutput = any,
-> = (opts: {
+> = (args: {
 	input: TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : null;
 	ctx: Simplify<TContext>;
 }) => Promise<TOutput>;
@@ -70,6 +70,7 @@ export type FnArgs<
 			{
 				input: TInputSchema extends ZodTypeAny ? zInfer<TInputSchema> : void;
 				ctx: TContext;
+				def?: Omit<FnDef<TContext, TInputSchema, any, any>, 'handler'>;
 			}
 		>
 	>
@@ -86,10 +87,10 @@ export type Fn<
 	>,
 > = FnDef<TContext, TInputSchema, TOutputSchema, THandler> & {
 	safeCall: (
-		opts: FnArgs<TInputSchema, TContext>
+		args: FnArgs<TInputSchema, TContext>
 	) => Promise<Result<Awaited<ReturnType<THandler>>>>;
 } & ((
-		opts: FnArgs<TInputSchema, TContext>
+		args: FnArgs<TInputSchema, TContext>
 	) => Promise<Awaited<ReturnType<THandler>>>);
 
 // #region --- Middleware System ---
@@ -119,30 +120,28 @@ export function createMiddleware<
 /**
  * Execute middleware chain
  */
-async function executeMiddleware<T>(
-	middlewares: Middleware<any>[],
-	ctx: any,
-	input: any,
-	def: FnDef<any, any, any, any>,
-	finalHandler: () => Promise<T>
-): Promise<T> {
+async function executeMiddleware<T>(opts: {
+	def: FnDef<any, any, any, any>;
+	args: FnArgs<any, any>;
+}): Promise<T> {
+	const { def, args } = opts;
 	let index = 0;
 
-	async function next(newCtx = ctx): Promise<T> {
-		if (index >= middlewares.length) {
-			return finalHandler();
+	async function next(newCtx = args.ctx): Promise<T> {
+		if (index >= (def.middleware?.length ?? 0)) {
+			return def.handler({ input: args.input, ctx: newCtx });
 		}
 
-		const middleware = middlewares[index++];
+		const middleware = def.middleware?.[index++]!;
 		return middleware({
 			ctx: newCtx,
-			input,
+			input: args.input,
 			def,
 			next,
 		});
 	}
 
-	return next(ctx);
+	return next(args.ctx);
 }
 
 function enhanceError(
@@ -165,7 +164,7 @@ function enhanceError(
 // #region --- Built-in Middleware ---
 
 /**
- * Normalizes the opts object to always have `input` and `ctx`.
+ * Normalizes the args object to always have `input` and `ctx`.
  */
 const withDefaults = createMiddleware(({ ctx, input, next }) => {
 	const normalizedCtx = ctx ?? {};
@@ -256,6 +255,7 @@ export function createFn<
 	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
 ): Fn<TContext, TInputSchema, TOutputSchema, THandler> {
 	// The default call pipeline middleware
+
 	const callMiddleware = [
 		withDefaults,
 		withInputValidation,
@@ -273,26 +273,33 @@ export function createFn<
 		...(def.middleware || []),
 	];
 
-	// Create the main function
-	const callFn = async (opts: any) => {
-		const _opts = opts ?? {};
-		const input = 'input' in _opts ? _opts.input : null;
-		const ctx = 'ctx' in _opts ? _opts.ctx : {};
+	const getArgs = (args: any) => {
+		const _args = args ?? {};
+		const input = 'input' in _args ? _args.input : null;
+		const ctx = 'ctx' in _args ? _args.ctx : {};
+		return { input, ctx };
+	};
 
-		return executeMiddleware(callMiddleware, ctx, input, def, () =>
-			def.handler({ input, ctx })
-		);
+	// Create the main function
+	const callFn = async (args: any) => {
+		return executeMiddleware({
+			def: {
+				...def,
+				middleware: [...callMiddleware, ...(def.middleware || [])],
+			},
+			args: getArgs(args),
+		});
 	};
 
 	// Create the safe call function
-	const safeCall = async (opts: any) => {
-		const _opts = opts ?? {};
-		const input = 'input' in _opts ? _opts.input : null;
-		const ctx = 'ctx' in _opts ? _opts.ctx : {};
-
-		return executeMiddleware(safeCallMiddleware, ctx, input, def, () =>
-			def.handler({ input, ctx })
-		);
+	const safeCall = async (args: any) => {
+		return executeMiddleware({
+			def: {
+				...def,
+				middleware: [...safeCallMiddleware, ...(def.middleware || [])],
+			},
+			args: getArgs(args),
+		});
 	};
 
 	// cannot assign the name property as it's readonly reserved word
