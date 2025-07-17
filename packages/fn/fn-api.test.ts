@@ -17,16 +17,16 @@ import { z, ZodType } from 'zod';
 // 	next(createServiceCtx(ctx.user))
 // );
 
-// const loggingMiddleware = createMiddleware(({ ctx, next }) =>
-// 	// wrap function in logging
-// 	return next(ctx);
-// );
 
 // const errorMiddleware = createMiddleware(({ ctx, next }) => {
 // 	// wrap function in error handling
 // 	return next(ctx);
 // });
 
+// const loggingMiddleware = createMiddleware(({ ctx, next }) =>
+// 	// wrap function in logging
+// 	return next(ctx);
+// );
 // const authedMiddleware = createMiddleware(({ ctx, next }) => {
 // 	if (!ctx.user.id) {
 // 		throw new FnError({
