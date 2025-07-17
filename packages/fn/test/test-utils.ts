@@ -21,6 +21,9 @@ export const mockDb = {
 	chat: {
 		create: vi.fn(async (data) => ({ id: 'chat_123', ...data.data })),
 	},
+	credits: {
+		findFirst: vi.fn(async () => ({ amount: 100 })),
+	},
 };
 
 // Define shared context types
