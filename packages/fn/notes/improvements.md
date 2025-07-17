@@ -1,37 +1,32 @@
-Problem: if use transform in input/output schema, does not reflect in types
-
-- this is because we use z.infer for the input, but we should be using z.input
-
-Problem: No sentry
+Problem: Sentry not working
 
 - currently sentry not across express + railyway and next+vercel, so commmented out for now (and lots of ugly code)
 - if we always passed logger to ctx, then we could inject the logger alongside the user ctx eg createNextContext createExpressContext
+- PLAN: establish new pattern where logger is always passed to CTX
 
 Problem: Obfuscated error messages
 
 - We recreate errors in the wrapper, so we lose the original stack trace and get a loooong error message
 - We should alawys keep logger.error first param as the original error, to avoid info loss
 
-Improvements:
+Small Improvements:
 
 - replace "wrapper" with just middleware
 - establish naming / meta pattern
 
-NEW Fn API design:
-
-OBJECTIVE: SUPER SIMPLE AND FAST
-
-### baseFn => createFn
-
-- The davstack/fn package createFn
-
-instead of using builder method we simply wrap around the create fn function to add the middleware
+New API Design:
 
 Change Names:
 
 - baseFn -> createFn
 - authedService -> createAuthedFn
 - publicService -> createPublicFn
+
+So theres a bunch of complexity around managing the builder method and the middlware but i realised that perhaps its overkill and redudant because my existing impelemtnation (see attached doc of fn inside other codebase) was casting the type anyway so it was pretty pointless.
+
+We want to keep thigns as LIGHT and SIMPLE as possible to minimize surface area, maintance overhead, bugs, cognitive load, etc.
+
+
 
 ```ts
 // lib/create-server-fn.ts
@@ -48,60 +43,78 @@ export type ServerFnCtx = {
 };
 export type ServerFnCtxAuthed = Required<ServerFnCtx>;
 
-const loggingMiddleware = createMiddleware(({ ctx, next }) =>
-// later we want indentation here to be based on the depth of the fn call, we can use logger.child or something like that, or add depth+1 to the ctx
-	ctx.logger.info('-> fn called', {
-		fn: ctx.fn.name,
-		input: ctx.input,
-		ctx: ctx.ctx,
-	})
-
-  const result = await next(ctx);
-
-  ctx.logger.info('<- fn result', {
-    fn: ctx.fn.name,
-    result,
-  })
-
-  return result;
-);
-const authedMiddleware = createMiddleware(({ ctx, next }) => {
-	if (!ctx.user.id) {
-		throw new FnError({
-			code: 'UNAUTHORIZED',
-			message: 'Unauthorized',
+function withBaseContext(fn: FnHandler<any, any, any>) {
+	return (opts: { ctx: unknown; input: unknown }) => {
+		const user = { id: '' };
+		return fn({
+			input: opts.input,
+			ctx: {
+				user,
+				db: enhance(prisma, { user }),
+				logger: createLogger({
+					level: 'info',
+					format: format.json(),
+				}),
+			},
 		});
-	}
-	return next(ctx);
-});
+	};
+}
+
+function withLoggingMiddleware(fn: FnHandler<any, any, any>) {
+	return (opts: { ctx: unknown; input: unknown }) => {
+		const logger = opts.ctx.logger;
+		logger.info('-> fn called', {
+			fn: opts.ctx.fn.name,
+			input: opts.input,
+			ctx: opts.ctx,
+		});
+		const result = await fn(opts);
+		logger.info('<- fn result', {
+			fn: opts.ctx.fn.name,
+			result,
+		});
+		return result;
+	};
+}
 
 export const createPublicServerFn = (def: FnDef<PublicServerFnCtx>) => {
 	return createFn<PublicServerFnCtx>({
 		...def,
-		middleware: [...def.middleware, ...baseContextMiddleware, loggingMiddleware],
+		handler: pipe(
+			withBaseContext,
+			withLoggingMiddleware,
+			withErrorHandling,
+			def.handler
+		),
 	});
 };
 
 export const createAuthedServerFn = (def: FnDef<AuthedServerFnCtx>) => {
 	return createFn<AuthedServerFnCtx>({
 		...def,
-		middleware: [...def.middleware, ...baseContextMiddleware, authedMiddleware, loggingMiddleware],
+		handler: pipe(
+			withBaseContext,
+			withLoggingMiddleware,
+			withErrorHandling,
+			def.handler
+		),
 	});
 };
 
-
-export function createCtx(){
-  const user= getUserFromCookie()
-  return {
-    user,
-    db: enhance(prisma, { user }),
-    logger: createLogger({
-      level: 'info',
-      format: format.json(),
-    }),
-  }
+export function createCtx() {
+	const user = getUserFromCookie();
+	return {
+		user,
+		db: enhance(prisma, { user }),
+		logger: createLogger({
+			level: 'info',
+			format: format.json(),
+		}),
+	};
 }
 ```
+
+and then here is more examples of the API:
 
 ## Define Functions
 
@@ -122,6 +135,31 @@ const createChat = createAuthedServerFn({
 		});
 	},
 });
+```
+
+```ts
+// this is wawy too verbose, the other design is better
+const createChat = serverFn('createChat')
+	.input(
+		z.object({
+			title: z.string(),
+		})
+	)
+	.output(
+		z.object({
+			chat: z.object({
+				id: z.string(),
+				title: z.string(),
+			}),
+		})
+	)
+	.mutation(async ({ input, ctx }) => {
+		return ctx.db.chat.create({
+			data: {
+				title: input.title,
+			},
+		});
+	});
 ```
 
 ## Usage: Inside nested functions

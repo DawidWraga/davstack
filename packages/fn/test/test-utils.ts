@@ -1,51 +1,38 @@
-import { vi, type Mock } from 'vitest';
+// packages/fn/test/test-utils.ts
+import { vi } from 'vitest';
 import { z } from 'zod';
 
-/**
- * Common test data used across tests
- */
-export const testData = {
-	input: z.object({
-		name: z.string(),
-	}),
-	output: z.object({
-		id: z.string(),
-		email: z.string(),
-	}),
-	defaultOutput: {
-		id: '1',
-		email: '',
+// A mock logger to spy on calls
+export const createMockLogger = () => ({
+	info: vi.fn(),
+	error: vi.fn(),
+	warn: vi.fn(),
+	debug: vi.fn(),
+	// Method to clear mocks between tests
+	cleanup: function () {
+		this.info.mockClear();
+		this.error.mockClear();
+		// ... etc
 	},
-	ctx: {
-		user: { id: '1' },
-		db: (() => {}) as any,
-		sb: (() => {}) as any,
+});
+
+// A mock DB client
+export const mockDb = {
+	chat: {
+		create: vi.fn(async (data) => ({ id: 'chat_123', ...data.data })),
 	},
 };
 
-export type PublicActionCtx = {
+// Define shared context types
+export type ServerFnCtx = {
+	logger: ReturnType<typeof createMockLogger>;
+	db: typeof mockDb;
 	user?: { id: string };
 };
+export type AuthedServerFnCtx = Required<ServerFnCtx>;
 
-export type AuthedActionCtx = {
-	user: { id: string };
-};
-
-export const createMockLogger = () => {
-	const log = vi.fn();
-	const error = vi.fn();
-	const warn = vi.fn();
-	const info = vi.fn();
-	const debug = vi.fn();
-	const trace = vi.fn();
-
-	const cleanup = () => {
-		log.mockClear();
-		error.mockClear();
-		warn.mockClear();
-		info.mockClear();
-		debug.mockClear();
-		trace.mockClear();
-	};
-	return { log, error, warn, info, debug, trace, cleanup };
+// Shared Zod schemas
+export const commonSchemas = {
+	createChatInput: z.object({ title: z.string() }),
+	createChatOutput: z.object({ id: z.string(), title: z.string() }),
 };

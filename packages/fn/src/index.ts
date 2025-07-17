@@ -1,4 +1,4 @@
-export * from './fn';
+export * from './create-fn';
 export * from './errors';
 export * from './utils/zod-sensitive';
 export * from './utils/type-utils';
