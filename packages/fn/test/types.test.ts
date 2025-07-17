@@ -56,15 +56,13 @@ describe('Type System', () => {
 			name: 'ping',
 			handler: async ({ input, ctx }) => {
 				expectTypeOf(input).toEqualTypeOf<null>();
-				expectTypeOf(ctx).toEqualTypeOf<unknown>();
+				expectTypeOf(ctx).toEqualTypeOf<{}>();
 				return 'pong';
 			},
 		});
 
 		// Allows calling with no arguments at all
-		expectTypeOf(fn)
-			.parameter(0)
-			.toEqualTypeOf<{ input?: void; ctx?: unknown } | undefined>();
+		expectTypeOf(fn).parameter(0).toEqualTypeOf<{ input?: void; ctx?: {} }>();
 		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
 	});
 });

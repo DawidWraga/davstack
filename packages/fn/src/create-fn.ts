@@ -1,8 +1,11 @@
 /* eslint-disable no-unused-vars */
 import { ZodTypeAny } from 'zod';
 import { FnError } from './errors';
-import { Simplify, zInferInput } from './utils/type-utils';
+import { Simplify, zInfer, zInferInput } from './utils/type-utils';
 import { redactSensitive } from './utils/zod-sensitive';
+
+// Re-export FnError for convenience
+export { FnError };
 
 // #region --- Type Definitions ---
 
@@ -19,7 +22,7 @@ export type FnHandler<
 }) => Promise<TOutput>;
 
 /**
- * The definition object for creating a function. This is the primary input for `createFn`.
+ * The definition object for creating a function. This is the primary input for createFn.
  */
 export type FnDef<
 	TContext extends Record<string, any> | unknown = unknown,
@@ -49,8 +52,8 @@ export type Result<T> =
 
 /**
  * Helper type for function arguments with optional input and context.
- * This allows for calling functions with `myFn()` or `myFn({ ctx })`
- * instead of requiring `myFn({ input: undefined, ctx: undefined })`.
+ * This allows for calling functions with myFn() or myFn({ ctx })
+ * instead of requiring myFn({ input: undefined, ctx: undefined }).
  */
 export type FnArgs<TInput, TContext> = Simplify<
 	(void extends TInput ? { input?: TInput } : { input: TInput }) &
@@ -146,10 +149,10 @@ function enhanceError(
 // #region --- Built-in Middleware ---
 
 /**
- * Normalizes the args object to always have `input` and `ctx`.
+ * Normalizes the args object to always have input and ctx.
  */
 const withDefaults = createMiddleware(({ ctx, input, next }) => {
-	// The `next` call receives the normalized context.
+	// The next call receives the normalized context.
 	return next(ctx ?? {});
 });
 
@@ -228,13 +231,17 @@ const withSafeResultFormatter = createMiddleware(
  * Creates a new function with middleware and validation capabilities.
  *
  * @param def The function definition, including schemas and the handler.
- * @returns A callable function with an attached `.safeCall` method.
+ * @returns A callable function with an attached .safeCall method.
  */
 export function createFn<
-	TContext extends Record<string, any> | unknown,
-	TInputSchema extends ZodTypeAny | undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown,
-	THandler extends FnHandler<TContext, TInputSchema, any>,
+	TContext extends Record<string, any> | unknown = unknown,
+	TInputSchema extends ZodTypeAny | undefined = undefined,
+	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
+	THandler extends FnHandler<TContext, TInputSchema, any> = FnHandler<
+		TContext,
+		TInputSchema,
+		any
+	>,
 >(
 	def: FnDef<TContext, TInputSchema, TOutputSchema, THandler>
 ): Fn<
