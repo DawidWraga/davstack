@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { initCreateFn, createMiddleware, FnError } from '../src';
+import { initCreateFn, FnError } from '../src';
 import {
 	AuthedServerFnCtx,
 	createMockLogger,
 	mockDb,
 	ServerFnCtx,
+	loggingMiddleware,
+	authMiddleware,
+	authedLoggingMiddleware,
+	authedErrorLoggingMiddleware,
+	createTimingMiddleware,
 } from './test-utils';
 
 describe('Clean Composition API', () => {
@@ -13,49 +18,19 @@ describe('Clean Composition API', () => {
 	beforeEach(() => logger.cleanup());
 
 	describe('Middleware Creation', () => {
-		test('should create properly typed logging middleware', () => {
-			const loggingMiddleware = createMiddleware<ServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					ctx.logger.info(`-> Calling '${def.name}'`);
-					const result = await next();
-					ctx.logger.info(`<- Finished '${def.name}'`);
-					return result;
-				}
-			);
-
-			// Test that middleware is properly typed
+		test('should create and use right runtime types', () => {
 			expect(typeof loggingMiddleware).toBe('function');
-		});
-
-		test('should create properly typed auth middleware', () => {
-			const authMiddleware = createMiddleware<AuthedServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					if (!ctx.user?.id) {
-						throw new FnError({
-							code: 'UNAUTHORIZED',
-							message: 'User is not authenticated.',
-						});
-					}
-					return next();
-				}
-			);
-
 			expect(typeof authMiddleware).toBe('function');
+			const timingMiddleware = createTimingMiddleware<ServerFnCtx>();
+			expect(typeof timingMiddleware).toBe('function');
 		});
 	});
 
 	describe('Function Factory Creation', () => {
 		test('should create clean public server function factory', async () => {
-			const loggingMiddleware = createMiddleware<ServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					ctx.logger.info(`-> Calling '${def.name}'`);
-					const result = await next();
-					ctx.logger.info(`<- Finished '${def.name}'`);
-					return result;
-				}
-			);
-
 			const createServerFn = initCreateFn<ServerFnCtx>([loggingMiddleware]);
+
+			expect(typeof createServerFn).toBe('function');
 
 			const getPublicData = createServerFn({
 				name: 'getPublicData',
@@ -64,41 +39,27 @@ describe('Clean Composition API', () => {
 				},
 			});
 
+			expect(typeof getPublicData).toBe('function');
+			expect(typeof getPublicData.safeCall).toBe('function');
+			expect(getPublicData.name).toBe('getPublicData');
+
 			const result = await getPublicData({
 				ctx: { logger, db: mockDb, user: { id: 'user_123' } },
 			});
 
+			expect(typeof result).toBe('string');
 			expect(result).toBe('Public data for user_123');
 			expect(logger.info).toHaveBeenCalledWith("-> Calling 'getPublicData'");
 			expect(logger.info).toHaveBeenCalledWith("<- Finished 'getPublicData'");
 		});
 
 		test('should create clean authed server function factory', async () => {
-			const authMiddleware = createMiddleware<AuthedServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					if (!ctx.user?.id) {
-						throw new FnError({
-							code: 'UNAUTHORIZED',
-							message: 'User is not authenticated.',
-						});
-					}
-					return next();
-				}
-			);
-
-			const loggingMiddleware = createMiddleware<AuthedServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					ctx.logger.info(`-> Calling '${def.name}'`);
-					const result = await next();
-					ctx.logger.info(`<- Finished '${def.name}'`);
-					return result;
-				}
-			);
-
 			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
 				authMiddleware,
-				loggingMiddleware,
+				authedLoggingMiddleware,
 			]);
+
+			expect(typeof createAuthedServerFn).toBe('function');
 
 			const getSecretData = createAuthedServerFn({
 				name: 'getSecretData',
@@ -107,49 +68,47 @@ describe('Clean Composition API', () => {
 				},
 			});
 
+			expect(typeof getSecretData).toBe('function');
+			expect(getSecretData.name).toBe('getSecretData');
+
 			// Should succeed with proper user
 			const result = await getSecretData({
 				ctx: { logger, db: mockDb, user: { id: 'user_123' } },
 			});
 
+			expect(typeof result).toBe('string');
 			expect(result).toBe('Secret data for user_123');
+			expect(logger.info).toHaveBeenCalledWith("-> Calling 'getSecretData'");
+			expect(logger.info).toHaveBeenCalledWith("<- Finished 'getSecretData'");
+		});
 
-			// Should fail without user - but TypeScript should catch this at compile time
-			// since AuthedServerFnCtx requires user to be present
+		test('should throw auth error for unauthenticated requests', async () => {
+			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
+				authMiddleware,
+			]);
+
+			const protectedFn = createAuthedServerFn({
+				name: 'protected',
+				handler: async () => 'secret',
+			});
+
+			// Test with missing user
+			await expect(
+				protectedFn({ ctx: { logger, db: mockDb } } as any)
+			).rejects.toThrow(FnError);
+
+			// Test with undefined user
+			await expect(
+				protectedFn({ ctx: { logger, db: mockDb, user: undefined } } as any)
+			).rejects.toThrow('User is not authenticated');
 		});
 	});
 
 	describe('Complex Nested Function Calls', () => {
 		test('should handle nested function calls with proper context passing', async () => {
-			const loggingMiddleware = createMiddleware<AuthedServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					try {
-						ctx.logger.info(`-> Calling '${def.name}'`);
-						const result = await next();
-						ctx.logger.info(`<- Finished '${def.name}'`);
-						return result;
-					} catch (error) {
-						ctx.logger.error(error, `Error in '${def.name}'`);
-						throw error;
-					}
-				}
-			);
-
-			const authMiddleware = createMiddleware<AuthedServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					if (!ctx.user?.id) {
-						throw new FnError({
-							code: 'UNAUTHORIZED',
-							message: 'User is not authenticated.',
-						});
-					}
-					return next();
-				}
-			);
-
 			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
 				authMiddleware,
-				loggingMiddleware,
+				authedErrorLoggingMiddleware,
 			]);
 
 			// Create individual functions
@@ -188,11 +147,13 @@ describe('Clean Composition API', () => {
 				},
 			});
 
+			// Test successful flow
 			const user = { id: 'user_with_credits' };
 			const result = await sendWelcomeText({
 				ctx: { logger, db: mockDb, user },
 			});
 
+			expect(typeof result).toBe('object');
 			expect(result.success).toBe(true);
 
 			// Verify the logger was called for all functions in the chain
@@ -200,38 +161,137 @@ describe('Clean Composition API', () => {
 			expect(logger.info).toHaveBeenCalledWith("-> Calling 'checkCredits'");
 			expect(logger.info).toHaveBeenCalledWith("-> Calling 'sendSms'");
 		});
+
+		test('should handle errors in nested calls', async () => {
+			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
+				authMiddleware,
+				authedErrorLoggingMiddleware,
+			]);
+
+			const failingFn = createAuthedServerFn({
+				name: 'failing',
+				handler: async () => {
+					throw new Error('Something went wrong');
+				},
+			});
+
+			const callerFn = createAuthedServerFn({
+				name: 'caller',
+				handler: async ({ ctx }) => {
+					return await failingFn({ ctx });
+				},
+			});
+
+			await expect(
+				callerFn({ ctx: { logger, db: mockDb, user: { id: 'test' } } })
+			).rejects.toThrow('Something went wrong');
+
+			expect(logger.error).toHaveBeenCalledWith(
+				expect.any(Error),
+				"Error in 'failing'"
+			);
+		});
 	});
 
 	describe('Array-style middleware composition', () => {
 		test('should support array-style middleware initialization', async () => {
-			const middleware1 = createMiddleware<ServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					ctx.logger.info('middleware1');
-					return next();
-				}
-			);
-
-			const middleware2 = createMiddleware<ServerFnCtx>(
-				async ({ ctx, input, def, next }) => {
-					ctx.logger.info('middleware2');
-					return next();
-				}
-			);
-
 			const createServerFn = initCreateFn<ServerFnCtx>([
-				middleware1,
-				middleware2,
+				loggingMiddleware,
+				createTimingMiddleware<ServerFnCtx>(),
 			]);
+
+			expect(typeof createServerFn).toBe('function');
 
 			const testFn = createServerFn({
 				name: 'test',
 				handler: async () => 'result',
 			});
 
-			await testFn({ ctx: { logger, db: mockDb } });
+			const result = await testFn({ ctx: { logger, db: mockDb } });
 
-			expect(logger.info).toHaveBeenCalledWith('middleware1');
-			expect(logger.info).toHaveBeenCalledWith('middleware2');
+			expect(typeof result).toBe('string');
+			expect(result).toBe('result');
+			expect(logger.info).toHaveBeenCalledWith("-> Calling 'test'");
+			expect(logger.info).toHaveBeenCalledWith("<- Finished 'test'");
+			expect(logger.info).toHaveBeenCalledWith(
+				expect.stringMatching(/'test' took \d+ms/)
+			);
+		});
+
+		test('should handle empty middleware array', async () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			expect(typeof createServerFn).toBe('function');
+
+			const simpleFn = createServerFn({
+				name: 'simple',
+				handler: async () => ({ message: 'no middleware' }),
+			});
+
+			const result = await simpleFn({ ctx: { logger, db: mockDb } });
+
+			expect(typeof result).toBe('object');
+			expect(result.message).toBe('no middleware');
+		});
+
+		test('should handle middleware without explicit array parameter', async () => {
+			const createServerFn = initCreateFn<ServerFnCtx>();
+
+			expect(typeof createServerFn).toBe('function');
+
+			const defaultFn = createServerFn({
+				name: 'default',
+				handler: async () => 'default behavior',
+			});
+
+			const result = await defaultFn({ ctx: { logger, db: mockDb } });
+
+			expect(typeof result).toBe('string');
+			expect(result).toBe('default behavior');
+		});
+	});
+
+	describe('SafeCall behavior', () => {
+		test('should return proper result structure from safeCall', async () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const testFn = createServerFn({
+				name: 'safeTest',
+				inputSchema: z.object({ value: z.string() }),
+				handler: async ({ input }) => ({
+					processed: input.value.toUpperCase(),
+				}),
+			});
+
+			const result = await testFn.safeCall({
+				input: { value: 'hello' },
+				ctx: { logger, db: mockDb },
+			});
+
+			expect(typeof result).toBe('object');
+			expect(result).toHaveProperty('data');
+			expect(result).toHaveProperty('error');
+			expect(result.error).toBeNull();
+			expect(result.data).toEqual({ processed: 'HELLO' });
+		});
+
+		test('should handle validation errors in safeCall', async () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const testFn = createServerFn({
+				name: 'validationTest',
+				inputSchema: z.object({ value: z.string() }),
+				handler: async ({ input }) => input.value,
+			});
+
+			const result = await testFn.safeCall({
+				input: { value: 123 } as any, // Invalid input
+				ctx: { logger, db: mockDb },
+			});
+
+			expect(typeof result).toBe('object');
+			expect(result.data).toBeNull();
+			expect(result.error).toBeInstanceOf(FnError);
 		});
 	});
 });
