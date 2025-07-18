@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-import { ZodTypeAny } from 'zod';
+
 import { FnError } from './errors';
-import { Simplify, zInfer, zInferInput } from './utils/type-utils';
+import { Simplify, zInfer, zInferInput, ZodTypeAny } from './utils/type-utils';
 
 // Re-export FnError for convenience
 export { FnError };
@@ -28,7 +28,7 @@ type AnyObject = Record<string, any>;
 export type FnHandler<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
-	TContext extends AnyObject = AnyObject,
+	TContext extends AnyObject | undefined = undefined,
 > = (args: {
 	input: InferInput<TInputSchema>;
 	ctx: TContext;
@@ -42,7 +42,7 @@ export type FnHandler<
 export type FnDef<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
-	TContext extends AnyObject = AnyObject,
+	TContext extends AnyObject | undefined = undefined,
 > = {
 	name: string;
 	description?: string;
@@ -73,9 +73,14 @@ export type OptionallyRequiredField<
 /**
  * Helper type for function arguments with optional input and context.
  */
+// export type FnArgs<TInput = void, TContext extends AnyObject | undefined = undefined> = {
+// 	input: TInput;
+// 	ctx: TContext;
+// };
+
 export type FnArgs<
 	TInput = void,
-	TContext extends AnyObject = AnyObject,
+	TContext extends AnyObject | undefined = undefined,
 > = Simplify<
 	OptionallyRequiredField<
 		'input',
@@ -97,7 +102,7 @@ export type FnArgs<
 export type Fn<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
-	TContext extends AnyObject = AnyObject,
+	TContext extends AnyObject | undefined = undefined,
 	THandler extends FnHandler<TInputSchema, TOutputSchema, TContext> = FnHandler<
 		TInputSchema,
 		TOutputSchema,
@@ -127,8 +132,8 @@ type AnyFnDef = {
 };
 
 export type Middleware<
-	TContext extends AnyObject = AnyObject,
-	TNewContext extends AnyObject = TContext,
+	TContext extends AnyObject | undefined = undefined,
+	TNewContext extends AnyObject | undefined = TContext,
 > = (opts: {
 	ctx: TContext;
 	input: unknown;
@@ -140,8 +145,8 @@ export type Middleware<
  * Helper to create properly typed middleware.
  */
 export function createMiddleware<
-	TContext extends AnyObject = AnyObject,
-	TNewContext extends AnyObject = TContext,
+	TContext extends AnyObject | undefined = undefined,
+	TNewContext extends AnyObject | undefined = TContext,
 >(
 	middlewareFn: Middleware<TContext, TNewContext>
 ): Middleware<TContext, TNewContext> {
@@ -195,21 +200,13 @@ function enhanceError(error: unknown, def: AnyFnDef, input: unknown): FnError {
 // #region --- Default Middleware ---
 
 /**
- * Normalizes the args object to always have input and ctx.
- */
-const withDefaults = createMiddleware(({ ctx, input, next }) => {
-	// The next call receives the normalized context.
-	return next(ctx ?? {});
-});
-
-/**
  * Input validation middleware.
  */
 const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 	const schema = def.inputSchema;
 	if (!schema) return next(ctx);
 
-	const result = schema.safeParse(input);
+	const result = (schema as any).safeParse(input);
 	if (!result.success) {
 		throw new FnError({
 			code: 'INVALID_INPUT',
@@ -280,7 +277,7 @@ const withSafeResultFormatter = createMiddleware(
 export function createFn<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
-	TContext extends AnyObject = AnyObject,
+	TContext extends AnyObject | undefined = undefined,
 	// need it for inferring the return type of the handler
 	THandler extends FnHandler<TInputSchema, TOutputSchema, TContext> = FnHandler<
 		TInputSchema,
@@ -304,11 +301,8 @@ export function createFn<
 	};
 
 	// The pipeline for the direct, throwing call.
-	const directCall = async (
-		args: FnArgs<TInput, TContext>
-	): Promise<TOutput> => {
+	const directCall = async (args: any) => {
 		const callMiddleware: Middleware<any>[] = [
-			withDefaults,
 			withThrowingErrorHandler,
 			...(def.middleware || []),
 		];
@@ -326,7 +320,6 @@ export function createFn<
 		const safeCallMiddleware: Middleware<any>[] = [
 			withSafeResultFormatter, // 1. (Outer) Formats the final result.
 			withThrowingErrorHandler, // 2. Catches and enhances any errors.
-			withDefaults, // 3. Normalizes arguments.
 			withInputValidation, // 4. Validates input schema.
 			...(def.middleware || []), // 5. Executes user-defined middleware.
 			withOutputValidation, // 6. (Inner) Validates output schema.
@@ -358,9 +351,9 @@ export function createFn<
  * Primary initialization function - creates a function factory with pre-configured middleware.
  * Only stores the context type, schema inference happens in the returned createFn calls.
  */
-export function initCreateFn<TContext extends AnyObject = AnyObject>(
-	middlewares?: Middleware<any>[]
-) {
+export function initCreateFn<
+	TContext extends AnyObject | undefined = undefined,
+>(middlewares?: Middleware<any>[]) {
 	return <
 		TInputSchema extends ZodTypeAny | undefined = undefined,
 		TOutputSchema extends ZodTypeAny | undefined = undefined,

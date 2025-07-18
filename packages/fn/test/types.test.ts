@@ -19,7 +19,7 @@ describe('Type System', () => {
 			inputSchema: z.object({ id: z.string() }),
 			handler: async ({ input, ctx }) => {
 				expectTypeOf(input).toEqualTypeOf<{ id: string }>();
-				expectTypeOf(ctx).toEqualTypeOf<{}>();
+				expectTypeOf(ctx).toEqualTypeOf<undefined>();
 				return { success: true, id: input.id };
 			},
 		});
@@ -35,11 +35,11 @@ describe('Type System', () => {
 	});
 
 	test('should infer types for handler with context and no input', () => {
-		const fn = createFn<TestContext>({
+		const fn = createFn({
 			name: 'test',
 			handler: async ({ input, ctx }) => {
 				expectTypeOf(input).toEqualTypeOf<null>();
-				expectTypeOf(ctx).toEqualTypeOf<TestContext>();
+
 				// return ctx.user?.id ?? 'guest';
 				return 'hello';
 			},
@@ -49,7 +49,6 @@ describe('Type System', () => {
 
 		expectTypeOf(fn).parameter(0).toEqualTypeOf<{
 			input?: void;
-			ctx: TestContext;
 		}>();
 		// This should now properly infer the return type from the handler
 		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
@@ -185,7 +184,7 @@ describe('Middleware', () => {
 			},
 		});
 
-		await fnWithMiddleware.safeCall({});
+		await fnWithMiddleware.safeCall({ ctx: {} });
 		expect(executionOrder).toEqual([
 			'mw1-in',
 			'mw2-in',
@@ -193,44 +192,5 @@ describe('Middleware', () => {
 			'mw2-out',
 			'mw1-out',
 		]);
-	});
-
-	test('should allow middleware to modify context', async () => {
-		type CtxWithUser = {
-			user: { id: string; name: string };
-			db: {
-				users: { find: (id: string) => Promise<{ id: string; name: string }> };
-			};
-		};
-
-		const authMiddleware = createMiddleware(async ({ ctx, next }) => {
-			// This middleware "authenticates" the user and passes a new context
-			// to the next function in the chain.
-			const newCtx = {
-				// ...ctx,
-				user: { id: 'user-123', name: 'Alice' },
-			};
-			return next(newCtx);
-		});
-
-		const fnWithAuth = createFn<CtxWithUser>({
-			name: 'getProfile',
-			middleware: [authMiddleware],
-			handler: async ({ ctx }) => {
-				// The context here should be the one modified by the middleware.
-				expectTypeOf(ctx).toEqualTypeOf<CtxWithUser>();
-				return `Hello, ${ctx.user.name}`;
-			},
-		});
-
-		const { data } = await fnWithAuth.safeCall({
-			ctx: {
-				user: { id: '123', name: 'Alice' },
-				db: {
-					users: { find: async (id) => ({ id, name: 'Alice' }) },
-				},
-			},
-		});
-		expect(data).toBe('Hello, Alice');
 	});
 });

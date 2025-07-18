@@ -79,6 +79,10 @@ export default defineWorkspace([
 			name: 'fn',
 			root: './packages/fn',
 			environment: 'node',
+			typecheck: {
+				enabled: true,
+				include: ['**/*.test.ts'],
+			},
 		},
 	},
 	// {

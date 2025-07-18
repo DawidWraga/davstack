@@ -388,9 +388,6 @@ importers:
       superjson:
         specifier: ^2.2.1
         version: 2.2.1
-      zod:
-        specifier: ^4.0.5
-        version: 4.0.5
     devDependencies:
       '@davstack/eslint-config':
         specifier: workspace:*
@@ -416,6 +413,9 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.4.3
+      zod:
+        specifier: '>=3.25.0'
+        version: 3.25.76
 
   packages/service:
     dependencies:
@@ -12483,9 +12483,9 @@ packages:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
     dev: false
 
-  /zod@4.0.5:
-    resolution: {integrity: sha512-/5UuuRPStvHXu7RS+gmvRf4NXrNxpSllGwDnCBcJZtQsKrviYXm54yDGV2KYNLT5kq0lHGcl7lqWJLgSaG+tgA==}
-    dev: false
+  /zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+    dev: true
 
   /zustand@4.5.2(@types/react@18.2.61)(immer@10.0.4)(react@18.2.0):
     resolution: {integrity: sha512-2cN1tPkDVkwCy5ickKrI7vijSjPksFRfqS6237NzT0vqSsztTNnQdHw9mmN7uBdk3gceVXU0a+21jFzFzAc9+g==}
