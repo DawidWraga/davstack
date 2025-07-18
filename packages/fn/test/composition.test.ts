@@ -12,6 +12,7 @@ import {
 	authedErrorLoggingMiddleware,
 	createTimingMiddleware,
 } from './test-utils';
+import { expectTypeOf } from 'vitest';
 
 describe('Clean Composition API', () => {
 	const logger = createMockLogger();
@@ -292,6 +293,332 @@ describe('Clean Composition API', () => {
 			expect(typeof result).toBe('object');
 			expect(result.data).toBeNull();
 			expect(result.error).toBeInstanceOf(FnError);
+		});
+	});
+
+	describe('Input and Context Type Inference', () => {
+		test('should properly infer simple input types inside handler', () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const simpleInputFn = createServerFn({
+				name: 'simpleInput',
+				inputSchema: z.object({
+					title: z.string(),
+					count: z.number(),
+				}),
+				handler: async ({ input, ctx }) => {
+					// Type assertions for input
+					expectTypeOf(input).toEqualTypeOf<{
+						title: string;
+						count: number;
+					}>();
+					expectTypeOf(input.title).toEqualTypeOf<string>();
+					expectTypeOf(input.count).toEqualTypeOf<number>();
+
+					// Type assertions for context
+					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
+
+					return `${input.title}: ${input.count}`;
+				},
+			});
+
+			// Verify function call signature
+			expectTypeOf(simpleInputFn).parameter(0).toEqualTypeOf<{
+				input: { title: string; count: number };
+				ctx: ServerFnCtx;
+			}>();
+			expectTypeOf(simpleInputFn).returns.resolves.toEqualTypeOf<string>();
+		});
+
+		test('should properly infer complex nested input types', () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const complexInputFn = createServerFn({
+				name: 'complexInput',
+				inputSchema: z.object({
+					user: z.object({
+						id: z.string(),
+						profile: z.object({
+							name: z.string(),
+							age: z.number().optional(),
+						}),
+					}),
+					metadata: z.record(z.any()).optional(),
+					tags: z.array(z.string()),
+				}),
+				handler: async ({ input, ctx }) => {
+					// Type assertions for nested input structure
+					expectTypeOf(input).toEqualTypeOf<{
+						user: {
+							id: string;
+							profile: {
+								name: string;
+								age?: number;
+							};
+						};
+						metadata?: Record<string, any>;
+						tags: string[];
+					}>();
+
+					expectTypeOf(input.user.id).toEqualTypeOf<string>();
+					expectTypeOf(input.user.profile.name).toEqualTypeOf<string>();
+					expectTypeOf(input.user.profile.age).toEqualTypeOf<
+						number | undefined
+					>();
+					expectTypeOf(input.metadata).toEqualTypeOf<
+						Record<string, any> | undefined
+					>();
+					expectTypeOf(input.tags).toEqualTypeOf<string[]>();
+
+					// Context should remain unchanged
+					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
+
+					return { success: true, userId: input.user.id };
+				},
+			});
+
+			expectTypeOf(complexInputFn).parameter(0).toMatchTypeOf<{
+				input: {
+					user: {
+						id: string;
+						profile: {
+							name: string;
+							age?: number;
+						};
+					};
+					metadata?: Record<string, any>;
+					tags: string[];
+				};
+				ctx: ServerFnCtx;
+			}>();
+		});
+
+		test('should handle no input schema correctly', () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const noInputFn = createServerFn({
+				name: 'noInput',
+				handler: async ({ input, ctx }) => {
+					// When no input schema is provided, input should be void
+					expectTypeOf(input).toEqualTypeOf<void>();
+					expectTypeOf(ctx).toEqualTypeOf<ServerFnCtx>();
+
+					return 'no input needed';
+				},
+			});
+
+			expectTypeOf(noInputFn).parameter(0).toEqualTypeOf<{
+				input?: void;
+				ctx: ServerFnCtx;
+			}>();
+		});
+
+		test('should properly infer authed context types in handler', () => {
+			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
+				authMiddleware,
+			]);
+
+			const authedFn = createAuthedServerFn({
+				name: 'authedFunction',
+				inputSchema: z.object({
+					action: z.enum(['create', 'update', 'delete']),
+				}),
+				handler: async ({ input, ctx }) => {
+					// Input type should be properly inferred
+					expectTypeOf(input).toEqualTypeOf<{
+						action: 'create' | 'update' | 'delete';
+					}>();
+					expectTypeOf(input.action).toEqualTypeOf<
+						'create' | 'update' | 'delete'
+					>();
+
+					// Context should be the authed version with required user
+					expectTypeOf(ctx).toEqualTypeOf<AuthedServerFnCtx>();
+					expectTypeOf(ctx.user).toEqualTypeOf<{ id: string }>();
+					expectTypeOf(ctx.user.id).toEqualTypeOf<string>();
+
+					return { action: input.action, userId: ctx.user.id };
+				},
+			});
+
+			expectTypeOf(authedFn).parameter(0).toEqualTypeOf<{
+				input: { action: 'create' | 'update' | 'delete' };
+				ctx: AuthedServerFnCtx;
+			}>();
+		});
+
+		test('should properly infer union and literal types', () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const unionTypeFn = createServerFn({
+				name: 'unionTypes',
+				inputSchema: z.object({
+					status: z.union([
+						z.literal('active'),
+						z.literal('inactive'),
+						z.literal('pending'),
+					]),
+					priority: z.enum(['low', 'medium', 'high']),
+					value: z.union([z.string(), z.number()]),
+				}),
+				handler: async ({ input, ctx }) => {
+					expectTypeOf(input).toEqualTypeOf<{
+						status: 'active' | 'inactive' | 'pending';
+						priority: 'low' | 'medium' | 'high';
+						value: string | number;
+					}>();
+
+					expectTypeOf(input.status).toEqualTypeOf<
+						'active' | 'inactive' | 'pending'
+					>();
+					expectTypeOf(input.priority).toEqualTypeOf<
+						'low' | 'medium' | 'high'
+					>();
+					expectTypeOf(input.value).toEqualTypeOf<string | number>();
+
+					return {
+						processedStatus: input.status,
+						processedPriority: input.priority,
+						processedValue: input.value,
+					};
+				},
+			});
+
+			expectTypeOf(unionTypeFn).returns.resolves.toEqualTypeOf<{
+				processedStatus: 'active' | 'inactive' | 'pending';
+				processedPriority: 'low' | 'medium' | 'high';
+				processedValue: string | number;
+			}>();
+		});
+
+		test('should properly infer types through middleware chain', () => {
+			const createAuthedServerFn = initCreateFn<AuthedServerFnCtx>([
+				authMiddleware,
+				authedLoggingMiddleware,
+			]);
+
+			const middlewareChainFn = createAuthedServerFn({
+				name: 'middlewareChain',
+				inputSchema: z.object({
+					data: z.object({
+						items: z.array(
+							z.object({
+								id: z.string(),
+								value: z.number(),
+							})
+						),
+					}),
+				}),
+				handler: async ({ input, ctx }) => {
+					// Even with middleware chain, types should be preserved
+					expectTypeOf(input).toEqualTypeOf<{
+						data: {
+							items: Array<{
+								id: string;
+								value: number;
+							}>;
+						};
+					}>();
+
+					expectTypeOf(input.data.items).toEqualTypeOf<
+						Array<{
+							id: string;
+							value: number;
+						}>
+					>();
+
+					// Context should still be the correct authed type
+					expectTypeOf(ctx).toEqualTypeOf<AuthedServerFnCtx>();
+					expectTypeOf(ctx.user.id).toEqualTypeOf<string>();
+
+					return input.data.items.map((item) => ({
+						...item,
+						processed: true,
+					}));
+				},
+			});
+
+			expectTypeOf(middlewareChainFn).returns.resolves.toEqualTypeOf<
+				Array<{
+					id: string;
+					value: number;
+					processed: boolean;
+				}>
+			>();
+		});
+
+		test('should handle optional input fields correctly', () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const optionalFieldsFn = createServerFn({
+				name: 'optionalFields',
+				inputSchema: z.object({
+					required: z.string(),
+					optional: z.string().optional(),
+					withDefault: z.string().default('default-value'),
+					nullable: z.string().nullable(),
+				}),
+				handler: async ({ input, ctx }) => {
+					expectTypeOf(input).toEqualTypeOf<{
+						required: string;
+						optional?: string;
+						withDefault: string;
+						nullable: string | null;
+					}>();
+
+					expectTypeOf(input.required).toEqualTypeOf<string>();
+					expectTypeOf(input.optional).toEqualTypeOf<string | undefined>();
+					expectTypeOf(input.withDefault).toEqualTypeOf<string>();
+					expectTypeOf(input.nullable).toEqualTypeOf<string | null>();
+
+					return {
+						required: input.required,
+						hasOptional: input.optional !== undefined,
+						withDefault: input.withDefault,
+						isNullable: input.nullable === null,
+					};
+				},
+			});
+
+			expectTypeOf(optionalFieldsFn).parameter(0).toMatchTypeOf<{
+				input: {
+					required: string;
+					optional?: string;
+					withDefault?: string; // Zod default makes this optional in input
+					nullable: string | null;
+				};
+				ctx: ServerFnCtx;
+			}>();
+		});
+
+		test('should properly type safeCall results', async () => {
+			const createServerFn = initCreateFn<ServerFnCtx>([]);
+
+			const typedFn = createServerFn({
+				name: 'typedSafeCall',
+				inputSchema: z.object({ value: z.number() }),
+				handler: async ({ input }) => ({
+					doubled: input.value * 2,
+					original: input.value,
+				}),
+			});
+
+			const result = await typedFn.safeCall({
+				input: { value: 42 },
+				ctx: { logger: createMockLogger(), db: mockDb },
+			});
+
+			expectTypeOf(result).toEqualTypeOf<{
+				data: { doubled: number; original: number } | null;
+				error: FnError | Error | null;
+			}>();
+
+			if (result.error === null) {
+				expectTypeOf(result.data).toEqualTypeOf<{
+					doubled: number;
+					original: number;
+				} | null>();
+			}
 		});
 	});
 });

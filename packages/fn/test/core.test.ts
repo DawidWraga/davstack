@@ -48,7 +48,7 @@ describe('Core `createFn` API', () => {
 				},
 			});
 
-			const result = await getChat();
+			const result = await getChat({ ctx });
 			expect(result).toBe('hello world');
 			expectTypeOf(result).toEqualTypeOf<string>();
 		});
