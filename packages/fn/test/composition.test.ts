@@ -343,7 +343,7 @@ describe('Clean Composition API', () => {
 							age: z.number().optional(),
 						}),
 					}),
-					metadata: z.record(z.any()).optional(),
+					metadata: z.record(z.any(), z.any()).optional(),
 					tags: z.array(z.string()),
 				}),
 				handler: async ({ input, ctx }) => {
@@ -561,14 +561,14 @@ describe('Clean Composition API', () => {
 				handler: async ({ input, ctx }) => {
 					expectTypeOf(input).toEqualTypeOf<{
 						required: string;
-						optional?: string;
-						withDefault: string;
+						optional?: string | undefined;
+						withDefault?: string | undefined;
 						nullable: string | null;
 					}>();
 
 					expectTypeOf(input.required).toEqualTypeOf<string>();
 					expectTypeOf(input.optional).toEqualTypeOf<string | undefined>();
-					expectTypeOf(input.withDefault).toEqualTypeOf<string>();
+					expectTypeOf(input.withDefault).toEqualTypeOf<string | undefined>();
 					expectTypeOf(input.nullable).toEqualTypeOf<string | null>();
 
 					return {
@@ -608,16 +608,30 @@ describe('Clean Composition API', () => {
 				ctx: { logger: createMockLogger(), db: mockDb },
 			});
 
-			expectTypeOf(result).toEqualTypeOf<{
-				data: { doubled: number; original: number } | null;
-				error: FnError | Error | null;
-			}>();
+			type SuccessResult = {
+				data: { doubled: number; original: number };
+				error: null;
+			};
+			type ErrorResult = {
+				data: null;
+				error: FnError | Error;
+			};
+
+			expectTypeOf(result).toEqualTypeOf<SuccessResult | ErrorResult>();
 
 			if (result.error === null) {
+				expectTypeOf(result).toEqualTypeOf<SuccessResult>();
+			} else {
+				expectTypeOf(result).toEqualTypeOf<ErrorResult>();
+			}
+
+			if (!result.error) {
 				expectTypeOf(result.data).toEqualTypeOf<{
 					doubled: number;
 					original: number;
-				} | null>();
+				}>();
+			} else {
+				expectTypeOf(result.error).toEqualTypeOf<FnError | Error>();
 			}
 		});
 	});
