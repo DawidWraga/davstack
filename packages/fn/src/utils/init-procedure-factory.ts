@@ -30,33 +30,34 @@ import { Fn, zInfer } from '..';
  * type gymnastics.
  */
 export function initProcedureFactory<
-	TProcedureBuilder extends AnyProcedureBuilder
+	TProcedureBuilder extends AnyProcedureBuilder,
 >(procedureBuilder: TProcedureBuilder) {
 	return function createTrpcProcedureFromFn<
 		TFn extends {
 			inputSchema?: ZodTypeAny;
-			type?: 'mutation' | 'query';
-			resolver: (...args: any[]) => Promise<any>;
-		}
-	>(fn: TFn & { (...args: any[]): Promise<any> }) {
-		if (!fn.resolver) {
-			throw new Error('Resolver not defined');
+			handler: (...args: any[]) => Promise<any>;
+		},
+		TType extends 'mutation' | 'query',
+	>(fn: TFn & { (...args: any[]): Promise<any> }, type: TType) {
+		if (!fn.handler) {
+			throw new Error('Handler not defined');
 		}
 
 		type InputType = TFn['inputSchema'] extends ZodTypeAny
 			? zInfer<TFn['inputSchema']>
 			: void;
 
-		type OutputType = ReturnType<TFn['resolver']> extends Promise<infer TOutput>
-			? TOutput
-			: never;
+		type OutputType =
+			ReturnType<TFn['handler']> extends Promise<infer TOutput>
+				? TOutput
+				: never;
 
 		type InputOutput = {
 			input: InputType;
 			output: OutputType;
 		};
 
-		type ProcedureResult = TFn['type'] extends 'mutation'
+		type ProcedureResult = TType extends 'mutation'
 			? MutationProcedure<InputOutput>
 			: QueryProcedure<InputOutput>;
 
@@ -75,13 +76,13 @@ export function initProcedureFactory<
 			}
 		};
 
-		if (fn.type === 'mutation') {
+		if (type === 'mutation') {
 			return procedureBuilder
 				.input(inputSchema)
 				.mutation(handler) as unknown as ProcedureResult;
 		}
 
-		if (fn.type === 'query') {
+		if (type === 'query') {
 			return procedureBuilder
 				.input(inputSchema)
 				.query(handler) as unknown as ProcedureResult;
