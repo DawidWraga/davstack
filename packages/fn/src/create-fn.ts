@@ -9,6 +9,18 @@ export { FnError };
 
 // #region --- Fn Types ---
 
+type InferInput<TInputSchema> = TInputSchema extends ZodTypeAny
+	? zInferInput<TInputSchema>
+	: void;
+
+type InferOutput<TOutputSchema, THandler> = TOutputSchema extends ZodTypeAny
+	? zInfer<TOutputSchema>
+	: THandler extends (...args: any[]) => Promise<infer R>
+		? R
+		: THandler extends (...args: any[]) => infer R
+			? R
+			: any;
+
 type AnyObject = Record<string, any>;
 
 /**
@@ -19,7 +31,7 @@ export type FnHandler<
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
 	TContext extends AnyObject = AnyObject,
 > = (args: {
-	input: TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void;
+	input: InferInput<TInputSchema>;
 	ctx: TContext;
 }) => TOutputSchema extends ZodTypeAny
 	? zInfer<TOutputSchema> | Promise<zInfer<TOutputSchema>>
@@ -260,21 +272,6 @@ const withSafeResultFormatter = createMiddleware(
 // #endregion
 
 // #region --- createFn ---
-
-/**
- * Helper types for schema inference - only used inside createFn
- */
-type InferInput<TInputSchema> = TInputSchema extends ZodTypeAny
-	? zInferInput<TInputSchema>
-	: void;
-
-type InferOutput<TOutputSchema, THandler> = TOutputSchema extends ZodTypeAny
-	? zInfer<TOutputSchema>
-	: THandler extends (...args: any[]) => Promise<infer R>
-		? R
-		: THandler extends (...args: any[]) => infer R
-			? R
-			: any;
 
 /**
  * Creates a new function with middleware and validation capabilities.
