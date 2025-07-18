@@ -281,20 +281,17 @@ export function createFn<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
 	TContext extends AnyObject = AnyObject,
+	// need it for inferring the return type of the handler
 	THandler extends FnHandler<TInputSchema, TOutputSchema, TContext> = FnHandler<
 		TInputSchema,
 		TOutputSchema,
 		TContext
 	>,
->(def: {
-	name: string;
-	description?: string;
-	tags?: string[];
-	inputSchema?: TInputSchema;
-	outputSchema?: TOutputSchema;
-	handler: THandler;
-	middleware?: Middleware<any>[];
-}): Fn<TInputSchema, TOutputSchema, TContext, THandler> {
+>(
+	def: FnDef<TInputSchema, TOutputSchema, TContext> & {
+		handler: THandler;
+	}
+): Fn<TInputSchema, TOutputSchema, TContext, THandler> {
 	// Infer the clean types from schemas/handler
 	type TInput = InferInput<TInputSchema>;
 	type TOutput = InferOutput<TOutputSchema, THandler>;
@@ -372,15 +369,11 @@ export function initCreateFn<TContext extends AnyObject = AnyObject>(
 			TOutputSchema,
 			TContext
 		> = FnHandler<TInputSchema, TOutputSchema, TContext>,
-	>(def: {
-		name: string;
-		description?: string;
-		tags?: string[];
-		inputSchema?: TInputSchema;
-		outputSchema?: TOutputSchema;
-		handler: THandler;
-		middleware?: Middleware<any>[];
-	}): Fn<TInputSchema, TOutputSchema, TContext, THandler> =>
+	>(
+		def: FnDef<TInputSchema, TOutputSchema, TContext> & {
+			handler: THandler;
+		}
+	): Fn<TInputSchema, TOutputSchema, TContext, THandler> =>
 		createFn<TInputSchema, TOutputSchema, TContext, THandler>({
 			...def,
 			middleware: [
