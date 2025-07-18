@@ -2,7 +2,6 @@
 import { ZodTypeAny } from 'zod';
 import { FnError } from './errors';
 import { Simplify, zInfer, zInferInput } from './utils/type-utils';
-import { redactSensitive } from './utils/zod-sensitive';
 
 // Re-export FnError for convenience
 export { FnError };
@@ -185,7 +184,8 @@ function enhanceError(error: unknown, def: AnyFnDef, input: unknown): FnError {
 	return FnError.from(error, {
 		meta: {
 			functionName: def.name,
-			input: redactSensitive(input, def.inputSchema),
+			input,
+			// input: redactSensitive(input, def.inputSchema),
 		},
 	});
 }

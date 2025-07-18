@@ -55,4 +55,3 @@ export function getMaybeFormDataValue<T>(value: T | FormData): T {
 
 	return value;
 }
-
