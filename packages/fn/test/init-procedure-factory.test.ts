@@ -13,9 +13,9 @@ describe('initProcedureFactory', () => {
 		const mockProcedureBuilder = {} as any;
 
 		// Create factory
-		const factory = initProcedureFactory(mockProcedureBuilder);
+		const createFnProcedure = initProcedureFactory(mockProcedureBuilder);
 
 		// Verify factory is a function
-		expect(typeof factory).toBe('function');
+		expect(typeof createFnProcedure).toBe('function');
 	});
 });
