@@ -104,9 +104,7 @@ export type FnArgs<
 	// Maybe input
 	(TInput extends undefined | void ? { input?: void } : { input: TInput }) &
 		// Maybe context
-		(TContext extends undefined | void
-			? { ctx?: undefined }
-			: { ctx: TContext })
+		(TContext extends undefined ? { ctx?: undefined } : { ctx: TContext })
 >;
 
 /**
