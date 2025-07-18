@@ -9,35 +9,35 @@ export { FnError };
 
 // #region --- Fn Types ---
 
+type AnyObject = Record<string, any>;
+type EmptyObject = Record<string, never>;
+
 /**
  * The core handler function's signature, generic over schemas for inference.
  */
 export type FnHandler<
-	TContext extends Record<string, any> | unknown = unknown,
-	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutput = unknown,
-> = (args: {
-	input: TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : null;
-	ctx: Simplify<TContext>;
-}) => TOutput extends unknown ? void : TOutput;
+	TInput = void,
+	TOutput = void,
+	TContext extends AnyObject = EmptyObject,
+> = (args: { input: TInput; ctx: TContext }) => TOutput;
 
 /**
  * The definition object for creating a function. This is the primary input for createFn.
  */
 export type FnDef<
-	TContext extends Record<string, any> | unknown = unknown,
-	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown = undefined,
+	TInput = void,
+	TOutput = void,
+	TContext extends AnyObject = EmptyObject,
 > = {
 	name: string;
 	description?: string;
 	tags?: string[];
-	inputSchema?: TInputSchema;
-	outputSchema?: TOutputSchema;
+	inputSchema?: ZodTypeAny;
+	outputSchema?: ZodTypeAny;
 	// The handler is typed generally here; createFn will enforce a more specific type.
-	handler: FnHandler<any, TInputSchema, any>;
+	handler: FnHandler<TInput, TOutput, TContext>;
 	// Middleware array is flexible to allow chaining context transformations.
-	middleware?: Middleware<any>[];
+	middleware?: Middleware<TContext>[];
 };
 
 /**
@@ -62,7 +62,10 @@ export type OptionallyRequiredField<
  * This allows for calling functions with myFn() or myFn({ ctx })
  * instead of requiring myFn({ input: undefined, ctx: undefined }).
  */
-export type FnArgs<TInput, TContext> = Simplify<
+export type FnArgs<
+	TInput = void,
+	TContext extends AnyObject = EmptyObject,
+> = Simplify<
 	OptionallyRequiredField<
 		'input',
 		TInput,
@@ -82,43 +85,33 @@ export type FnArgs<TInput, TContext> = Simplify<
  * It is generic over the clean data types for a better developer experience.
  */
 export type Fn<
-	TContext = unknown,
 	TInput = void,
-	TOutput = unknown,
-	THandler extends FnHandler<any, any, unknown> = FnHandler<any, any, unknown>,
-> = {
-	name: string;
-	description?: string;
-	tags?: string[];
-	inputSchema?: ZodTypeAny;
-	outputSchema?: ZodTypeAny | unknown;
-	handler: THandler;
-	middleware?: Middleware<any>[];
-	safeCall: (
-		args: FnArgs<TInput, TContext>
-	) => Promise<Result<Simplify<Awaited<ReturnType<THandler>>>>>;
-} & ((args: FnArgs<TInput, TContext>) => Promise<TOutput>);
+	TOutput = void,
+	TContext extends AnyObject = EmptyObject,
+> = FnDef<TInput, TOutput, TContext> & {
+	safeCall: (args: FnArgs<TInput, TContext>) => TOutput;
+} & ((args: FnArgs<TInput, TContext>) => TOutput);
 
 // #endregion
 
 // #region --- Middleware  ---
 
 export type Middleware<
-	TContext extends Record<string, any> | unknown = unknown,
-	TNewContext extends Record<string, any> | unknown = TContext,
+	TContext extends AnyObject = EmptyObject,
+	TNewContext extends AnyObject = TContext,
 > = (opts: {
 	ctx: TContext;
-	input: any;
-	def: FnDef<any, any, any>;
-	next: (ctx?: TNewContext) => Promise<any>;
-}) => Promise<any>;
+	input: unknown;
+	def: FnDef<unknown, unknown, Record<string, unknown>>;
+	next: (ctx?: TNewContext) => Promise<unknown> | unknown;
+}) => Promise<unknown> | unknown;
 
 /**
  * Helper to create properly typed middleware.
  */
 export function createMiddleware<
-	TContext extends Record<string, any> | unknown = unknown,
-	TNewContext extends Record<string, any> | unknown = TContext,
+	TContext extends AnyObject = EmptyObject,
+	TNewContext extends AnyObject = TContext,
 >(
 	middlewareFn: Middleware<TContext, TNewContext>
 ): Middleware<TContext, TNewContext> {
@@ -129,8 +122,8 @@ export function createMiddleware<
  * Executes a chain of middleware and the final handler.
  */
 async function executeMiddleware<T>(opts: {
-	def: FnDef<any, any, unknown>;
-	args: FnArgs<any, any>;
+	def: UnknownFnDef;
+	args: UnknownFnArgs;
 }): Promise<T> {
 	const { def, args } = opts;
 	let index = 0;
@@ -147,15 +140,20 @@ async function executeMiddleware<T>(opts: {
 			input: args.input,
 			def,
 			next,
-		});
+		}) as T;
 	}
 
 	return next(args.ctx);
 }
 
+type UnknownFnDef = FnDef<unknown, unknown, AnyObject>;
+type UnknownFnArgs = FnArgs<unknown, AnyObject>;
+type AnyFnDef = FnDef<any, any, AnyObject>;
+type AnyFnArgs = FnArgs<any, AnyObject>;
+
 function enhanceError(
 	error: unknown,
-	def: FnDef<any, any, any>,
+	def: UnknownFnDef,
 	input: unknown
 ): FnError {
 	if (error instanceof FnError) {
@@ -260,30 +258,17 @@ const withSafeResultFormatter = createMiddleware(
  * @returns A callable function with an attached .safeCall method.
  */
 export function createFn<
-	TContext extends Record<string, any> | unknown = unknown,
-	// TFinalContext allows tracking context changes through middleware.
-	TFinalContext extends Record<string, any> | unknown = TContext,
-	TInputSchema extends ZodTypeAny | undefined = undefined,
-	TOutputSchema extends ZodTypeAny | undefined | unknown = void,
-	// The handler's context is the final context after middleware.
-	THandler extends FnHandler<
-		TFinalContext,
-		TInputSchema,
-		TOutputSchema
-	> = FnHandler<TFinalContext, TInputSchema, TOutputSchema>,
+	TInput = void,
+	TOutput = void,
+	TContext extends AnyObject = EmptyObject,
+	THandler extends FnHandler<TInput, TOutput, TContext> = FnHandler<
+		TInput,
+		TOutput,
+		TContext
+	>,
 >(
-	def: Omit<FnDef<TContext, TInputSchema, TOutputSchema>, 'handler'> & {
-		handler: THandler;
-	}
-): Fn<
-	TContext,
-	TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void,
-	// The final output type prioritizes the output schema, then the handler's return type.
-	TOutputSchema extends ZodTypeAny
-		? zInfer<TOutputSchema>
-		: Awaited<ReturnType<THandler>>,
-	THandler
-> {
+	def: FnDef<TInput, TOutput, TContext> & { handler: THandler }
+): Fn<TInput, TOutput, TContext> {
 	const getArgs = (args: any) => {
 		const _args = args ?? {};
 		const input = 'input' in _args ? _args.input : null;
@@ -329,23 +314,14 @@ export function createFn<
 		? zInfer<TOutputSchema>
 		: Awaited<ReturnType<THandler>>;
 
-	const result = Object.assign(directCall, defWithoutName, { safeCall }) as Fn<
-		TContext,
-		TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void,
-		FinalOutput
-	>;
+	const result = Object.assign(directCall, defWithoutName, { safeCall });
 
 	Object.defineProperty(result, 'name', {
 		value: def.name,
 		configurable: true,
 	});
 
-	return result as Fn<
-		TContext,
-		TInputSchema extends ZodTypeAny ? zInferInput<TInputSchema> : void,
-		FinalOutput,
-		THandler
-	>;
+	return result;
 }
 
 // #endregion
@@ -353,12 +329,12 @@ export function createFn<
 // #region --- initCreateFn ---
 
 // Primary initialization function - supports both array and builder patterns
-export function initCreateFn<
-	TContext extends Record<string, any> | unknown = unknown,
->(middlewares?: Middleware<TContext>[]): typeof createFn<TContext> {
+export function initCreateFn<TContext extends AnyObject = EmptyObject>(
+	middlewares?: Middleware<TContext>[]
+): typeof createFn<TContext> {
 	return (def: FnDef<TContext, any, any>) =>
 		createFn<TContext>({
 			...def,
-			middleware: [...(middlewares || []), ...(def.middleware || [])],
+			middleware: [...(middlewares || []), ...(def.middleware || [])] as any,
 		});
 }
