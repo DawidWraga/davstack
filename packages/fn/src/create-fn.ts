@@ -64,7 +64,7 @@ export type OptionallyRequiredField<
 	K extends string,
 	Condition,
 	T extends Record<string, any>,
-> = Condition extends void
+> = Condition extends void | undefined
 	? Omit<T, K> & Partial<Pick<T, K>>
 	: unknown extends Condition
 		? Omit<T, K> & Partial<Pick<T, K>>
@@ -78,22 +78,35 @@ export type OptionallyRequiredField<
 // 	ctx: TContext;
 // };
 
+// export type FnArgs<
+// 	TInput = void,
+// 	TContext extends AnyObject | undefined = undefined,
+// > = Simplify<
+// 	OptionallyRequiredField<
+// 		'input',
+// 		TInput,
+// 		OptionallyRequiredField<
+// 			'ctx',
+// 			TContext,
+// 			{
+// 				input: TInput;
+// 				ctx: TContext;
+// 			}
+// 		>
+// 	>
+// >;
+
+// /**
 export type FnArgs<
 	TInput = void,
 	TContext extends AnyObject | undefined = undefined,
 > = Simplify<
-	OptionallyRequiredField<
-		'input',
-		TInput,
-		OptionallyRequiredField<
-			'ctx',
-			TContext,
-			{
-				input: TInput;
-				ctx: TContext;
-			}
-		>
-	>
+	// Maybe input
+	(TInput extends undefined | void ? { input?: void } : { input: TInput }) &
+		// Maybe context
+		(TContext extends undefined | void
+			? { ctx?: undefined }
+			: { ctx: TContext })
 >;
 
 /**
@@ -108,11 +121,19 @@ export type Fn<
 		TOutputSchema,
 		TContext
 	>,
-> = FnDef<TInputSchema, TOutputSchema, TContext> & {
-	safeCall: (
-		args: FnArgs<InferInput<TInputSchema>, TContext>
-	) => Promise<Result<InferOutput<TOutputSchema, THandler>>>;
-} & ((
+> = FnDef<TInputSchema, TOutputSchema, TContext> &
+	// Maybe inputSchema
+	(TInputSchema extends undefined
+		? { inputSchema?: undefined }
+		: { inputSchema: TInputSchema }) &
+	// Maybe outputSchema
+	(TOutputSchema extends undefined
+		? { outputSchema?: undefined }
+		: { outputSchema: TOutputSchema }) & {
+		safeCall: (
+			args: FnArgs<InferInput<TInputSchema>, TContext>
+		) => Promise<Result<InferOutput<TOutputSchema, THandler>>>;
+	} & ((
 		args: FnArgs<InferInput<TInputSchema>, TContext>
 	) => Promise<InferOutput<TOutputSchema, THandler>>);
 
@@ -340,7 +361,12 @@ export function createFn<
 		configurable: true,
 	});
 
-	return result as Fn<TInputSchema, TOutputSchema, TContext, THandler>;
+	return result as unknown as Fn<
+		TInputSchema,
+		TOutputSchema,
+		TContext,
+		THandler
+	>;
 }
 
 // #endregion

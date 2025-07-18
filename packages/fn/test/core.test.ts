@@ -36,19 +36,20 @@ describe('Core `createFn` API', () => {
 		expect(createChat.tags).toEqual(['chat']);
 		expect(createChat.outputSchema).toBeDefined();
 		expect(createChat.handler).toBeDefined();
+
+		expectTypeOf(createChat.inputSchema).not.toBeUndefined();
 	});
 
 	describe('Direct Call', () => {
 		test('should return data directly on success', async () => {
 			const getChat = createFn({
 				name: 'getChat',
-
 				handler: async () => {
 					return 'hello world';
 				},
 			});
 
-			const result = await getChat({ ctx });
+			const result = await getChat({});
 			expect(result).toBe('hello world');
 			expectTypeOf(result).toEqualTypeOf<string>();
 		});
@@ -62,7 +63,7 @@ describe('Core `createFn` API', () => {
 
 			// Pass invalid input, should not throw validation error
 			// but will throw an enhanced error from withThrowingErrorHandler
-			const result = await createChat({ input: { title: 123 }, ctx } as any);
+			const result = await createChat({ input: { title: 123 } } as any);
 			expect(result).toEqual({ title: 123 });
 		});
 	});
@@ -87,7 +88,6 @@ describe('Core `createFn` API', () => {
 		test('should return { data, error: null } on success', async () => {
 			const { data, error } = await createChat.safeCall({
 				input: { title: 'Test' },
-				ctx,
 			});
 			expect(error).toBeNull();
 			expect(data).toEqual({ id: 'chat_123', title: 'Test' });
@@ -97,7 +97,6 @@ describe('Core `createFn` API', () => {
 		test('should return an INVALID_INPUT error for invalid input', async () => {
 			const { data, error } = await createChat.safeCall({
 				input: { title: 123 } as any, // Invalid input
-				ctx,
 			});
 			expect(data).toBeNull();
 			// Add type guard to safely access properties
@@ -112,7 +111,6 @@ describe('Core `createFn` API', () => {
 		test('should return an INVALID_OUTPUT error for invalid output', async () => {
 			const { data, error } = await createChat.safeCall({
 				input: { title: 'invalid-output' }, // Triggers invalid output
-				ctx,
 			});
 			expect(data).toBeNull();
 			if (error instanceof FnError) {
@@ -125,7 +123,6 @@ describe('Core `createFn` API', () => {
 		test('should return an INTERNAL_SERVER_ERROR for thrown errors', async () => {
 			const { data, error } = await createChat.safeCall({
 				input: { title: 'throw' }, // Triggers a throw
-				ctx,
 			});
 			expect(data).toBeNull();
 			if (error instanceof FnError) {

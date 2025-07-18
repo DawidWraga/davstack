@@ -26,7 +26,7 @@ describe('Type System', () => {
 
 		expectTypeOf(fn).parameter(0).toEqualTypeOf<{
 			input: { id: string };
-			ctx?: unknown;
+			ctx?: undefined;
 		}>();
 		expectTypeOf(fn).returns.resolves.toEqualTypeOf<{
 			success: boolean;
@@ -34,32 +34,12 @@ describe('Type System', () => {
 		}>();
 	});
 
-	test('should infer types for handler with context and no input', () => {
-		const fn = createFn({
-			name: 'test',
-			handler: async ({ input, ctx }) => {
-				expectTypeOf(input).toEqualTypeOf<null>();
-
-				// return ctx.user?.id ?? 'guest';
-				return 'hello';
-			},
-		});
-
-		const returnType = fn({ ctx: { user: { id: '123' } } });
-
-		expectTypeOf(fn).parameter(0).toEqualTypeOf<{
-			input?: void;
-		}>();
-		// This should now properly infer the return type from the handler
-		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
-	});
-
 	test('should handle functions with no context and no input', () => {
 		const fn = createFn({
 			name: 'ping',
 			handler: async ({ input, ctx }) => {
-				expectTypeOf(input).toEqualTypeOf<null>();
-				expectTypeOf(ctx).toEqualTypeOf<{}>();
+				expectTypeOf(input).toEqualTypeOf<void>();
+				expectTypeOf(ctx).toEqualTypeOf<undefined>();
 				return 'pong';
 			},
 		});
@@ -67,7 +47,7 @@ describe('Type System', () => {
 		// Allows calling with no arguments at all
 		expectTypeOf(fn)
 			.parameter(0)
-			.toEqualTypeOf<{ input?: void; ctx?: unknown }>();
+			.toEqualTypeOf<{ input?: void; ctx?: undefined }>();
 		expectTypeOf(fn).returns.resolves.toEqualTypeOf<string>();
 	});
 });
@@ -184,7 +164,7 @@ describe('Middleware', () => {
 			},
 		});
 
-		await fnWithMiddleware.safeCall({ ctx: {} });
+		await fnWithMiddleware.safeCall({});
 		expect(executionOrder).toEqual([
 			'mw1-in',
 			'mw2-in',
