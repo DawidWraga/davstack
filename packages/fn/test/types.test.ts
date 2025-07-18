@@ -14,9 +14,11 @@ type TestContext = {
 
 describe('Type System', () => {
 	test('should infer types for handler with input and default context', () => {
+		const inputSchema = z.object({ id: z.string() });
+
 		const fn = createFn({
 			name: 'test',
-			inputSchema: z.object({ id: z.string() }),
+			inputSchema,
 			handler: async ({ input, ctx }) => {
 				expectTypeOf(input).toEqualTypeOf<{ id: string }>();
 				expectTypeOf(ctx).toEqualTypeOf<undefined>();
@@ -32,6 +34,11 @@ describe('Type System', () => {
 			success: boolean;
 			id: string;
 		}>();
+
+		expectTypeOf(fn.inputSchema).not.toBeUndefined();
+		expectTypeOf(fn.outputSchema).toBeUndefined();
+
+		expectTypeOf(fn.inputSchema).toEqualTypeOf<typeof inputSchema>();
 	});
 
 	test('should handle functions with no context and no input', () => {
