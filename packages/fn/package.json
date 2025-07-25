@@ -30,7 +30,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@trpc/server": "next",
+		"@trpc/server": "^11.4.3",
 		"superjson": "^2.2.1"
 	},
 	"peerDependencies": {

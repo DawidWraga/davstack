@@ -3,8 +3,8 @@ import {
 	MutationProcedure,
 	QueryProcedure,
 } from '@trpc/server/unstable-core-do-not-import';
-import { z, ZodTypeAny } from 'zod';
-import { Fn, zInfer } from '..';
+import { z } from 'zod';
+import { zInferInput, ZodTypeAny, Simplify } from '..';
 
 /**
  * Creates a factory function for tRPC procedures from Fn definitions
@@ -35,7 +35,7 @@ export function initProcedureFactory<
 	return function createTrpcProcedureFromFn<
 		TFn extends {
 			inputSchema?: ZodTypeAny;
-			handler: (...args: any[]) => Promise<any>;
+			handler: (...args: any[]) => any;
 		},
 		TType extends 'mutation' | 'query',
 	>(fn: TFn & { (...args: any[]): Promise<any> }, type: TType) {
@@ -44,18 +44,20 @@ export function initProcedureFactory<
 		}
 
 		type InputType = TFn['inputSchema'] extends ZodTypeAny
-			? zInfer<TFn['inputSchema']>
+			? zInferInput<TFn['inputSchema']>
 			: void;
 
-		type OutputType =
-			ReturnType<TFn['handler']> extends Promise<infer TOutput>
-				? TOutput
-				: never;
+		type OutputType = Awaited<ReturnType<TFn['handler']>>;
+		// type OutputType =
+		//   ReturnType<TFn["handler"]> extends Promise<infer TOutput>
+		//     ? TOutput
+		//     : never;
 
-		type InputOutput = {
+		type InputOutput = Simplify<{
 			input: InputType;
 			output: OutputType;
-		};
+			meta: Record<string, string>;
+		}>;
 
 		type ProcedureResult = TType extends 'mutation'
 			? MutationProcedure<InputOutput>
@@ -69,6 +71,7 @@ export function initProcedureFactory<
 		const handler = async ({ ctx, input }: { ctx: any; input: any }) => {
 			try {
 				// Directly call the function to avoid introducing unnecessary stack frames
+
 				return await fn({ input, ctx });
 			} catch (error) {
 				// Don't wrap the error here - let it propagate with its original stack
