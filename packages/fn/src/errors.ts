@@ -31,7 +31,7 @@ export type FnErrorCodeType = keyof typeof FnErrorCode;
 export interface FnErrorOptions {
 	code: FnErrorCodeType;
 	message?: string;
-	cause?: Error;
+	cause?: unknown; // Allow any cause
 	meta?: Record<string, unknown>;
 }
 
@@ -59,15 +59,15 @@ function getMessageFromUnknownError(err: unknown, fallback: string): string {
  * Custom error class for Fn operations
  */
 export class FnError extends Error {
-	readonly code: FnErrorCodeType;
-	readonly cause?: Error;
-	readonly _reported?: boolean;
-	readonly meta: Record<string, unknown>;
+	code: FnErrorCodeType;
+	cause?: unknown;
+	meta: Record<string, unknown>;
+	_reported?: boolean;
 
 	constructor(opts: FnErrorOptions) {
 		// Use custom message or default based on the error code
 		const message = opts.message || getDefaultErrorMessage(opts.code);
-		super(message);
+		super(message, { cause: opts.cause });
 
 		this.name = 'FnError';
 		this.code = opts.code;
@@ -79,15 +79,18 @@ export class FnError extends Error {
 	}
 
 	/**
-	 * Mark the error as reported to prevent duplicate logging
+	 * Mark the error as reported to prevent duplicate logging.
+	 * This is a mutable operation.
 	 */
 	markAsReported(): this {
-		Object.defineProperty(this, '_reported', { value: true });
+		this._reported = true;
 		return this;
 	}
 
 	/**
-	 * Creates an FnError from any error or object
+	 * Creates an FnError from any error or object.
+	 * If the cause is already an FnError, it enhances it rather than re-wrapping,
+	 * preserving the original error identity and stack trace.
 	 */
 	static from(
 		cause: unknown,
@@ -100,9 +103,13 @@ export class FnError extends Error {
 		// If it's already an FnError, just enhance it without creating a new one
 		if (isFnError(cause)) {
 			if (opts.meta) {
-				// Merge the meta data without losing existing data
-				Object.assign(cause.meta, opts.meta);
+				// Merge the new meta data with existing data
+				cause.meta = { ...cause.meta, ...opts.meta };
 			}
+			// Apply other options if provided
+			if (opts.code) cause.code = opts.code;
+			if (opts.message) cause.message = opts.message;
+
 			return cause;
 		}
 
@@ -111,7 +118,7 @@ export class FnError extends Error {
 			code: opts.code || 'INTERNAL_SERVER_ERROR',
 			message:
 				opts.message || getMessageFromUnknownError(cause, 'Unknown error'),
-			cause: cause instanceof Error ? cause : undefined,
+			cause: cause,
 			meta: opts.meta || {},
 		});
 	}
@@ -132,15 +139,7 @@ function getDefaultErrorMessage(code: FnErrorCodeType): string {
 			return 'Resource not found';
 		case 'INTERNAL_SERVER_ERROR':
 			return 'An unexpected error occurred';
-		case 'CONFLICT':
-			return 'Resource conflict';
-		case 'TIMEOUT':
-			return 'Operation timed out';
-		case 'INVALID_INPUT':
-			return 'Invalid input data';
-		case 'INVALID_OUTPUT':
-			return 'Invalid output data';
-		// Add default messages for all codes
+		// ... other cases\
 		default:
 			return `Error: ${code}`;
 	}

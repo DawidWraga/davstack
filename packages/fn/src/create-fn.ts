@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import { FnError } from './errors';
+import { FnError, isFnError } from './errors';
 import { isFormData, formDataToObject } from './utils/form-data';
 import { Simplify, zInfer, zInferInput, ZodTypeAny } from './utils/type-utils';
 
@@ -217,18 +217,32 @@ async function executeMiddleware<T>(opts: {
 	return run(0, args.ctx, args.input);
 }
 
+/**
+ * Enhances an error by wrapping it in an FnError (if it isn't one already),
+ * and adds a trace of function calls to the metadata.
+ * This ensures the original error `cause` and stack trace are preserved.
+ */
 function enhanceError(error: unknown, def: AnyFnDef, input: unknown): FnError {
-	if (error instanceof FnError) {
-		error.meta.functionName = def.name;
-		return error;
+	const isOriginalFnError = error instanceof FnError;
+	// FnError.from will return the same instance if it's already an FnError
+	const fnError = FnError.from(error);
+
+	// If this is the first time we're wrapping the error, initialize the trace and add input
+	if (!isOriginalFnError) {
+		fnError.meta.functionTrace = [];
+		fnError.meta.input = input;
 	}
-	return FnError.from(error, {
-		meta: {
-			functionName: def.name,
-			input,
-			// input: redactSensitive(input, def.inputSchema),
-		},
-	});
+
+	// Add the current function to the start of the trace to build a call stack
+	// e.g., [outerFn, middleFn, innerFn]
+	const trace = (fnError.meta.functionTrace || []) as string[];
+	trace.unshift(def.name);
+	fnError.meta.functionTrace = trace;
+
+	// The `functionName` should reflect the function that most recently handled the error
+	fnError.meta.functionName = def.name;
+
+	return fnError;
 }
 
 // #endregion
@@ -346,7 +360,7 @@ export function createFn<
 	const directCall = async (args: any) => {
 		const callMiddleware: Middleware<any>[] = [
 			withThrowingErrorHandler,
-			// need to validate input so taht we get eg defaults/transforms.
+			// need to validate input so that we get eg defaults/transforms.
 			// for fully raw call can use .handler() directly
 			withInputValidation,
 			...(def.middleware || []),
@@ -366,9 +380,9 @@ export function createFn<
 		const safeCallMiddleware: Middleware<any>[] = [
 			withSafeResultFormatter, // 1. (Outer) Formats the final result.
 			withThrowingErrorHandler, // 2. Catches and enhances any errors.
-			withInputValidation, // 4. Validates input schema.
-			...(def.middleware || []), // 5. Executes user-defined middleware.
-			withOutputValidation, // 6. (Inner) Validates output schema.
+			withInputValidation, // 3. Validates input schema.
+			...(def.middleware || []), // 4. Executes user-defined middleware.
+			withOutputValidation, // 5. (Inner) Validates output schema.
 		];
 
 		return executeMiddleware<Result<TOutput>>({
