@@ -562,13 +562,13 @@ describe('Clean Composition API', () => {
 					expectTypeOf(input).toEqualTypeOf<{
 						required: string;
 						optional?: string | undefined;
-						withDefault?: string | undefined;
+						withDefault: string;
 						nullable: string | null;
 					}>();
 
 					expectTypeOf(input.required).toEqualTypeOf<string>();
 					expectTypeOf(input.optional).toEqualTypeOf<string | undefined>();
-					expectTypeOf(input.withDefault).toEqualTypeOf<string | undefined>();
+					expectTypeOf(input.withDefault).toEqualTypeOf<string >();
 					expectTypeOf(input.nullable).toEqualTypeOf<string | null>();
 
 					return {
