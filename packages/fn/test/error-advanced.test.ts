@@ -60,21 +60,19 @@ const reportingMiddleware = createMiddleware<TestContext>(
 		} catch (error) {
 			const fnError = FnError.from(error);
 
-			if (fnError._reported) {
-				throw fnError;
+			if (!fnError._reported) {
+				// --- Key Change: Logging the *original* cause ---
+				// If there's a cause, log that. Otherwise, log the error itself.
+				// This ensures the logger gets the error with the original stack trace.
+				const errorToLog =
+					fnError.cause instanceof Error ? fnError.cause : fnError;
+				ctx.logger.error(errorToLog, {
+					functionName: def.name,
+					message: 'An error was reported',
+				});
+
+				fnError.markAsReported();
 			}
-
-			// --- Key Change: Logging the *original* cause ---
-			// If there's a cause, log that. Otherwise, log the error itself.
-			// This ensures the logger gets the error with the original stack trace.
-			const errorToLog =
-				fnError.cause instanceof Error ? fnError.cause : fnError;
-			ctx.logger.error(errorToLog, {
-				functionName: def.name,
-				message: 'An error was reported',
-			});
-
-			fnError.markAsReported();
 
 			// Re-throw the (potentially wrapped) error to allow the default
 			// error handler to build the `functionTrace`.
@@ -179,13 +177,13 @@ describe('Robust Error Reporting with a Simple Logger', () => {
 		const loggedStack = loggedError.stack;
 		const thrownStack = thrownError.stack;
 
-		console.log('loggedError', loggedError);
-		console.log('--------------------------------');
-		console.log('thrownError', thrownError);
-		console.log('--------------------------------');
-		console.log('loggedStack', loggedStack);
-		console.log('--------------------------------');
-		console.log('thrownStack', thrownStack);
+		// console.log('loggedError', loggedError);
+		// console.log('--------------------------------');
+		// console.log('thrownError', thrownError);
+		// console.log('--------------------------------');
+		// console.log('loggedStack', loggedStack);
+		// console.log('--------------------------------');
+		// console.log('thrownStack', thrownStack);
 
 		expect(loggedStack).not.toEqual(thrownStack);
 		expect(loggedStack).toContain('createErrorFrame2'); // Original error's stack
