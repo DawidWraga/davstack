@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import { FnError } from './errors';
+import { isFormData, formDataToObject } from './utils/form-data';
 import { Simplify, zInfer, zInferInput, ZodTypeAny } from './utils/type-utils';
 
 // Re-export FnError for convenience
@@ -11,6 +12,8 @@ export { FnError };
 type InferInput<TInputSchema> = TInputSchema extends ZodTypeAny
 	? zInferInput<TInputSchema>
 	: void;
+
+type MaybeZInfer<T> = T extends ZodTypeAny ? zInfer<T> : void;
 
 type InferOutput<TOutputSchema, THandler> = TOutputSchema extends ZodTypeAny
 	? zInfer<TOutputSchema>
@@ -29,10 +32,12 @@ export type FnHandler<
 	TInputSchema extends ZodTypeAny | undefined = undefined,
 	TOutputSchema extends ZodTypeAny | undefined = undefined,
 	TContext extends AnyObject | undefined = undefined,
-> = (args: {
-	input: InferInput<TInputSchema>;
-	ctx: TContext;
-}) => TOutputSchema extends ZodTypeAny
+> = (
+	args: {
+		// we use infer input on the caller (eg safeCall, or directDirect call with Fn(), but this handler type is used for the DEFINITION so internally we can trust we'll have the defaults so can use infer output instead (will be parsed)
+		input: MaybeZInfer<TInputSchema>;
+	} & (TContext extends undefined ? { ctx?: any } : { ctx: TContext })
+) => TOutputSchema extends ZodTypeAny
 	? zInfer<TOutputSchema> | Promise<zInfer<TOutputSchema>>
 	: any | Promise<any>;
 
@@ -137,7 +142,7 @@ export type Fn<
 
 // #endregion
 
-// #region --- Middleware  ---
+// #region --- Middleware  ---
 
 // Internal type for middleware that needs to work with any function definition
 type AnyFnDef = {
@@ -157,7 +162,7 @@ export type Middleware<
 	ctx: TContext;
 	input: unknown;
 	def: AnyFnDef;
-	next: (ctx?: TNewContext) => Promise<unknown> | unknown;
+	next: (ctx?: TNewContext, input?: unknown) => Promise<unknown> | unknown;
 }) => Promise<unknown> | unknown;
 
 /**
@@ -180,24 +185,36 @@ async function executeMiddleware<T>(opts: {
 	args: { input: unknown; ctx: any };
 }): Promise<T> {
 	const { def, args } = opts;
-	let index = 0;
 
-	async function next(newCtx: any = args.ctx): Promise<T> {
+	const run = async (
+		index: number,
+		currentCtx: any,
+		currentInput: any
+	): Promise<T> => {
 		if (index >= (def.middleware?.length ?? 0)) {
-			// Pass the potentially modified context to the final handler
-			return def.handler({ input: args.input, ctx: newCtx }) as T;
+			// Pass the potentially modified context and the final input to the handler
+			return def.handler({ input: currentInput, ctx: currentCtx }) as T;
 		}
 
-		const middleware = def.middleware?.[index++]!;
+		const middleware = def.middleware?.[index]!;
+
+		// The `next` function for this specific middleware.
+		// It will call `run` for the *next* middleware.
+		// If the current middleware provides a new context or input, we use it.
+		// Otherwise, we pass along the ones we received.
+		const next = (newCtx: any = currentCtx, newInput: any = currentInput) => {
+			return run(index + 1, newCtx, newInput);
+		};
+
 		return middleware({
-			ctx: newCtx,
-			input: args.input,
+			ctx: currentCtx,
+			input: currentInput,
 			def,
 			next,
 		}) as T;
-	}
+	};
 
-	return next(args.ctx);
+	return run(0, args.ctx, args.input);
 }
 
 function enhanceError(error: unknown, def: AnyFnDef, input: unknown): FnError {
@@ -223,9 +240,14 @@ function enhanceError(error: unknown, def: AnyFnDef, input: unknown): FnError {
  */
 const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 	const schema = def.inputSchema;
-	if (!schema) return next(ctx);
+	if (!schema) {
+		// If no schema, pass input through unchanged.
+		return next(ctx, input);
+	}
 
-	const result = (schema as any).safeParse(input);
+	const dataToValidate = isFormData(input) ? formDataToObject(input) : input;
+
+	const result = (schema as any).safeParse(dataToValidate);
 	if (!result.success) {
 		throw new FnError({
 			code: 'INVALID_INPUT',
@@ -233,8 +255,8 @@ const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 			meta: { zodErrors: result.error.flatten() },
 		});
 	}
-	// The validated input is implicitly passed along.
-	return next(ctx);
+	// Pass the PARSED data to the next middleware/handler.
+	return next(ctx, result.data);
 });
 
 /**
@@ -243,9 +265,10 @@ const withInputValidation = createMiddleware(({ ctx, input, def, next }) => {
 const withOutputValidation = createMiddleware(
 	async ({ ctx, input, def, next }) => {
 		const schema = def.outputSchema;
-		if (!schema) return next(ctx);
+		// The call to next() needs to pass the input along
+		if (!schema) return next(ctx, input);
 
-		const result = await next(ctx);
+		const result = await next(ctx, input); // pass input through
 		const validationResult = (schema as any).safeParse(result);
 		if (!validationResult.success) {
 			throw new FnError({
@@ -264,7 +287,7 @@ const withOutputValidation = createMiddleware(
 const withThrowingErrorHandler = createMiddleware(
 	async ({ ctx, input, def, next }) => {
 		try {
-			return await next(ctx);
+			return await next(ctx, input); // pass input through
 		} catch (error) {
 			throw enhanceError(error, def, input);
 		}
@@ -277,7 +300,7 @@ const withThrowingErrorHandler = createMiddleware(
 const withSafeResultFormatter = createMiddleware(
 	async ({ ctx, input, def, next }) => {
 		try {
-			const data = await next(ctx);
+			const data = await next(ctx, input); // pass input through
 			return { data, error: null };
 		} catch (error) {
 			return { data: null, error: error as FnError };
@@ -323,7 +346,11 @@ export function createFn<
 	const directCall = async (args: any) => {
 		const callMiddleware: Middleware<any>[] = [
 			withThrowingErrorHandler,
+			// need to validate input so taht we get eg defaults/transforms.
+			// for fully raw call can use .handler() directly
+			withInputValidation,
 			...(def.middleware || []),
+			withOutputValidation,
 		];
 
 		return executeMiddleware<TOutput>({
