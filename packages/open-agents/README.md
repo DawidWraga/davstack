@@ -1,8 +1,9 @@
 # @davstack/open-agents
 
-A thin self-waiting job primitive over `cursor-agent -p`. Delegate scoped
-explore (read-only) and fast-edit (mechanical) work to a fast/cheap model
-(`composer-2.5` by default), one or many in parallel, with each result
+A thin self-waiting job primitive over a configured agent CLI (default
+`cursor-agent -p`; pluggable adapters for `gemini-cli` and `agy`). Delegate
+scoped explore (read-only) and fast-edit (mechanical) work to a fast/cheap
+model (`composer-2.5` by default), one or many in parallel, with each result
 persisted and re-printable.
 
 Not an orchestrator — the design goal is to **make a Cursor job a
@@ -38,6 +39,8 @@ wait   --any <id…>          return when ≥1 done; prints which (loop = popcor
 result [id]                 print a job's clean deliverable (its result file)
 ls                          recent jobs (this repo)
 tail   <id>                 follow a running job
+check        [--json]       validate node version, cursor-agent install, config,
+                            jobs dir. --json for machine-readable output.
 ```
 
 Exit codes: `0` ok · `1` job failed · `2` bad id/spec · `3` wait timeout.

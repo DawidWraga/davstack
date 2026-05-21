@@ -5,6 +5,7 @@
 // No daemon to probe — unlike logs-server/vitest-server/playwright-server,
 // open-agents is stateless one-shot CLI.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { platform } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -46,19 +47,48 @@ function resolveCursorAgentOnPath(): string | null {
   return null;
 }
 
+// Probe whether a binary can actually be spawned. existsSync alone is
+// insufficient — on Windows, SmartScreen / Defender can block an existing
+// .exe at spawn time (EUNKNOWN uv_spawn). check runs this once at user
+// request, so the ~100ms cost is fine; the hot path (resolveBin in the
+// adapter) deliberately stays probe-free.
+function canSpawn(bin: string, extraArgs: string[] = []): boolean {
+  try {
+    const result = spawnSync(bin, [...extraArgs, '--version'], {
+      timeout: 1500,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    return !result.error;
+  } catch {
+    return false;
+  }
+}
+
 function checkCursorAgent(): CheckResult['cursorAgent'] {
   // Mirrors the precedence in adapters/cursor.ts: CURSOR_AGENT_BIN → vendored
-  // node entrypoint (Windows) → bare on PATH.
+  // node entrypoint (Windows) → bare on PATH. Each candidate is spawn-probed,
+  // not just existence-checked, so a blocked .exe doesn't pass.
   const envBin = process.env.CURSOR_AGENT_BIN;
-  if (envBin && existsSync(envBin)) {
-    return { ok: true, source: `CURSOR_AGENT_BIN=${envBin}` };
+  if (envBin) {
+    if (existsSync(envBin) && canSpawn(envBin)) {
+      return { ok: true, source: `CURSOR_AGENT_BIN=${envBin}` };
+    }
+    return {
+      ok: false,
+      source: `CURSOR_AGENT_BIN=${envBin} (not spawnable)`,
+      fix:
+        'The path is set but the binary cannot be spawned (file missing, ' +
+        'permissions, or Windows SmartScreen/Defender block). Unset CURSOR_AGENT_BIN ' +
+        'to fall back to the vendored cursor-agent install, or fix the shim.',
+    };
   }
   const vendored = resolveCursorAgentNode();
-  if (vendored) {
+  if (vendored && canSpawn(vendored.node, [vendored.index])) {
     return { ok: true, source: `vendored node entrypoint: ${vendored.index}` };
   }
   const onPath = resolveCursorAgentOnPath();
-  if (onPath) {
+  if (onPath && canSpawn(onPath)) {
     return { ok: true, source: `PATH: ${onPath}` };
   }
   return {

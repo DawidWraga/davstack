@@ -52,8 +52,12 @@ export function assembleScaffold(specBody: string, guards: string, addendum = ''
     '\n<spec>\n' +
     specBody.trim() +
     '\n</spec>\n\n' +
-    `When finished, output a line that is EXACTLY this and nothing else on that line:\n${SENTINEL}\n` +
-    'then ONLY the requested deliverable, in exactly the requested format. ' +
-    'Emit that marker line once, as the final marker; output nothing after the deliverable.'
+    'Your "thinking" is private; the user only sees your final assistant ' +
+    'message. End every run — even trivial ones — with a visible final ' +
+    'message in this exact shape:\n' +
+    `${SENTINEL}\n` +
+    '<deliverable in the requested format>\n\n' +
+    'Emit the marker once, on its own line. Output nothing after the ' +
+    'deliverable. Finishing in thinking-only is a failure.'
   );
 }
