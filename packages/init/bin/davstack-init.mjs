@@ -8,7 +8,7 @@ const entry = path.join(here, '..', 'src', 'index.ts')
 const child = spawn(
   process.execPath,
   ['--experimental-transform-types', entry, ...process.argv.slice(2)],
-  { stdio: 'inherit', shell: process.platform === 'win32' }
+  { stdio: 'inherit' }
 )
 child.on('exit', (code, signal) => {
   if (signal) process.kill(process.pid, signal)
