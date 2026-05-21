@@ -30,6 +30,20 @@ function outputFlags() {
   };
 }
 
+// Resolve the DB path with full precedence: CLI flag > DIAG_DB env > config
+// file > built-in default. Used by every verb so query/prune/serve share the
+// same source of truth and don't accidentally hit different DBs.
+async function resolveDbPath(flagDb: string | undefined): Promise<string> {
+  const { dbPath } = await import('./paths.ts');
+  if (flagDb && flagDb.trim()) return dbPath(flagDb);
+  if (process.env.DIAG_DB && process.env.DIAG_DB.trim()) return dbPath();
+  const { loadConfig } = await import('./config.ts');
+  const cfg = await loadConfig(process.cwd());
+  if (cfg._dbPathResolved) return cfg._dbPathResolved;
+  if (cfg.dbPath) return dbPath(cfg.dbPath);
+  return dbPath();
+}
+
 const queryRun: CommandSpec = {
   description: 'Timeline for one run_id',
   flags: {
@@ -40,9 +54,8 @@ const queryRun: CommandSpec = {
   },
   run: async (ctx) => {
     const { openDb } = await import('./db.ts');
-    const { dbPath } = await import('./paths.ts');
     const { runTimeline, format } = await import('./query.ts');
-    const db = openDb(dbPath(ctx.flags.db as string | undefined));
+    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = runTimeline(db, {
       project: ctx.flags.project as string,
       run_id: ctx.flags.run as string,
@@ -62,9 +75,8 @@ const queryTrace: CommandSpec = {
   },
   run: async (ctx) => {
     const { openDb } = await import('./db.ts');
-    const { dbPath } = await import('./paths.ts');
     const { traceAssembly, format } = await import('./query.ts');
-    const db = openDb(dbPath(ctx.flags.db as string | undefined));
+    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = traceAssembly(db, {
       project: ctx.flags.project as string,
       trace_id: ctx.flags.trace as string,
@@ -87,9 +99,8 @@ const queryErrors: CommandSpec = {
   },
   run: async (ctx) => {
     const { openDb } = await import('./db.ts');
-    const { dbPath } = await import('./paths.ts');
     const { errorContext, format } = await import('./query.ts');
-    const db = openDb(dbPath(ctx.flags.db as string | undefined));
+    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const groups = errorContext(db, {
       project: ctx.flags.project as string,
       trace_id: ctx.flags.trace as string | undefined,
@@ -122,9 +133,8 @@ const queryFilter: CommandSpec = {
   },
   run: async (ctx) => {
     const { openDb } = await import('./db.ts');
-    const { dbPath } = await import('./paths.ts');
     const { filterLogs, format } = await import('./query.ts');
-    const db = openDb(dbPath(ctx.flags.db as string | undefined));
+    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = filterLogs(db, {
       project: ctx.flags.project as string | undefined,
       level: ctx.flags.level as string | undefined,
@@ -158,17 +168,22 @@ const cli = defineCli({
         const { openDb, prune } = await import('./db.ts');
         const { dbPath, ensureParent } = await import('./paths.ts');
         const { startServer } = await import('./server.ts');
-        const file = ensureParent(dbPath(ctx.flags.db as string | undefined));
+        const { loadConfig } = await import('./config.ts');
+        const config = await loadConfig(process.cwd());
+        // CLI flags already fold env vars (via `env:` spec) — so flag > config > built-in.
+        const effectivePort = (ctx.flags.port as number | undefined) ?? config.port;
+        const effectiveHost = (ctx.flags.host as string | undefined) ?? config.host;
+        const configDbPath = config._dbPathResolved ?? config.dbPath;
+        const file = ensureParent(
+          dbPath((ctx.flags.db as string | undefined) ?? configDbPath),
+        );
         const db = openDb(file);
-        const srv = startServer({
-          db,
-          port: ctx.flags.port as number | undefined,
-          host: ctx.flags.host as string | undefined,
-        });
+        const srv = startServer({ db, port: effectivePort, host: effectiveHost });
         process.stdout.write(
           `log-server listening on http://${srv.host}:${srv.port}  db=${file}\n`,
         );
-        const days = ctx.flags['prune-days'] as number;
+        const days =
+          (ctx.flags['prune-days'] as number | undefined) || config.pruneDays || 0;
         if (days > 0) {
           setInterval(() => prune(db, days * 86_400_000), 3_600_000).unref();
         }
@@ -194,7 +209,12 @@ const cli = defineCli({
       run: async (ctx) => {
         const { openDb, prune } = await import('./db.ts');
         const { dbPath } = await import('./paths.ts');
-        const db = openDb(dbPath(ctx.flags.db as string | undefined));
+        const { loadConfig } = await import('./config.ts');
+        const config = await loadConfig(process.cwd());
+        const configDbPath = config._dbPathResolved ?? config.dbPath;
+        const db = openDb(
+          dbPath((ctx.flags.db as string | undefined) ?? configDbPath),
+        );
         const ageMs =
           (ctx.flags['max-age-ms'] as number | undefined) ??
           (ctx.flags.days as number) * 86_400_000;
