@@ -49,4 +49,14 @@ export default defineWorkspace([
 			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
 		},
 	},
+	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
+			name: 'open-agents',
+			root: './packages/open-agents',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
+		},
+	},
 ]);
