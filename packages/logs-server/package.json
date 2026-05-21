@@ -4,6 +4,9 @@
   "license": "MIT",
   "type": "module",
   "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite, query by trace_id/run_id/level.",
+  "scripts": {
+    "test": "pnpm -w exec vitest run --project logs-server"
+  },
   "bin": {
     "logs-server": "./bin/logs-server.mjs"
   },

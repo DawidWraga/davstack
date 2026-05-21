@@ -4,6 +4,9 @@
   "license": "MIT",
   "type": "module",
   "description": "Warm chromium daemon for fast e2e/UI iteration. Keeps a long-lived browser context hot so spec reruns hit the live window in 1-3s instead of paying cold-boot.",
+  "scripts": {
+    "test": "pnpm -w exec vitest run --project playwright-server"
+  },
   "bin": {
     "playwright-server": "./bin/playwright-server.mjs"
   },

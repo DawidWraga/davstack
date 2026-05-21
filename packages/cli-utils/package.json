@@ -10,6 +10,9 @@
     "./help": "./src/cli-help.ts",
     "./config": "./src/config.ts"
   },
+  "scripts": {
+    "test": "pnpm -w exec vitest run --project cli-utils"
+  },
   "files": [
     "src/**"
   ],

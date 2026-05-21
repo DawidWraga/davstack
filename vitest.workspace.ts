@@ -1,85 +1,52 @@
 import { defineWorkspace } from 'vitest/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// Dedupe vitest across the workspace: peer-deps in some packages pull a
+// newer vitest into the package's own node_modules; without aliasing, the
+// in-test `import 'vitest'` resolves to that copy while the runner is the
+// root copy, producing "Vitest failed to find the current suite".
+const vitestAlias = path.join(here, 'node_modules/vitest');
 
 export default defineWorkspace([
-	// you can use a list of glob patterns to define your workspaces
-	// Vitest expects a list of config files
-	// or directories where there is a config file
-	// 'packages/*',
-	// 'tests/*/vitest.config.{e2e,unit}.ts',
-	// // you can even run the same tests,
-	// // but with different configs in the same "vitest" process
 	{
+		resolve: { alias: { vitest: vitestAlias } },
 		test: {
-			name: 'store',
-			root: './packages/store',
-			environment: 'jsdom',
-			setupFiles: ['./test-setup.ts'],
-
-			// setupFiles: ['./setup.happy-dom.ts'],
-		},
-	},
-	{
-		test: {
-			name: 'service',
-			root: './packages/service',
+			name: 'cli-utils',
+			root: './packages/cli-utils',
 			environment: 'node',
-			typecheck: {
-				enabled: true,
-				include: ['**/*.test.ts'],
-			},
-			// setupFiles: ['./test-setup.ts'],
-
-			// setupFiles: ['./setup.happy-dom.ts'],
+			include: ['__tests__/**/*.test.ts'],
 		},
 	},
 	{
+		resolve: { alias: { vitest: vitestAlias } },
 		test: {
-			name: 'action',
-			root: './packages/action',
+			name: 'logs-server',
+			root: './packages/logs-server',
 			environment: 'node',
-			// typecheck: {
-			// 	enabled: true,
-			// 	include: ['**/*.test.ts'],
-			// },
-			// setupFiles: ['./test-setup.ts'],
-
-			// setupFiles: ['./setup.happy-dom.ts'],
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
 		},
 	},
 	{
+		resolve: { alias: { vitest: vitestAlias } },
 		test: {
-			name: 't3-app',
-			root: './examples/t3-with-davstack',
+			name: 'vitest-server',
+			root: './packages/vitest-server',
 			environment: 'node',
-			typecheck: {
-				enabled: true,
-				include: ['**/*.test.ts'],
-			},
-			// setupFiles: ['./test-setup.ts'],
-
-			// setupFiles: ['./setup.happy-dom.ts'],
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
 		},
 	},
 	{
+		resolve: { alias: { vitest: vitestAlias } },
 		test: {
-			name: 'sound',
-			root: './packages/sound',
-			environment: 'jsdom',
-			typecheck: {
-				enabled: false,
-				include: ['**/*.test.ts'],
-			},
-			// setupFiles: ['./test-setup.ts'],
-
-			// setupFiles: ['./setup.happy-dom.ts'],
+			name: 'playwright-server',
+			root: './packages/playwright-server',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
 		},
 	},
-	// {
-	// 	test: {
-	// 		name: 'node',
-	// 		root: './shared_tests',
-	// 		environment: 'node',
-	// 		setupFiles: ['./setup.node.ts'],
-	// 	},
-	// },
 ]);
