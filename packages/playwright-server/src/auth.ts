@@ -4,8 +4,10 @@
 // and where to persist it. The skill never knows the consumer's auth shape.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { findToolConfig } from '@davstack/cli-utils/config';
 
 export type StorageStateOrigin = {
   origin: string;
@@ -30,11 +32,9 @@ export const DEFAULT_CONFIG: ServerConfig = {
   profilePath: '.playwright-profile',
 };
 
-const CONFIG_FILENAME = 'playwright-server.config.ts';
-
 export async function loadConfig(cwd: string): Promise<ServerConfig> {
-  const configPath = resolve(cwd, CONFIG_FILENAME);
-  if (!existsSync(configPath)) return { ...DEFAULT_CONFIG };
+  const configPath = findToolConfig('playwright-server', cwd);
+  if (!configPath) return { ...DEFAULT_CONFIG };
   let mod: { default?: Partial<ServerConfig> } & Partial<ServerConfig>;
   try {
     mod = await import(pathToFileURL(configPath).href);
@@ -43,6 +43,7 @@ export async function loadConfig(cwd: string): Promise<ServerConfig> {
       `playwright-server: failed to load ${configPath}: ${(e as Error)?.message ?? e}`,
     );
   }
+  console.error('[playwright-server] config loaded from: ' + configPath);
   const user: Partial<ServerConfig> = (mod.default ?? mod) as Partial<ServerConfig>;
   return { ...DEFAULT_CONFIG, ...user };
 }

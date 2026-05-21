@@ -7,7 +7,8 @@
   "description": "Zero-dep CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
   "exports": {
     ".": "./src/cli.ts",
-    "./help": "./src/cli-help.ts"
+    "./help": "./src/cli-help.ts",
+    "./config": "./src/config.ts"
   },
   "files": [
     "src/**"

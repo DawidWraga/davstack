@@ -3,9 +3,8 @@
 // good prime; that's all here, with defaults that match the common case
 // (storybook addon-vitest + a stories.tsx file).
 
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { findToolConfig } from '@davstack/cli-utils/config';
 
 export type ServerConfig = {
   // Vitest project filter (the `project` CLI flag). Most setups have a
@@ -22,11 +21,10 @@ export const DEFAULT_CONFIG: ServerConfig = {
   primeFile: '',
 };
 
-const CONFIG_FILENAME = 'vitest-server.config.ts';
-
 export async function loadConfig(cwd: string): Promise<ServerConfig> {
-  const configPath = resolve(cwd, CONFIG_FILENAME);
-  if (!existsSync(configPath)) return { ...DEFAULT_CONFIG };
+  const configPath = findToolConfig('vitest-server', cwd);
+  if (!configPath) return { ...DEFAULT_CONFIG };
+  console.error('[vitest-server] config loaded from: ' + configPath);
   let mod: { default?: Partial<ServerConfig> } & Partial<ServerConfig>;
   try {
     mod = await import(pathToFileURL(configPath).href);
