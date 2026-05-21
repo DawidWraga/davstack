@@ -121,6 +121,23 @@ const cli = defineCli({
         return 0;
       },
     },
+    check: {
+      description: 'Validate local install (node, peer dep, chromium, config, daemon liveness)',
+      flags: {
+        ...clientFlags(),
+        cwd: { type: 'string', default: process.cwd() },
+        json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
+      },
+      run: async (ctx) => {
+        const { runCheck } = await import('./check.ts');
+        return runCheck({
+          cwd: ctx.flags.cwd as string,
+          host: ctx.flags.host as string,
+          port: ctx.flags.port as number,
+          json: ctx.flags.json as boolean,
+        });
+      },
+    },
   },
 });
 
