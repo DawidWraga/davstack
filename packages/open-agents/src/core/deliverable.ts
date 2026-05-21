@@ -72,7 +72,7 @@ export function renderJobResult(
       ?.slice(0, 70) || '(no label)';
   const out: string[] = [];
   out.push(
-    `### cursor-job ${job.id} — ${job.status} (exit ${job.exitCode ?? '?'}) · ` +
+    `### open-agent ${job.id} — ${job.status} (exit ${job.exitCode ?? '?'}) · ` +
       `${job.model} · ${elapsed}${job.killed ? ' · watchdog/timeout killed' : ''}`,
   );
   out.push(`label: ${label}`);

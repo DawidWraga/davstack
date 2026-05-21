@@ -7,6 +7,6 @@ import { exploreProfile } from '../profiles/explore.ts';
 
 bindProfile(exploreProfile);
 main().catch((err: any) => {
-  process.stderr.write(`cursor-jobs: ${err?.stack || err}\n`);
+  process.stderr.write(`open-agents: ${err?.stack || err}\n`);
   process.exit(1);
 });

@@ -89,7 +89,7 @@ describe('renderJobResult — compact index', () => {
     const { text, code } = renderJobResult(() => baseJob, '/repo', baseJob.id);
     const lines = text.split('\n');
     expect(lines[0]).toBe(
-      '### cursor-job 20260519-161854-4bd9 — done (exit 0) · composer-2.5 · 45s',
+      '### open-agent 20260519-161854-4bd9 — done (exit 0) · composer-2.5 · 45s',
     );
     expect(lines[1]).toBe(
       'label: List the exact signature and return type of every exported symbol in t',

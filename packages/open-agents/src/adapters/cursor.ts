@@ -144,7 +144,7 @@ export function sweepDotTest(repoPath: string, before: DotTestState | null): voi
   try {
     unlinkSync(join(repoPath, DOTTEST));
     process.stderr.write(
-      `cursor-jobs: swept stray 0-byte ${DOTTEST} (cursor-agent Windows probe litter)\n`,
+      `open-agents: swept stray 0-byte ${DOTTEST} (cursor-agent Windows probe litter)\n`,
     );
   } catch {
     /* best-effort */

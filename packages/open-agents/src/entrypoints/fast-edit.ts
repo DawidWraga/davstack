@@ -8,6 +8,6 @@ import { editProfile } from '../profiles/edit.ts';
 
 bindProfile(editProfile);
 main().catch((err: any) => {
-  process.stderr.write(`cursor-jobs: ${err?.stack || err}\n`);
+  process.stderr.write(`open-agents: ${err?.stack || err}\n`);
   process.exit(1);
 });

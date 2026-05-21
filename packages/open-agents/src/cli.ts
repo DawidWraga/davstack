@@ -151,7 +151,7 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   if (files.length) {
     for (const f of files) {
       if (!existsSync(f)) {
-        process.stderr.write(`cursor-jobs: spec file not found: ${f}\n`);
+        process.stderr.write(`open-agents: spec file not found: ${f}\n`);
         process.exit(2);
       }
       bodies.push(readFileSync(f, 'utf8'));
@@ -159,12 +159,12 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   } else {
     const body = positional.join(' ').trim();
     if (!body) {
-      process.stderr.write('cursor-jobs submit: need --file <spec.md> (or an inline prompt)\n');
+      process.stderr.write('open-agents submit: need --file <spec.md> (or an inline prompt)\n');
       process.exit(2);
     }
     if (SHELL_HOSTILE.test(body)) {
       process.stderr.write(
-        'cursor-jobs submit: inline prompt has shell-hostile chars. Write it to a ' +
+        'open-agents submit: inline prompt has shell-hostile chars. Write it to a ' +
           'file and use --file <spec.md> instead.\n',
       );
       process.exit(2);
@@ -207,12 +207,12 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
 
   const mode = (flags.parallelMode || 'asap').toLowerCase();
   if (mode !== 'asap' && mode !== 'all-together') {
-    process.stderr.write(`cursor-jobs: --parallel-mode must be asap|all-together\n`);
+    process.stderr.write(`open-agents: --parallel-mode must be asap|all-together\n`);
     process.exit(2);
   }
   const t0 = Date.now();
   process.stderr.write(
-    `cursor-jobs: ${ids.length} job(s) running (${profile.mode === 'force' ? 'edit' : 'explore'}, ${model}` +
+    `open-agents: ${ids.length} job(s) running (${profile.mode === 'force' ? 'edit' : 'explore'}, ${model}` +
       `${ids.length > 1 ? `, ${mode}` : ''})…\n`,
   );
   let worst = 0;
@@ -243,7 +243,7 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
         runJob(deps, repoPath, id).then(() => {
           done += 1;
           process.stderr.write(
-            `cursor-jobs: [${done}/${ids.length}] ${id} done (${Math.round((Date.now() - t0) / 1000)}s)\n`,
+            `open-agents: [${done}/${ids.length}] ${id} done (${Math.round((Date.now() - t0) / 1000)}s)\n`,
           );
           write(id);
         }),
@@ -293,7 +293,7 @@ async function cmdWait(flags: Flags, positional: string[]): Promise<void> {
   } else {
     const unknown = ids.filter((id) => !readJob(repoPath, id));
     if (unknown.length) {
-      process.stderr.write(`cursor-jobs wait: unknown job id(s): ${unknown.join(', ')}\n`);
+      process.stderr.write(`open-agents wait: unknown job id(s): ${unknown.join(', ')}\n`);
       process.exit(2);
     }
   }
@@ -314,7 +314,7 @@ async function cmdWait(flags: Flags, positional: string[]): Promise<void> {
       process.exit(0);
     }
     if (Date.now() >= deadline) {
-      process.stderr.write('cursor-jobs wait: timed out\n');
+      process.stderr.write('open-agents wait: timed out\n');
       process.exit(3);
     }
     await sleep(1500);
@@ -326,16 +326,16 @@ function printJobResult(adapter: AgentAdapter, repoPath: string, id: string | nu
   const job = id ? readJob(repoPath, id) : mostRecentFinishedJob(repoPath);
   if (!job) {
     process.stderr.write(
-      id ? `No job \`${id}\` for this repo.\n` : 'No finished cursor-jobs for this repo yet.\n',
+      id ? `No job \`${id}\` for this repo.\n` : 'No finished open-agents for this repo yet.\n',
     );
     process.exit(1);
   }
   if (job.status === 'running') {
-    process.stdout.write(`Job ${job.id} still running. Block with: cursor-jobs wait ${job.id}\n`);
+    process.stdout.write(`Job ${job.id} still running. Block with: open-agents wait ${job.id}\n`);
     process.exit(0);
   }
   process.stderr.write(
-    `cursor-job ${job.id} — ${job.status} (exit ${job.exitCode ?? '?'})` +
+    `open-agent ${job.id} — ${job.status} (exit ${job.exitCode ?? '?'})` +
       (job.resultPath ? `  ·  ${job.resultPath}` : '') +
       '\n',
   );
@@ -352,7 +352,7 @@ function cmdLs(flags: Flags): void {
   const repoPath = flags.cwd || process.cwd();
   const jobs = listJobs(repoPath, { limit: 20 });
   if (!jobs.length) {
-    process.stdout.write('(no cursor-jobs for this repo)\n');
+    process.stdout.write('(no open-agents for this repo)\n');
     return;
   }
   const now = Date.now();
@@ -471,13 +471,12 @@ export async function main(argvRest?: string[]): Promise<void> {
   }
 }
 
-// Auto-run only when this module IS the entrypoint (direct `bun cli.ts …`,
-// the transitional cursor-jobs.ts shim, or the built default bundle) — NOT
-// when imported by entrypoints/*.ts (which call main() after binding a
+// Auto-run only when this module IS the entrypoint (e.g. direct `bun cli.ts …`)
+// — NOT when imported by entrypoints/*.ts (which call main() after binding a
 // profile). `import.meta.main` is true for the process entry module under bun.
 if (import.meta.main) {
   main().catch((err: any) => {
-    process.stderr.write(`cursor-jobs: ${err?.stack || err}\n`);
+    process.stderr.write(`open-agents: ${err?.stack || err}\n`);
     process.exit(1);
   });
 }
