@@ -22,7 +22,7 @@ export const editProfile: Profile = {
   warnIfMissingAcceptance(specBody: string) {
     if (!ACCEPTANCE_RE.test(specBody)) {
       process.stderr.write(
-        'cursor-jobs: warning — an --edit spec has no <acceptance> (the gate you run after).\n',
+        'open-agents: warning — an --edit spec has no <acceptance> (the gate you run after).\n',
       );
     }
   },

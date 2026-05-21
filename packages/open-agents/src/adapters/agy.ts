@@ -129,7 +129,7 @@ export function sweepLitterDir(repoPath: string, before: LitterState | null): vo
   try {
     rmdirSync(join(repoPath, LITTER_DIR));
     process.stderr.write(
-      `cursor-jobs: swept stray empty ${LITTER_DIR}/ (agy Windows symlink probe litter)\n`,
+      `open-agents: swept stray empty ${LITTER_DIR}/ (agy Windows symlink probe litter)\n`,
     );
   } catch {
     /* best-effort */

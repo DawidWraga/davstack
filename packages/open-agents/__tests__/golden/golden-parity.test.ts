@@ -74,7 +74,7 @@ describe('GOLDEN-EXPLORE parity (read-only profile)', () => {
     const { text, code } = renderJobResult(() => job, job.repoPath, job.id);
     expect(text).not.toContain('files changed:');
     expect(text.split('\n')[0]).toMatch(
-      /^### cursor-job 20260519-161854-4bd9 — done \(exit 0\) · composer-2\.5 · \d+s$/,
+      /^### open-agent 20260519-161854-4bd9 — done \(exit 0\) · composer-2\.5 · \d+s$/,
     );
     expect(text).toContain('follow-up: cursor-agent --resume=');
     expect(code).toBe(0);
