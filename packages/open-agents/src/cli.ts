@@ -32,6 +32,8 @@ import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.ts';
 import { editProfile } from './profiles/edit.ts';
 import { exploreProfile } from './profiles/explore.ts';
 import type { Profile } from './profiles/types.ts';
+import { loadConfig } from './config.ts';
+import { runCheck } from './check.ts';
 
 const SELF = fileURLToPath(import.meta.url);
 const TERMINAL = new Set(['done', 'failed', 'cancelled']);
@@ -96,10 +98,12 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
   return { flags, positional };
 }
 
-export function pickAdapter(flags: Flags): AgentAdapter {
+export function pickAdapter(flags: Flags, configAdapter?: string): AgentAdapter {
   // Default: cursor (composer-2.5). Unknown adapter names fall back to cursor
-  // too (no silent gemini on a typo).
-  return ADAPTERS[flags.adapter || 'cursor'] || cursorAdapter;
+  // too (no silent gemini on a typo). Flag wins over config; config wins over
+  // built-in default.
+  const name = flags.adapter || configAdapter || 'cursor';
+  return ADAPTERS[name] || cursorAdapter;
 }
 
 // Profile precedence: an entrypoint binding (FORCED_PROFILE) wins; else
@@ -118,12 +122,20 @@ const SHELL_HOSTILE = /[\n"'`$();|&<>]/;
 
 async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const repoPath = flags.cwd || process.cwd();
-  const adapter = pickAdapter(flags);
+  // Config provides defaults BELOW flags but ABOVE built-ins. Loaded once per
+  // submit — cheap, single tiny dynamic import. Resolution order:
+  //   flag > config > tier flag / built-in
+  const config = await loadConfig(repoPath);
+  const adapter = pickAdapter(flags, config.defaultAdapter);
   const profile = pickProfile(flags);
-  // Precedence: explicit raw --model > tier flag (--smarter/--faster) > default.
   const model =
-    flags.model || (flags.tier && adapter.tierModel(flags.tier)) || adapter.defaultModel();
-  const timeoutSec = Number.isFinite(flags.timeout) ? flags.timeout! : DEFAULT_TIMEOUT_SEC;
+    flags.model ||
+    (flags.tier && adapter.tierModel(flags.tier)) ||
+    config.defaultModel ||
+    adapter.defaultModel();
+  const timeoutSec = Number.isFinite(flags.timeout)
+    ? flags.timeout!
+    : (config.defaultTimeoutSec ?? DEFAULT_TIMEOUT_SEC);
   // Adapter-contributed extra guard line(s) for this profile+tier (e.g. the
   // gemini-flash explore line-number-verify directive). Default adapters/tiers
   // return '' so the scaffold stays byte-identical.
@@ -446,6 +458,13 @@ export async function main(argvRest?: string[]): Promise<void> {
       return cmdLs(flags);
     case 'tail':
       return cmdTail(flags, positional);
+    case 'check': {
+      const code = await runCheck({
+        json: rest.includes('--json'),
+        cwd: flags.cwd,
+      });
+      process.exit(code);
+    }
     default:
       process.stdout.write(HELP);
       process.exit(verb ? 1 : 0);

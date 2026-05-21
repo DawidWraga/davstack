@@ -1,0 +1,14 @@
+// open-agents config — explore / fast-edit cursor-jobs primitive.
+// Repo-level defaults below the CLI flags. Per-profile prompt extensions
+// are how you bake repo conventions into the explore/edit scaffolds
+// (e.g. "cite path:line for every claim", "never edit gen-api/").
+
+export default {
+  // defaultModel: "composer-2.5",            // composer-2-fast for latency
+  // defaultAdapter: "cursor",                // cursor | gemini | agy
+  // defaultTimeoutSec: 600,
+  // profiles: {
+  //   explore: { systemPromptExtension: "" },
+  //   edit:    { systemPromptExtension: "" },
+  // },
+}

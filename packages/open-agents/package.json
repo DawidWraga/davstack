@@ -20,6 +20,9 @@
     "node": ">=20",
     "bun": ">=1.1"
   },
+  "dependencies": {
+    "@davstack/cli-utils": "workspace:*"
+  },
   "publishConfig": {
     "access": "public"
   }
