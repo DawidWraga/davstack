@@ -1,0 +1,12 @@
+// playwright-server config — warm chromium daemon.
+// refreshAuth is the user-supplied function that mints a fresh
+// storage state when called (login + capture). See README for shape.
+
+export default {
+  baseUrl: "http://localhost:3001",
+  storageStatePath: "e2e/.auth/user.json",
+  profilePath: ".playwright-profile",
+  port: 5180,
+  host: "127.0.0.1",
+  // refreshAuth: async () => { /* user-supplied login + capture */ },
+}

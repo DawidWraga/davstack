@@ -1,0 +1,32 @@
+{
+  "name": "@davstack/vitest-server",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Warm vitest daemon for fast TDD reruns. Keeps a long-lived vitest runtime hot so per-file reruns drop from ~50s cold to ~3-15s.",
+  "bin": {
+    "vitest-server": "./bin/vitest-server.mjs"
+  },
+  "files": [
+    "bin/**",
+    "src/**"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@davstack/cli-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "vitest": ">=4",
+    "@vitest/browser": ">=4",
+    "@storybook/addon-vitest": ">=10"
+  },
+  "peerDependenciesMeta": {
+    "@vitest/browser": { "optional": true },
+    "@storybook/addon-vitest": { "optional": true }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@davstack/playwright-server",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Warm chromium daemon for fast e2e/UI iteration. Keeps a long-lived browser context hot so spec reruns hit the live window in 1-3s instead of paying cold-boot.",
+  "bin": {
+    "playwright-server": "./bin/playwright-server.mjs"
+  },
+  "files": [
+    "bin/**",
+    "src/**"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@davstack/cli-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.50"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
