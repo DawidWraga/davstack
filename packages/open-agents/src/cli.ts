@@ -98,6 +98,20 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
   return { flags, positional };
 }
 
+// Concat the two scaffold injections — adapter-contributed guard (e.g.
+// gemini-flash line-verify) + repo-level systemPromptExtension from
+// .davstack/config/open-agents.config.ts. Order: adapter first (provider-
+// specific), user extension last (most-specific override). Both default to ''
+// so goldens stay byte-identical when neither is set. The user extension is
+// normalized to a trailing newline so the scaffold's `<spec>` separator stays
+// on its own line; an adapter addendum is already expected to be newline-
+// terminated by its author.
+export function combineAddendums(adapterAddendum: string, userExtension: string): string {
+  const normalized =
+    userExtension && !userExtension.endsWith('\n') ? userExtension + '\n' : userExtension;
+  return adapterAddendum + normalized;
+}
+
 export function pickAdapter(flags: Flags, configAdapter?: string): AgentAdapter {
   // Default: cursor (composer-2.5). Unknown adapter names fall back to cursor
   // too (no silent gemini on a typo). Flag wins over config; config wins over
@@ -136,10 +150,10 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const timeoutSec = Number.isFinite(flags.timeout)
     ? flags.timeout!
     : (config.defaultTimeoutSec ?? DEFAULT_TIMEOUT_SEC);
-  // Adapter-contributed extra guard line(s) for this profile+tier (e.g. the
-  // gemini-flash explore line-number-verify directive). Default adapters/tiers
-  // return '' so the scaffold stays byte-identical.
-  const guardAddendum = adapter.guardAddendum?.(profile.name, flags.tier) ?? '';
+  const adapterAddendum = adapter.guardAddendum?.(profile.name, flags.tier) ?? '';
+  const profileKey = profile.name as 'explore' | 'edit';
+  const userExtension = config.profiles?.[profileKey]?.systemPromptExtension ?? '';
+  const guardAddendum = combineAddendums(adapterAddendum, userExtension);
 
   // adapter pre-run hook (cursor: clear stale .test.ts litter + snapshot, so
   // the post hook removes only what THIS submit leaks). Detach's only cleanup.

@@ -11,7 +11,7 @@
 
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { homedir } from "node:os"
+import { dataHome } from "../src/core/paths.ts"
 
 interface Usage {
   inputTokens?: number
@@ -38,7 +38,7 @@ interface Row {
   isError?: boolean
 }
 
-const JOBS = join(homedir(), ".cursor-jobs", "jobs")
+const JOBS = join(dataHome(), "jobs")
 
 // genId() stamps job ids as YYYYMMDD-HHMMSS-xxxx in LOCAL time, so the id
 // prefix is a reliable local-day key (matches how we scope Claude's day too).
@@ -51,7 +51,7 @@ const day =
   })()
 
 if (!existsSync(JOBS)) {
-  console.error(`no cursor-jobs store at ${JOBS}`)
+  console.error(`no open-agents store at ${JOBS}`)
   process.exit(1)
 }
 
@@ -100,7 +100,7 @@ rows.sort((a, b) => a.id.localeCompare(b.id))
 const z = (n?: number) => (n || 0).toLocaleString()
 const secs = (ms: number | null) => (ms == null ? "   ?" : `${Math.round(ms / 1000)}s`)
 
-console.log(`\nComposer / cursor-jobs usage — ${day}  (${rows.length} job(s))\n`)
+console.log(`\nopen-agents usage — ${day}  (${rows.length} job(s))\n`)
 const H = ["job id", "repo", "model", "st", "dur", "in", "out", "cacheR", "cacheW"]
 console.log(
   H[0].padEnd(22) + H[1].padEnd(20) + H[2].padEnd(16) + H[3].padEnd(7) +
