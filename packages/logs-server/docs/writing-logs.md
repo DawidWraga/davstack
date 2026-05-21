@@ -8,7 +8,7 @@ Once your transmitter is wired up ([setup.md](./setup.md)), the question is *wha
 logger.debug("panel-ctx.joinCleanup.no-joins-path", {
   anchorEntityId,
   validRelationshipIdsCount: validRelationshipIds.size,
-  query: querySummary(query),
+  query,
 })
 ```
 
@@ -34,27 +34,27 @@ When debugging, the receiver gives you a fast loop:
 1. **State the hypothesis in writing** before adding any log.
    > H3: the joinCleanup effect's stale closure emits a query snapshot from before the click landed.
 
-2. **Plant probes at the discriminating boundary** — just before + just after the suspected event. Tag each with the hypothesis id so you can slice one page-load by `tag`:
+2. **Plant probes at the discriminating boundary** — just before + just after the suspected event. Tag each with the hypothesis id (use an array so one probe can carry multiple tags — e.g. `["H3","joinCleanup"]`):
 
    ```ts
    logger.debug("panel-ctx.joinCleanup.effect-fire", {
-     tag: "H3",
+     tags: ["H3"],
      done: joinCleanupDoneRef.current,
      relationshipsLoading,
      anchorEntityId,
-     query: querySummary(query),
+     query,
    })
 
    logger.debug("panel-ctx.joinCleanup.no-joins-path", {
-     tag: "H3",
-     queryShape: queryShape(query),
+     tags: ["H3", "joinCleanup"],
+     query,
    })
    ```
 
 3. **Reproduce, then slice:**
 
    ```bash
-   logs-server query filter --grep '"tag":"H3"' --run <id>
+   logs-server query filter --grep '"H3"' --run <id>
    ```
 
    The timeline shows the actual ordering and payloads — not the assumed ones.
@@ -77,7 +77,7 @@ logs-server query filter --grep "panel-ctx.update" --json | jq '.[].data.next'
 
 - **Lead with `--grep` on the message name first**, then narrow on payload fields with `jq` / `json_extract`. Filtering on the indexed string first cuts the row set 10–100×.
 - **Prefer `json_extract(data, '$.next.entity')`** over dumping the whole `data` blob to terminal. The SQL recipes in [reading-logs.md](./reading-logs.md) show the shape.
-- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tag`, `hypothesis`, etc.) so `--grep '"tag":"H3"'` works without a `jq` pass.
+- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tags`, `hypothesis`, etc.) so `--grep '"H3"'` works without a `jq` pass.
 
 ## What NOT to log
 
