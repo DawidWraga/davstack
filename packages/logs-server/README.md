@@ -1,47 +1,35 @@
 # @davstack/logs-server
 
-Long-lived HTTP sink that accepts Sentry envelopes from app/test/agent code
-and writes them to a per-repo SQLite at `.davstack/logs.db`. Exposes structured
-query verbs for filtering by `trace_id`, `run_id`, time window, and level.
-Built for local-only dev — no cloud account, no API key. Use `trace_id`
-correlation across a monorepo (e.g. a python backend + a react frontend emit
-to the same sink, query yields a unified timeline).
+Local Sentry-shaped app -> sqlite log sink. 
 
-## Quick start
+## Why
 
-```sh
-# boot the ingest endpoint (default 127.0.0.1:7077)
-npx logs-server serve &
+- **E2E tracability** Frontend + backend + workers POST to the same `.davstack/logs.db`; `--trace` follows requests across services.
+- **Zero infra.** Integrates into existing sentry logger client for auto-instrumentation and low effort setup.
+- **Optimized for Agents.** Compact one-row-per-line by default — coding agents read it without grouping passes.
 
-# query an assembled trace
-npx logs-server query trace --project foo --trace abc
+## Install
 
-# timeline for one run
-npx logs-server query run --project foo --run r-42
-
-# errors with surrounding context
-npx logs-server query errors --project foo --trace abc
-
-# generic filter
-npx logs-server query filter --project foo --level error --grep timeout
-
-# prune rows older than 14 days
-npx logs-server prune --days 14
+```bash
+pnpm add -D @davstack/logs-server
+pnpm exec logs-server serve     
+# change sentry logger client DSN to server address (default: 127.0.0.1:5181)
 ```
 
-## Storage
+## Usage Example
 
-- DB path: `$DIAG_DB` (default `~/.davstack/diag.sqlite`).
-- Schema: `logs(id, ts, recv_ts, project, service, run_id, trace_id, span_id, level, severity_number, logger, msg, data, tag)`.
-- Indexed on `(project, run_id, trace_id, level, ts)`.
+```ts
+// app code (any Sentry-compatible SDK pointed at http://127.0.0.1:5181)
+logger.debug("user clicked save", { user_id: 42, run_id: "r-99" })
+```
 
-The DB is a single shared store across all projects — the `project` column
-scopes queries. Use raw sqlite for ad-hoc cuts the CLI doesn't pre-bake.
+```bash
+$ logs-server query filter --grep "clicked save"
+2026-05-21T13:51:32  debug  app  r-99  user clicked save  {"user_id":42}
+```
 
-## Env vars
+## Docs
 
-- `DIAG_DB` — sqlite file path override
-- `DIAG_PORT` — listen port (default 7077)
-- `DIAG_HOST` — listen host (default 127.0.0.1)
-
-(`DIAG_*` prefix preserved for back-compat with existing repo setups.)
+- [docs/setup.md](./docs/setup.md) — config file, env vars, runtime selection
+- [docs/writing-logs.md](./docs/writing-logs.md) — transmitter setup per SDK
+- [docs/reading-logs.md](./docs/reading-logs.md) — every query verb + raw sqlite recipes
