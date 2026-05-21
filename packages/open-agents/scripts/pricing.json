@@ -1,0 +1,9 @@
+{
+  "_note": "USD per 1,000,000 tokens. Tier matched by substring of the model id (opus|sonnet|haiku); add an exact model id under overrides to pin a version. CALIBRATED to the cent against ccusage on the frozen day 2026-05-15: haiku $1.24=$1.24, opus $236.49=$236.49. opus = Opus 4.7 ($5/$25, a 3x cut from old Opus). Cache creation is priced FLAT at the 5m rate (cacheWrite1h == cacheWrite5m) to mirror the ccusage/LiteLLM oracle — Anthropic's real 1h-cache premium is intentionally NOT modeled (reproducibility over absolute precision; revisit only if 1h-cache share becomes material). KNOWN FOLLOW-UP: opus-4-5/4-6 may use the OLD $15/$75 schedule — add overrides once a day with that traffic is calibrated. sonnet tier is historical $3/$15, UNVERIFIED (no sonnet traffic on the calibration day).",
+  "tiers": {
+    "opus":   { "input": 5,  "output": 25, "cacheWrite5m": 6.25,  "cacheWrite1h": 6.25,  "cacheRead": 0.5 },
+    "sonnet": { "input": 3,  "output": 15, "cacheWrite5m": 3.75,  "cacheWrite1h": 3.75,  "cacheRead": 0.3 },
+    "haiku":  { "input": 1,  "output": 5,  "cacheWrite5m": 1.25,  "cacheWrite1h": 1.25,  "cacheRead": 0.1 }
+  },
+  "overrides": {}
+}

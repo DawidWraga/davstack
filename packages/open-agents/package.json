@@ -1,0 +1,26 @@
+{
+  "name": "@davstack/open-agents",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Self-waiting Cursor-jobs primitive: delegate scoped explore (read-only) and fast-edit (mechanical) work to cursor-agent, harness-trackable, results persisted per job.",
+  "scripts": {
+    "test": "pnpm -w exec vitest run --project open-agents"
+  },
+  "bin": {
+    "explore": "./bin/explore.mjs",
+    "fast-edit": "./bin/fast-edit.mjs"
+  },
+  "files": [
+    "bin/**",
+    "src/**",
+    "docs/**"
+  ],
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

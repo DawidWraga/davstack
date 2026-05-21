@@ -1,0 +1,7 @@
+### cursor-job 20260519-162008-a363 — done (exit 0) · composer-2.5 · 69s
+label: Add an exported `triple` function to src/math.ts that takes one number
+result → C:\Users\dpwra\.cursor-jobs\jobs\46e7667d3723\20260519-162008-a363.result.md
+follow-up: cursor-agent --resume=5a502a34-13c1-40a5-b9b7-e1817452d539
+
+--- deliverable file(s) — read each for the actual output ---
+C:\Users\dpwra\.cursor-jobs\jobs\46e7667d3723\20260519-162008-a363.result.md
