@@ -82,12 +82,21 @@ function runInstall(root: string, manager: PackageManager, tools: Tool[]): void 
   }
 }
 
-function printNextSteps(): void {
+function printNextSteps(tools: Tool[]): void {
   console.log("")
   console.log("Done. Next:")
-  console.log("  npx logs-server serve &")
-  console.log("  npx vitest-server check")
-  console.log("  npx playwright-server check")
+  if (tools.includes("logs-server")) console.log("  npx logs-server serve &")
+  if (tools.includes("vitest-server")) console.log("  npx vitest-server check")
+  if (tools.includes("playwright-server")) console.log("  npx playwright-server check")
+  if (tools.includes("open-agents")) {
+    console.log("  npx explore check                 # verifies cursor-agent install")
+    console.log("  npx explore   submit '<goal>…</goal> <scope>…</scope>'")
+    console.log("  npx fast-edit submit --file <spec>.md")
+    console.log("")
+    console.log("  open-agents needs the `cursor-agent` binary on PATH (or vendored")
+    console.log("  on Windows). If `npx explore check` flags it as missing, install")
+    console.log("  from https://cursor.com/cli.")
+  }
   console.log("")
   console.log("Config files are in .davstack/config/ (committed).")
   console.log("Runtime files live in .davstack/{logs.db, port, cache/} (gitignored).")
@@ -98,13 +107,14 @@ async function main(): Promise<void> {
   program
     .name("davstack-init")
     .description(
-      "Interactive bootstrap for @davstack/{logs,vitest,playwright}-server. " +
-        "Detects repo root, installs tools, scaffolds .davstack/ config + gitignore.",
+      "Interactive bootstrap for @davstack/{logs,vitest,playwright}-server " +
+        "and @davstack/open-agents. Detects repo root, installs tools, " +
+        "scaffolds .davstack/ config + gitignore.",
     )
     .option("--all", "select all tools without prompting")
     .option(
       "--tools <list>",
-      "comma-separated tools to install (logs-server,vitest-server,playwright-server)",
+      "comma-separated tools to install (logs-server,vitest-server,playwright-server,open-agents)",
     )
     .option("--skip-install", "skip the package manager install step")
     .option("--no-scaffold", "skip writing .davstack/ and .gitignore")
@@ -148,7 +158,7 @@ async function main(): Promise<void> {
     console.log("Skipping scaffold (--no-scaffold).")
   }
 
-  printNextSteps()
+  printNextSteps(tools)
 }
 
 main().catch((err) => {

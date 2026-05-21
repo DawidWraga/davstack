@@ -50,7 +50,11 @@ importers:
         specifier: workspace:*
         version: link:../cli-utils
 
-  packages/open-agents: {}
+  packages/open-agents:
+    dependencies:
+      '@davstack/cli-utils':
+        specifier: workspace:*
+        version: link:../cli-utils
 
   packages/playwright-server:
     dependencies:

@@ -23,7 +23,12 @@ if (runtime === 'bun') {
   process.exit(2)
 }
 
-const child = spawn(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' })
+// shell: true on Windows is needed for the `bun` .cmd shim, but it breaks
+// `process.execPath` which has spaces ("C:\Program Files\nodejs\node.exe").
+// Only enable for the bun path. (See davstack init commit f3c7947 for the
+// same fix in the init package.)
+const needsShell = process.platform === 'win32' && runtime === 'bun'
+const child = spawn(cmd, args, { stdio: 'inherit', shell: needsShell })
 child.on('error', (err) => {
   if (err.code === 'ENOENT' && runtime === 'bun') {
     console.error("explore: bun not found on PATH. Install bun (https://bun.sh) or set OPEN_AGENTS_RUNTIME=node.")

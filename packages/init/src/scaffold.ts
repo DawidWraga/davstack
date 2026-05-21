@@ -9,9 +9,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-export type Tool = "logs-server" | "vitest-server" | "playwright-server"
+export type Tool = "logs-server" | "vitest-server" | "playwright-server" | "open-agents"
 
-export const ALL_TOOLS: Tool[] = ["logs-server", "vitest-server", "playwright-server"]
+export const ALL_TOOLS: Tool[] = [
+  "logs-server",
+  "vitest-server",
+  "playwright-server",
+  "open-agents",
+]
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATE_DIR = path.join(here, "templates")
