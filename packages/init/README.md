@@ -1,50 +1,47 @@
 # @davstack/init
 
-Interactive bootstrap CLI for the davstack daemons:
+One-shot bootstrap CLI for the `@davstack/*` daemons.
 
-- `@davstack/logs-server` — local Sentry-shaped log sink
-- `@davstack/vitest-server` — warm vitest daemon
-- `@davstack/playwright-server` — warm chromium daemon
+## Why
 
-## Usage
+- **One command to wire the stack.** Installs the daemons you pick, scaffolds `.davstack/config/*.config.ts`, patches `.gitignore` — single pass.
+- **Idempotent.** Existing config files are left untouched; only missing `.gitignore` lines are appended. Safe to re-run on a half-configured repo.
+- **Matches your stack.** Walks up for the git/workspace root, sniffs the lockfile, so install uses pnpm/yarn/bun/npm correctly (incl. `-w` for pnpm workspace roots).
+
+## Install
 
 ```bash
-npx @davstack/init
+# zero-install: run once, no dependency added
+pnpm dlx @davstack/init --all
 ```
 
-The CLI:
+## Usage Example
 
-1. Detects the repo root (`git rev-parse --show-toplevel`, then workspace
-   markers, then any `package.json`, falling back to cwd).
-2. Detects the package manager from the lockfile (pnpm / yarn / bun /
-   npm).
-3. Prompts you (checkbox) for which daemons to wire up.
-4. Installs them as devDependencies (pnpm-workspace roots get `-w`).
-5. Scaffolds `.davstack/config/<tool>.config.ts` for each selected tool.
-6. Appends `.davstack/*` and `!.davstack/config/` to `.gitignore`.
+```bash
+# interactive — checkbox prompt picks which daemons to wire up
+pnpm dlx @davstack/init
+
+# non-interactive — everything
+pnpm dlx @davstack/init --all
+
+# non-interactive — subset
+pnpm dlx @davstack/init --tools=logs-server,vitest-server
+```
 
 ## Flags
 
-| flag | effect |
+| Flag | Description |
 | --- | --- |
-| `--all` | select all tools, skip prompt |
-| `--tools=logs-server,vitest-server` | explicit selection, skip prompt |
-| `--skip-install` | scaffold only — don't run the package manager |
-| `--no-scaffold` | install only — don't write `.davstack/` |
-| `-h`, `--help` | usage |
+| `--all` | Select every tool without prompting. |
+| `--tools <list>` | Comma-separated subset: `logs-server,vitest-server,playwright-server,open-agents`. |
+| `--skip-install` | Scaffold only — skip the package manager step. Same as `DAVSTACK_INIT_SKIP_INSTALL=1`. |
+| `--no-scaffold` | Install only — skip writing `.davstack/` and `.gitignore`. |
+| `-h, --help` | Print help. |
 
-Env: `DAVSTACK_INIT_SKIP_INSTALL=1` is equivalent to `--skip-install`.
+## Next
 
-## Layout written
+After init, see each daemon's own README:
 
-```
-.davstack/
-  config/
-    logs-server.config.ts
-    vitest-server.config.ts
-    playwright-server.config.ts
-```
-
-Runtime files (created by the daemons on first boot) live at
-`.davstack/logs.db`, `.davstack/port`, `.davstack/cache/` and are
-gitignored.
+- [@davstack/logs-server](../logs-server/README.md) — local sqlite log sink
+- [@davstack/vitest-server](../vitest-server/README.md) — warm Vitest daemon
+- [@davstack/playwright-server](../playwright-server/README.md) — warm Playwright daemon
