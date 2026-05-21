@@ -1,70 +1,32 @@
 # @davstack/playwright-server
 
-Warm chromium daemon. Boots a single chromium context with your auth state once and keeps it hot; spec reruns and `goto`/`refresh-auth` verbs execute against the live window in 1-3 seconds instead of paying ~15-25s of cold-boot per iteration. Designed for the agent feedback loop — fast enough that the agent can drive UI exploration interactively.
+Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm.
 
-## Quick Start
+## Why
 
-Install in the consumer project (peer dep is `@playwright/test`):
+- **Warm chromium context.** Reuse warm browser across tabs for super fast agentic feedback loops.
+- **Agent-optimized CLI.** Structured JSON + exit codes; fast loops, lean on tokens.
 
-```bash
-npm i -D @davstack/playwright-server @playwright/test
-```
-
-Boot the daemon in the background, then drive it with cheap (~50 ms) client verbs:
+## Install
 
 ```bash
-# 1. start the warm browser (long-lived)
-npx playwright-server serve &
+pnpm add -D @davstack/playwright-server @playwright/test
+pnpm exec playwright install chromium
 
-# 2. navigate the live page
-npx playwright-server goto /dashboard
-
-# 3. run a spec against the warm window
-npx playwright-server run e2e/spec.ts
-
-# 4. when finished
-npx playwright-server shutdown
+# in a long-lived shell:
+pnpm exec playwright-server serve
 ```
 
-Other verbs: `refresh-auth` (mint a fresh session and reseed the live context) and `health` (liveness check).
+## Usage Example
 
-## Configuration
-
-Drop a `.davstack/config/playwright-server.config.ts` (or `playwright-server.config.ts` at project root) describing how the daemon should mint sessions and where to persist them:
-
-```ts
-// playwright-server.config.ts
-import type { ServerConfig } from '@davstack/playwright-server'
-
-const config: ServerConfig = {
-  baseUrl: 'http://localhost:3001',
-  storageStatePath: 'e2e/.auth/user.json',
-  profilePath: '.playwright-profile',
-  refreshAuth: async () => {
-    // return a Playwright StorageState (cookies + origins[].localStorage)
-    // or null if login failed. Called on boot and via `refresh-auth`.
-    return null
-  },
-}
-
-export default config
+```bash
+playwright-server run e2e/smoke.spec.ts
+{"ok":true,"durationMs":842,"setupMs":120,"file":"e2e/smoke.spec.ts"}
 ```
 
-Fields:
+## Docs
 
-- `baseUrl` — origin the warm context navigates against
-- `storageStatePath` — where the seeded storageState JSON lives (cookies + localStorage)
-- `profilePath` — fallback persistent-profile dir when no seed is present
-- `refreshAuth` — optional async hook that returns a fresh `StorageState`; the daemon writes it to `storageStatePath` and reseeds the live context
-
-The skill never knows the consumer's auth shape — `refreshAuth` is where you wire your login flow.
-
-## Flags
-
-`serve` accepts:
-
-- `--port` (default `5180`, env `PLAYWRIGHT_SERVER_PORT`)
-- `--host` (default `127.0.0.1`, env `PLAYWRIGHT_SERVER_HOST`)
-- `--cwd` (default `process.cwd()`) — consumer project root where the config lives
-
-All client verbs accept `--port` / `--host` to point at a non-default daemon.
+- [docs/setup.md](./docs/setup.md) — config file, defaults, peer-dep, sanity check
+- [docs/usage.md](./docs/usage.md) — CLI verbs, HTTP API, agent-loop pattern
+- [docs/auth.md](./docs/auth.md) — `refreshAuth` seam + `storageStatePath` lifecycle
+- [docs/troubleshooting.md](./docs/troubleshooting.md) — port conflicts, missing chromium, stale auth, extractor restrictions
