@@ -1,16 +1,40 @@
 # Davstack
 
-Davstack is a collection of typescript libraries made to help you to build better React/Next.js web applications faster. See [davstack.com](https://davstack.com) for more information.
+Local-first dev tooling for AI-coding-agent workflows. Long-lived daemons, structured-JSON CLIs, and a shared `.davstack/` config convention — so agents can run tests, drive browsers, query logs, and dispatch subagents without paying cold-start cost every turn.
 
 ## Packages
 
-| Package                                                    | Description                                                                  |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [@davstack/store](https://davstack.com/store/overview)     | State management library based on Zustand                                    |
-| [@davstack/service](https://davstack.com/service/overview) | Service layer library for handling business logic                            |
-| [@davstack/sound](https://davstack.com/sound/overview)     | Sound management library built with @davstack/store and Howler.js            |
-| [@davstack/ui](https://davstack.com/ui/overview)           | UI component snippets built with Radix UI / tailwind css (extends shadcn ui) |
+| Package | What it is |
+|---|---|
+| [@davstack/init](./packages/init) | Bootstrap CLI — scaffolds `.davstack/config/*.config.ts` for every tool you opt into, updates `.gitignore`. |
+| [@davstack/logs-server](./packages/logs-server) | Local Sentry-shaped log sink. Ingests envelopes over HTTP, writes to per-repo SQLite, queries by `trace_id` / `run_id` / `level`. |
+| [@davstack/vitest-server](./packages/vitest-server) | Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3–15s warm. |
+| [@davstack/playwright-server](./packages/playwright-server) | Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm. |
+| [@davstack/open-agents](./packages/open-agents) | One-shot agent runner (cursor-agent et al) with structured deliverables — explore, fast-edit, etc. |
+| [@davstack/cli-utils](./packages/cli-utils) | Internal: `defineCli` + shared config-resolver (`findRepoRoot`, `findToolConfig`). |
+
+## Skills
+
+Agent-facing skill files live in [`skills/`](./skills) — one subdir per skill, each with `SKILL.md`. Loaded via the `npx skills add` installer, which handles `.agents/` registration and Claude symlinks.
+
+Current skills: `explore`, `fast-edit`, `logs-server`, `vitest-server`, `playwright-server`.
+
+## Quick start
+
+```bash
+# Scaffold configs for everything in one shot:
+pnpm dlx @davstack/init --all
+
+# Or pick the tools you want:
+pnpm dlx @davstack/init --tools=logs-server,vitest-server
+```
+
+Each package has its own README + `docs/` covering install, config, usage, and troubleshooting.
+
+## Archive
+
+Older packages (`@davstack/store`, `service`, `sound`, `ui`) plus prior `apps/` and `examples/` live under [`archive/`](./archive) — not actively maintained, retained for reference and revertability.
 
 ---
 
-Davstack is created and maintained by [Dawid Wraga](https://github.com/DawidWraga) with [Ream](https://www.reamapp.com)
+Davstack is created and maintained by [Dawid Wraga](https://github.com/DawidWraga).
