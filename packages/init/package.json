@@ -1,0 +1,24 @@
+{
+  "name": "@davstack/init",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Interactive bootstrap CLI for @davstack/{logs,vitest,playwright}-server. Detects repo root, installs tools, scaffolds .davstack/ config + gitignore.",
+  "bin": {
+    "davstack-init": "./bin/davstack-init.mjs"
+  },
+  "files": [
+    "bin/**",
+    "src/**"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@inquirer/prompts": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

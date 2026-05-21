@@ -1,0 +1,10 @@
+// logs-server config — local Sentry-shaped log sink.
+// Port, DB path, and prune cadence live here; runtime DB lives at
+// .davstack/logs.db (gitignored).
+
+export default {
+  port: 5181,
+  host: "127.0.0.1",
+  dbPath: ".davstack/logs.db",
+  pruneDays: 14,
+}

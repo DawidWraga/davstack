@@ -1,0 +1,18 @@
+{
+  "name": "@davstack/cli-utils",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Zero-dep CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
+  "exports": {
+    ".": "./src/cli.ts",
+    "./help": "./src/cli-help.ts"
+  },
+  "files": [
+    "src/**"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
