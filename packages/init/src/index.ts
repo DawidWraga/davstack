@@ -154,6 +154,7 @@ async function main(): Promise<void> {
     for (const f of result.skipped) console.log(`  skipped ${f} (already exists)`)
     if (result.gitignoreUpdated) console.log("  updated .gitignore")
     else console.log("  .gitignore already has davstack lines")
+    for (const f of result.skillsInstalled) console.log(`  skill   ${f}`)
   } else {
     console.log("Skipping scaffold (--no-scaffold).")
   }
