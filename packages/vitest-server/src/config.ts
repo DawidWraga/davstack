@@ -6,26 +6,41 @@
 import { pathToFileURL } from 'node:url';
 import { findToolConfig } from '@davstack/cli-utils/config';
 
+// User-facing config shape. Every field is optional — defaults below fill in
+// the rest. Consumers `satisfies ServerConfig` their config file with this.
 export type ServerConfig = {
+  // Daemon HTTP port (default 5179).
+  port?: number;
+  // Daemon HTTP host (default 127.0.0.1).
+  host?: string;
   // Vitest project filter (the `project` CLI flag). Most setups have a
   // dedicated browser-mode project for storybook stories.
-  project: string;
+  project?: string;
   // File path used to prime the storybook plugin's per-story `transform`
-  // hook on boot. Must be a REAL test/story file in the consumer project —
-  // not a noop, or the plugin half-initialises and reruns yield "(0 test)".
-  primeFile: string;
+  // hook on boot. If unset, the daemon auto-discovers. Must be a REAL
+  // test/story file when provided — not a noop, or the plugin
+  // half-initialises and reruns yield "(0 test)".
+  primeFile?: string;
 };
 
-export const DEFAULT_CONFIG: ServerConfig = {
+// Post-merge resolved shape used internally. `project` is always populated
+// because the default below provides it.
+export type ResolvedConfig = {
+  port?: number;
+  host?: string;
+  project: string;
+  primeFile?: string;
+};
+
+export const DEFAULT_CONFIG: ResolvedConfig = {
   project: 'storybook',
-  primeFile: '',
 };
 
-export async function loadConfig(cwd: string): Promise<ServerConfig> {
+export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   const configPath = findToolConfig('vitest-server', cwd);
   if (!configPath) return { ...DEFAULT_CONFIG };
   console.error('[vitest-server] config loaded from: ' + configPath);
-  let mod: { default?: Partial<ServerConfig> } & Partial<ServerConfig>;
+  let mod: { default?: ServerConfig } & ServerConfig;
   try {
     mod = await import(pathToFileURL(configPath).href);
   } catch (e) {
@@ -33,6 +48,6 @@ export async function loadConfig(cwd: string): Promise<ServerConfig> {
       `vitest-server: failed to load ${configPath}: ${(e as Error)?.message ?? e}`,
     );
   }
-  const user: Partial<ServerConfig> = (mod.default ?? mod) as Partial<ServerConfig>;
+  const user: ServerConfig = (mod.default ?? mod) as ServerConfig;
   return { ...DEFAULT_CONFIG, ...user };
 }

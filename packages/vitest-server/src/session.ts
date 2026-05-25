@@ -40,7 +40,7 @@ import { resolve, isAbsolute, relative, join } from 'node:path';
 import { readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { DEFAULT_CONFIG, loadConfig, type ServerConfig } from './config.ts';
+import { DEFAULT_CONFIG, loadConfig, type ResolvedConfig } from './config.ts';
 
 // First story file under cwd — used when consumer didn't set primeFile.
 // Skips node_modules + dotfiles. Returns a forward-slash cwd-relative path.
@@ -152,7 +152,7 @@ export class VitestSession {
 
   private constructor(
     private readonly cwd: string,
-    private readonly config: ServerConfig,
+    private readonly config: ResolvedConfig,
     private readonly log: Logger,
   ) {}
 
@@ -160,7 +160,7 @@ export class VitestSession {
     const log = opts.log ?? ((...a) => console.log('[vitest-server]', ...a));
     const cwd = resolve(opts.cwd);
     const fileConfig = await loadConfig(cwd);
-    const config: ServerConfig = {
+    const config: ResolvedConfig = {
       ...DEFAULT_CONFIG,
       ...fileConfig,
       ...(opts.project ? { project: opts.project } : {}),

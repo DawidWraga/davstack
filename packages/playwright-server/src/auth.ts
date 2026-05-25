@@ -1,52 +1,20 @@
-// Consumer-facing config + storage-state plumbing. The skill provides the
-// machinery (warm browser, reset, run loop); each consumer project ships its
-// own `playwright-server.config.ts` describing how to mint a session token
-// and where to persist it. The skill never knows the consumer's auth shape.
+// Storage-state file IO for playwright-server. The config types + loader
+// moved to ./config.ts; re-exported here so existing callers continue to
+// resolve the same names.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
-import { findToolConfig } from '@davstack/cli-utils/config';
+export {
+  DEFAULT_CONFIG,
+  loadConfig,
+  type ResolvedConfig,
+  type ServerConfig,
+  type StorageState,
+  type StorageStateOrigin,
+} from './config.ts';
 
-export type StorageStateOrigin = {
-  origin: string;
-  localStorage: { name: string; value: string }[];
-};
-
-export type StorageState = {
-  cookies: unknown[];
-  origins: StorageStateOrigin[];
-};
-
-export type ServerConfig = {
-  baseUrl: string;
-  storageStatePath: string;
-  profilePath: string;
-  refreshAuth?: () => Promise<StorageState | null>;
-};
-
-export const DEFAULT_CONFIG: ServerConfig = {
-  baseUrl: 'http://localhost:3001',
-  storageStatePath: 'e2e/.auth/user.json',
-  profilePath: '.playwright-profile',
-};
-
-export async function loadConfig(cwd: string): Promise<ServerConfig> {
-  const configPath = findToolConfig('playwright-server', cwd);
-  if (!configPath) return { ...DEFAULT_CONFIG };
-  let mod: { default?: Partial<ServerConfig> } & Partial<ServerConfig>;
-  try {
-    mod = await import(pathToFileURL(configPath).href);
-  } catch (e) {
-    throw new Error(
-      `playwright-server: failed to load ${configPath}: ${(e as Error)?.message ?? e}`,
-    );
-  }
-  console.error('[playwright-server] config loaded from: ' + configPath);
-  const user: Partial<ServerConfig> = (mod.default ?? mod) as Partial<ServerConfig>;
-  return { ...DEFAULT_CONFIG, ...user };
-}
+import type { StorageState } from './config.ts';
 
 export type AuthSeed = {
   origin: string;
