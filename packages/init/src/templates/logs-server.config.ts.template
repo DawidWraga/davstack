@@ -2,9 +2,11 @@
 // Port, DB path, and prune cadence live here; runtime DB lives at
 // .davstack/logs.db (gitignored).
 
+import type { ServerConfig } from '@davstack/logs-server/config';
+
 export default {
   port: 5181,
-  host: "127.0.0.1",
-  dbPath: ".davstack/logs.db",
+  host: '127.0.0.1',
+  dbPath: '.davstack/logs.db',
   pruneDays: 14,
-}
+} satisfies ServerConfig;

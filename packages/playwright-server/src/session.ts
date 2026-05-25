@@ -19,7 +19,7 @@ import {
   readAuthSeed,
   writeStorageState,
   type AuthSeed,
-  type ServerConfig,
+  type ResolvedConfig,
 } from './auth.ts';
 import { extractTestBody } from './extract.ts';
 import { dismissDialog, resetState } from './reset.ts';
@@ -79,7 +79,7 @@ export type CreateOpts = {
 };
 
 export class PlaywrightSession {
-  private config: ServerConfig = DEFAULT_CONFIG;
+  private config: ResolvedConfig = DEFAULT_CONFIG;
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
