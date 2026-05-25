@@ -19,6 +19,7 @@ interface CliOptions {
   skipInstall?: boolean
   noScaffold?: boolean
   scaffold?: boolean
+  allSkills?: boolean
 }
 
 function parseToolsFlag(value: string): Tool[] {
@@ -118,6 +119,7 @@ async function main(): Promise<void> {
     )
     .option("--skip-install", "skip the package manager install step")
     .option("--no-scaffold", "skip writing .davstack/ and .gitignore")
+    .option("--all-skills", "install every bundled SKILL.md regardless of selected tools")
     .helpOption("-h, --help", "display help for command")
     .parse(process.argv)
 
@@ -149,7 +151,7 @@ async function main(): Promise<void> {
   // commander's --no-scaffold sets opts.scaffold = false
   const doScaffold = opts.scaffold !== false
   if (doScaffold) {
-    const result = await scaffold(repo.root, tools)
+    const result = await scaffold(repo.root, tools, { allSkills: !!opts.allSkills })
     for (const f of result.written) console.log(`  wrote   ${f}`)
     for (const f of result.skipped) console.log(`  skipped ${f} (already exists)`)
     if (result.gitignoreUpdated) console.log("  updated .gitignore")

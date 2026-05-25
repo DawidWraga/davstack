@@ -1,5 +1,13 @@
 # @davstack/init
 
+## 1.2.1
+
+### Patch Changes
+
+- Add `--all-skills` flag. Installs every bundled SKILL.md regardless of
+  selected tools. Useful when you have skills installed from a previous
+  init run and want to refresh them all without re-selecting all tools.
+
 ## 1.2.0
 
 ### Minor Changes

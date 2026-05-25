@@ -50,7 +50,16 @@ async function loadTemplate(tool: Tool): Promise<string> {
   return readFile(file, "utf8")
 }
 
-export async function scaffold(root: string, tools: Tool[]): Promise<ScaffoldResult> {
+export interface ScaffoldOptions {
+  // Install every bundled SKILL.md regardless of selected tools (--all-skills).
+  allSkills?: boolean
+}
+
+export async function scaffold(
+  root: string,
+  tools: Tool[],
+  opts: ScaffoldOptions = {},
+): Promise<ScaffoldResult> {
   const configDir = path.join(root, ".davstack", "config")
   await mkdir(configDir, { recursive: true })
 
@@ -69,7 +78,7 @@ export async function scaffold(root: string, tools: Tool[]): Promise<ScaffoldRes
   }
 
   const gitignoreUpdated = await ensureGitignore(root)
-  const skillsInstalled = await installSkills(tools)
+  const skillsInstalled = await installSkills(tools, opts.allSkills)
 
   return { written, skipped, gitignoreUpdated, skillsInstalled }
 }
@@ -94,12 +103,16 @@ export async function ensureGitignore(root: string): Promise<boolean> {
 }
 
 // Install SKILL.md for each selected tool's skills, plus the always-on
-// orchestrator skills. Always overwrites so re-running init bumps users
-// to the latest skill content shipped with the installed init version.
-export async function installSkills(tools: Tool[]): Promise<string[]> {
+// orchestrator skills. Pass `all=true` to install every bundled skill
+// regardless of selected tools (--all-skills). Always overwrites so
+// re-running init bumps users to the latest skill content shipped with
+// the installed init version.
+export async function installSkills(tools: Tool[], all = false): Promise<string[]> {
   const skills = new Set<string>(ALWAYS_SKILLS)
-  for (const tool of tools) {
-    for (const s of TOOL_SKILLS[tool]) skills.add(s)
+  if (all) {
+    for (const list of Object.values(TOOL_SKILLS)) for (const s of list) skills.add(s)
+  } else {
+    for (const tool of tools) for (const s of TOOL_SKILLS[tool]) skills.add(s)
   }
 
   const root = path.join(homedir(), ".claude", "skills")
