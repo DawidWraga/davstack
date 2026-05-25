@@ -2,10 +2,13 @@
 //
 // Writes .davstack/config/<tool>.config.ts files from templates and
 // appends the two gitignore lines that keep runtime files out of git
-// while keeping the committed config dir.
+// while keeping the committed config dir. Also installs the matching
+// SKILL.md files into ~/.claude/skills/<name>/ so Claude Code picks
+// them up globally.
 
 import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { homedir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -18,8 +21,20 @@ export const ALL_TOOLS: Tool[] = [
   "open-agents",
 ]
 
+// Which skills belong to which selected tool. `diagnose` is the
+// orchestrator skill — always installed regardless of selection.
+const TOOL_SKILLS: Record<Tool, string[]> = {
+  "logs-server": ["logs-server"],
+  "vitest-server": ["vitest-server"],
+  "playwright-server": ["playwright-server"],
+  "open-agents": ["explore", "fast-edit"],
+}
+
+const ALWAYS_SKILLS = ["diagnose"]
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATE_DIR = path.join(here, "templates")
+const SKILL_DIR = path.join(here, "skills")
 
 export const GITIGNORE_LINES = [".davstack/*", "!.davstack/config/"]
 
@@ -27,6 +42,7 @@ export interface ScaffoldResult {
   written: string[]
   skipped: string[]
   gitignoreUpdated: boolean
+  skillsInstalled: string[]
 }
 
 async function loadTemplate(tool: Tool): Promise<string> {
@@ -53,8 +69,9 @@ export async function scaffold(root: string, tools: Tool[]): Promise<ScaffoldRes
   }
 
   const gitignoreUpdated = await ensureGitignore(root)
+  const skillsInstalled = await installSkills(tools)
 
-  return { written, skipped, gitignoreUpdated }
+  return { written, skipped, gitignoreUpdated, skillsInstalled }
 }
 
 export async function ensureGitignore(root: string): Promise<boolean> {
@@ -74,4 +91,28 @@ export async function ensureGitignore(root: string): Promise<boolean> {
 
   await writeFile(file, next, "utf8")
   return true
+}
+
+// Install SKILL.md for each selected tool's skills, plus the always-on
+// orchestrator skills. Always overwrites so re-running init bumps users
+// to the latest skill content shipped with the installed init version.
+export async function installSkills(tools: Tool[]): Promise<string[]> {
+  const skills = new Set<string>(ALWAYS_SKILLS)
+  for (const tool of tools) {
+    for (const s of TOOL_SKILLS[tool]) skills.add(s)
+  }
+
+  const root = path.join(homedir(), ".claude", "skills")
+  const installed: string[] = []
+  for (const skill of skills) {
+    const src = path.join(SKILL_DIR, `${skill}.md`)
+    if (!existsSync(src)) continue
+    const dir = path.join(root, skill)
+    await mkdir(dir, { recursive: true })
+    const target = path.join(dir, "SKILL.md")
+    const content = await readFile(src, "utf8")
+    await writeFile(target, content, "utf8")
+    installed.push(target)
+  }
+  return installed
 }

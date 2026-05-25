@@ -1,5 +1,22 @@
 # @davstack/init
 
+## 1.2.0
+
+### Minor Changes
+
+- Install Claude Code skills as part of init. Bundles all 6 SKILL.md files
+  (diagnose, explore, fast-edit, logs-server, vitest-server,
+  playwright-server) and copies the ones relevant to the selected tools
+  into `~/.claude/skills/<name>/SKILL.md`:
+
+  - `diagnose` always installs (orchestrates the others).
+  - `logs-server` / `vitest-server` / `playwright-server` install when
+    their daemon is selected.
+  - `explore` + `fast-edit` install when `open-agents` is selected.
+
+  Skills always overwrite, so re-running `davstack-init` bumps the user to
+  the latest skill content shipped with the installed init version.
+
 ## 1.1.1
 
 ### Patch Changes
