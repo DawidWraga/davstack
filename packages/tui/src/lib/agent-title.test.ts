@@ -16,9 +16,9 @@ describe("inferAgentTitle", () => {
     expect(inferAgentTitle({ prompt: "\n\n\n# Real title\nbody" })).toBe("Real title")
   })
 
-  test("falls back to first 5 words when no heading", () => {
-    const prompt = "Refactor the auth flow to use JWT instead of cookies"
-    expect(inferAgentTitle({ prompt })).toBe("Refactor the auth flow to")
+  test("falls back to first 10 words when no heading", () => {
+    const prompt = "Refactor the auth flow to use JWT instead of cookies for sessions everywhere"
+    expect(inferAgentTitle({ prompt })).toBe("Refactor the auth flow to use JWT instead of cookies")
   })
 
   test("strips XML tags when falling back", () => {
@@ -28,7 +28,7 @@ describe("inferAgentTitle", () => {
 
   test("first non-blank line that isn't a heading falls back to words", () => {
     const prompt = "Not a heading\n# But this is\nmore"
-    expect(inferAgentTitle({ prompt })).toBe("Not a heading But this")
+    expect(inferAgentTitle({ prompt })).toBe("Not a heading But this is more")
   })
 
   test("respects maxWords override", () => {

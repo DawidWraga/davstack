@@ -11,7 +11,7 @@ export interface TitleInput {
   prompt: string
 }
 
-export function inferAgentTitle(input: TitleInput, maxWords = 5): string {
+export function inferAgentTitle(input: TitleInput, maxWords = 10): string {
   const body = input.prompt ?? ""
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.trim()

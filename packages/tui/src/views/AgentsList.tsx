@@ -1,4 +1,4 @@
-import React, { useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { Box, Text, useInput } from "ink"
 
 import type { JobRecord, JobStatus } from "@davstack/open-agents/core/jobs"
@@ -8,6 +8,11 @@ import { jobStatusGlyph } from "../lib/agent-glyphs.ts"
 import { inferAgentTitle } from "../lib/agent-title.ts"
 import { useView } from "../state/view-context.tsx"
 import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
+import { ControlsHint } from "../components/ControlsHint.tsx"
+
+const AGENTS_CONTROLS =
+  "↑/↓ j/k focus  enter drill in  esc back  g agents  q quit  " +
+  "● running  ✗ failed  ○ done"
 
 const STATUS_LABEL: Record<JobStatus, string> = {
   running: "run",
@@ -27,19 +32,19 @@ export function AgentsList(): React.ReactElement {
   const repoPath = getRepoRootSafe()
   const { jobs } = useAgentJobs(repoPath)
   const { focusedIdx, setFocusedIdx, showAgent } = useView()
-  const noColor = useNoColor()
+  const [controlsOpen, setControlsOpen] = useState(false)
 
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
+      if (input === "c") {
+        setControlsOpen((v) => !v)
+        return
+      }
       if (jobs.length === 0) return
       if (key.upArrow || input === "k") {
         setFocusedIdx((focusedIdx - 1 + jobs.length) % jobs.length)
       } else if (key.downArrow || input === "j") {
-        setFocusedIdx((focusedIdx + 1) % jobs.length)
-      } else if (key.leftArrow) {
-        setFocusedIdx((focusedIdx - 1 + jobs.length) % jobs.length)
-      } else if (key.rightArrow) {
         setFocusedIdx((focusedIdx + 1) % jobs.length)
       } else if (key.return) {
         const job = jobs[Math.min(focusedIdx, jobs.length - 1)]
@@ -50,33 +55,24 @@ export function AgentsList(): React.ReactElement {
   )
 
   if (jobs.length === 0) {
-    return <AgentsEmptyState />
+    return <AgentsEmptyState controlsOpen={controlsOpen} />
   }
 
   const safeFocus = Math.min(focusedIdx, jobs.length - 1)
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
-        <Text bold>Agents</Text>
-      </Box>
       {jobs.map((job, i) => (
         <AgentListRow key={job.id} job={job} focused={i === safeFocus} />
       ))}
-      <Box marginTop={1}>
-        <Text dimColor>
-          ↑/↓ j/k focus  ←/→ cycle  enter drill in  esc back  g agents  q quit{" "}
-          {jobStatusGlyph("running", noColor)} running {jobStatusGlyph("done", noColor)} done{" "}
-          {jobStatusGlyph("failed", noColor)} failed
-        </Text>
-      </Box>
+      <ControlsHint expanded={controlsOpen} controls={AGENTS_CONTROLS} />
     </Box>
   )
 }
 
 function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): React.ReactElement {
   const noColor = useNoColor()
-  const title = useMemo(() => truncateOneLine(inferAgentTitle({ prompt: job.prompt }), 48), [job.prompt])
+  const title = useMemo(() => truncateOneLine(inferAgentTitle({ prompt: job.prompt }), 80), [job.prompt])
   const when = formatWhen(job.startedAt)
 
   return (
@@ -88,24 +84,19 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
         {jobStatusGlyph(job.status, noColor)}
       </Text>
       <Text> {STATUS_LABEL[job.status].padEnd(7)}</Text>
-      <Text bold>{title.padEnd(50)}</Text>
+      <Text bold>{title.padEnd(82)}</Text>
       <Text dimColor>{when}</Text>
     </Box>
   )
 }
 
-function AgentsEmptyState(): React.ReactElement {
+function AgentsEmptyState({ controlsOpen }: { controlsOpen: boolean }): React.ReactElement {
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
-        <Text bold>Agents</Text>
-      </Box>
       <Text dimColor>
         No agents have run in this repo yet. Submit one with: explore &quot;&lt;prompt&gt;&quot;
       </Text>
-      <Box marginTop={1}>
-        <Text dimColor>esc back  g agents  q quit</Text>
-      </Box>
+      <ControlsHint expanded={controlsOpen} controls={AGENTS_CONTROLS} />
     </Box>
   )
 }
