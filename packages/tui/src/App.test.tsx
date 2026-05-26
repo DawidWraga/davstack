@@ -1,6 +1,5 @@
-// Smoke test for the App shell: render <App /> with a fake registry that
-// never actually spawns a process, and assert the list view shows the
-// logs daemon row.
+// Smoke tests for the App shell: render <App /> with a fake registry that
+// never actually spawns a process, and assert the list view + status bar.
 
 import React from "react"
 import { EventEmitter } from "node:events"
@@ -9,13 +8,13 @@ import { test, expect, afterEach } from "vitest"
 import { render } from "ink-testing-library"
 
 import { App } from "./App.tsx"
-import type { DaemonDescriptor } from "./lib/daemon-registry.ts"
+import type { DaemonDescriptor, DaemonKey } from "./lib/daemon-registry.ts"
 
-function makeFakeDescriptor(): DaemonDescriptor {
+function makeFakeDescriptor(key: DaemonKey, label: string, port: number): DaemonDescriptor {
   return {
-    key: "logs",
-    label: "logs",
-    port: 7077,
+    key,
+    label,
+    port,
     readyRegex: /listening on http:\/\//i,
     spawn: () => {
       const ee = new EventEmitter() as EventEmitter & {
@@ -40,7 +39,13 @@ afterEach(() => {
 })
 
 test("renders title, list view with logs row, and a status bar pill", () => {
-  active = render(<App registry={[makeFakeDescriptor()]} autoStart={false} />)
+  active = render(
+    <App
+      registry={[makeFakeDescriptor("logs", "logs", 7077)]}
+      autoStart={false}
+      skipConfigDiscovery
+    />,
+  )
   const frame = active.lastFrame() ?? ""
 
   expect(frame).toContain("davstack")
@@ -48,4 +53,27 @@ test("renders title, list view with logs row, and a status bar pill", () => {
   expect(frame).toContain("logs")
   // Idle glyph appears for both the row and the bottom pill (○).
   expect(frame).toMatch(/○/)
+})
+
+test("renders three daemon rows + three status pills when all configured", () => {
+  active = render(
+    <App
+      registry={[
+        makeFakeDescriptor("logs", "logs", 7077),
+        makeFakeDescriptor("vitest", "vitest", 5179),
+        makeFakeDescriptor("playwright", "playwright", 5180),
+      ]}
+      autoStart={false}
+      skipConfigDiscovery
+    />,
+  )
+  const frame = active.lastFrame() ?? ""
+
+  expect(frame).toContain("logs")
+  expect(frame).toContain("vitest")
+  expect(frame).toContain("playwright")
+  // Status pills are numbered 1/2/3 in the bottom bar.
+  expect(frame).toMatch(/1.*logs/)
+  expect(frame).toMatch(/2.*vitest/)
+  expect(frame).toMatch(/3.*playwright/)
 })

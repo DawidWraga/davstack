@@ -45,9 +45,12 @@ export type UseDaemonProcessDeps = {
   probePort?: (host: string, port: number, timeoutMs?: number) => Promise<boolean>
   registerChild?: (pid: number) => void
   unregisterChild?: (pid: number) => void
+  // Pluggable fetch so tests don't open real sockets. Defaults to global.
+  fetch?: typeof globalThis.fetch
 }
 
 const KILL_GRACE_MS = 2_000
+const DEFAULT_SHUTDOWN_TIMEOUT_MS = 1_500
 
 // Split incoming chunk into complete lines, buffering the trailing partial
 // line for the next chunk. Returns [completeLines, newBuffer].
@@ -66,6 +69,7 @@ export function useDaemonProcess(
   const probePort = deps.probePort ?? defaultProbePort
   const registerChild = deps.registerChild ?? defaultRegisterChild
   const unregisterChild = deps.unregisterChild ?? defaultUnregisterChild
+  const doFetch = deps.fetch ?? globalThis.fetch
 
   const { lines, push } = useRingBuffer(10_000)
   const [status, setStatus] = useState<DaemonStatus>("idle")
@@ -169,17 +173,51 @@ export function useDaemonProcess(
     if (stoppingRef.current) return
     stoppingRef.current = true
     setStatus("exiting")
-    const pid = child.pid
-    if (typeof pid === "number") {
-      void killTree(pid, "SIGTERM")
-    }
-    killTimerRef.current = setTimeout(() => {
+
+    const shutdownUrl = descriptor.shutdownUrl
+    const shutdownTimeoutMs = descriptor.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_TIMEOUT_MS
+
+    const escalate = (): void => {
       const c = childRef.current
-      if (c && typeof c.pid === "number") {
-        void killTree(c.pid, "SIGKILL")
+      if (!c) return // child already exited cleanly via /shutdown
+      const pid = c.pid
+      if (typeof pid === "number") {
+        void killTree(pid, "SIGTERM")
       }
-    }, KILL_GRACE_MS)
-  }, [killTree])
+      killTimerRef.current = setTimeout(() => {
+        const cc = childRef.current
+        if (cc && typeof cc.pid === "number") {
+          void killTree(cc.pid, "SIGKILL")
+        }
+      }, KILL_GRACE_MS)
+    }
+
+    if (shutdownUrl) {
+      void (async (): Promise<void> => {
+        try {
+          await doFetch(shutdownUrl, {
+            method: "POST",
+            signal: AbortSignal.timeout(shutdownTimeoutMs),
+          })
+        } catch (err) {
+          // 404, connection refused, timeout — all fine. We log and fall
+          // through to SIGTERM. Don't crash the supervisor on a flaky
+          // shutdown endpoint.
+          const msg = err instanceof Error ? err.message : String(err)
+          push({
+            ts: Date.now(),
+            stream: "err",
+            text: `[shutdown ${descriptor.label}] HTTP /shutdown failed: ${msg}`,
+          })
+        }
+        // Give the child a tick to actually exit gracefully before SIGTERM.
+        killTimerRef.current = setTimeout(escalate, shutdownTimeoutMs)
+      })()
+      return
+    }
+
+    escalate()
+  }, [killTree, descriptor.shutdownUrl, descriptor.shutdownTimeoutMs, descriptor.label, doFetch, push])
 
   useEffect(() => {
     return () => {

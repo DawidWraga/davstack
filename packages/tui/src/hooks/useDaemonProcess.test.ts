@@ -259,6 +259,90 @@ describe("useDaemonProcess", () => {
     expect(killTreeCalls[0]).toEqual({ pid: child.pid, signal: "SIGTERM" })
   })
 
+  test("graceful /shutdown: POST succeeds + child exits within timeout, no killTree", async () => {
+    const child = makeFakeChild()
+    const desc: DaemonDescriptor = {
+      key: "vitest",
+      label: "vitest",
+      port: 0,
+      readyRegex: /listening on http:\/\//i,
+      shutdownUrl: "http://127.0.0.1:5179/shutdown",
+      shutdownTimeoutMs: 500,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      spawn: () => child as any,
+    }
+    const fetchCalls: Array<{ url: string; init?: RequestInit }> = []
+    const fakeFetch = (url: string | URL | Request, init?: RequestInit) => {
+      fetchCalls.push({ url: String(url), init })
+      return Promise.resolve(new Response("ok", { status: 200 }))
+    }
+    const { deps, killTreeCalls } = makeDeps({ fetch: fakeFetch as typeof fetch })
+    mount(desc, deps)
+
+    captured!.start()
+    await tick2()
+    child.stdout.write("listening on http://x\n")
+    await tick()
+    expect(captured!.status).toBe("running")
+
+    captured!.stop()
+    await tick()
+    expect(captured!.status).toBe("exiting")
+
+    // Let the fetch microtask settle (it's a resolved Promise).
+    await tick()
+    await tick()
+    expect(fetchCalls).toHaveLength(1)
+    expect(fetchCalls[0].url).toBe("http://127.0.0.1:5179/shutdown")
+    expect(fetchCalls[0].init?.method).toBe("POST")
+
+    // Child exits cleanly before the escalation timer fires.
+    child.emit("exit", 0, null)
+    await tick()
+    expect(captured!.status).toBe("exited")
+    expect(killTreeCalls).toHaveLength(0)
+  })
+
+  test("graceful /shutdown: fetch rejects → falls back to killTree", async () => {
+    const child = makeFakeChild()
+    const desc: DaemonDescriptor = {
+      key: "vitest",
+      label: "vitest",
+      port: 0,
+      readyRegex: /listening on http:\/\//i,
+      shutdownUrl: "http://127.0.0.1:5179/shutdown",
+      shutdownTimeoutMs: 500,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      spawn: () => child as any,
+    }
+    const fakeFetch = () => Promise.reject(new Error("ECONNREFUSED"))
+    const { deps, killTreeCalls } = makeDeps({ fetch: fakeFetch as typeof fetch })
+    mount(desc, deps)
+
+    captured!.start()
+    await tick2()
+    child.stdout.write("listening on http://x\n")
+    await tick()
+
+    captured!.stop()
+    await tick()
+    // Fetch rejection microtask flush.
+    await tick()
+    await tick()
+
+    // Now advance past the shutdownTimeoutMs to trigger escalate().
+    vi.advanceTimersByTime(501)
+    await tick()
+
+    expect(killTreeCalls.map((c) => c.signal)).toEqual(["SIGTERM"])
+    expect(killTreeCalls[0].pid).toBe(child.pid)
+
+    // Confirm the error line landed in the ring buffer.
+    expect(
+      captured!.lines.some((l) => /\/shutdown.*ECONNREFUSED/i.test(l.text)),
+    ).toBe(true)
+  })
+
   test("POSIX path: real killTree invokes process.kill", async () => {
     const child = makeFakeChild()
     const desc = makeDescriptor(child)

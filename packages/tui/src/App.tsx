@@ -11,6 +11,8 @@ import { ServerList, type DaemonRow } from "./views/ServerList.tsx"
 import { ServerLogView } from "./views/ServerLogView.tsx"
 import { StatusBar, type DaemonPill, type DaemonStatus as PillStatus } from "./components/StatusBar.tsx"
 import { installGlobalTeardown } from "./lib/global-teardown.ts"
+import { discoverEnabledDaemons } from "./lib/config-discovery.ts"
+import { findRepoRoot } from "./lib/repo-root.ts"
 
 type View = { kind: "list" } | { kind: "log"; key: DaemonKey }
 
@@ -18,6 +20,9 @@ interface AppProps {
   registry?: DaemonDescriptor[]
   // When true, daemons are NOT auto-started on mount. Tests use this.
   autoStart?: boolean
+  // When true, skip the .davstack/config discovery filter. Tests pass a
+  // pre-filtered registry directly.
+  skipConfigDiscovery?: boolean
 }
 
 // Per-daemon supervisor wrapper. One instance per descriptor so the hook's
@@ -69,13 +74,68 @@ function isSettled(s: DaemonRow["status"]): boolean {
   return s === "idle" || s === "exited" || s === "crashed" || s === "blocked"
 }
 
-export function App({ registry = daemonRegistry, autoStart = true }: AppProps): React.ReactElement {
+export function App({
+  registry = daemonRegistry,
+  autoStart = true,
+  skipConfigDiscovery = false,
+}: AppProps): React.ReactElement {
   const { exit } = useApp()
   const [view, setView] = useState<View>({ kind: "list" })
   const [focusedIdx, setFocusedIdx] = useState(0)
-  const [rows, setRows] = useState<DaemonRow[]>(() =>
-    registry.map((d) => ({ descriptor: d, status: "idle" as const, lines: [], exitCode: null })),
+  // Filter the registry by which `.davstack/config/*.config.ts` files
+  // exist in the repo root. null = discovery still in progress.
+  const [enabledKeys, setEnabledKeys] = useState<Set<DaemonKey> | null>(
+    skipConfigDiscovery ? new Set(registry.map((d) => d.key)) : null,
   )
+  const filteredRegistry = React.useMemo(
+    () => (enabledKeys ? registry.filter((d) => enabledKeys.has(d.key)) : []),
+    [registry, enabledKeys],
+  )
+  const [rows, setRows] = useState<DaemonRow[]>(() =>
+    (skipConfigDiscovery ? registry : []).map((d) => ({
+      descriptor: d,
+      status: "idle" as const,
+      lines: [],
+      exitCode: null,
+    })),
+  )
+
+  // When discovery resolves, seed rows from the filtered registry.
+  useEffect(() => {
+    if (!enabledKeys) return
+    setRows((prev) => {
+      const byKey = new Map(prev.map((r) => [r.descriptor.key, r] as const))
+      return filteredRegistry.map(
+        (d) =>
+          byKey.get(d.key) ?? {
+            descriptor: d,
+            status: "idle" as const,
+            lines: [],
+            exitCode: null,
+          },
+      )
+    })
+  }, [enabledKeys, filteredRegistry])
+
+  // Discover enabled daemons once on mount (unless tests opt out).
+  useEffect(() => {
+    if (skipConfigDiscovery) return
+    let cancelled = false
+    void (async (): Promise<void> => {
+      try {
+        const repoRoot = findRepoRoot(process.cwd())
+        const enabled = await discoverEnabledDaemons(repoRoot)
+        if (!cancelled) setEnabledKeys(enabled)
+      } catch {
+        // findRepoRoot can throw outside a davstack repo. Treat as "no
+        // daemons configured" — App renders the empty state.
+        if (!cancelled) setEnabledKeys(new Set())
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [skipConfigDiscovery])
   const stopFnsRef = useRef<Map<DaemonKey, () => void>>(new Map())
   const [quitting, setQuitting] = useState(false)
   const quittingRef = useRef(false)
@@ -179,7 +239,7 @@ export function App({ registry = daemonRegistry, autoStart = true }: AppProps): 
         <Text bold>davstack</Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
-        {registry.map((d) => (
+        {filteredRegistry.map((d) => (
           <DaemonSupervisor
             key={d.key}
             descriptor={d}
@@ -187,7 +247,13 @@ export function App({ registry = daemonRegistry, autoStart = true }: AppProps): 
             onUpdate={updateRow}
           />
         ))}
-        {view.kind === "list" ? (
+        {enabledKeys === null ? (
+          <Text dimColor>scanning .davstack/config…</Text>
+        ) : filteredRegistry.length === 0 ? (
+          <Text dimColor>
+            no davstack configs found. run `pnpm dlx @davstack/init` first. (press q to quit)
+          </Text>
+        ) : view.kind === "list" ? (
           <ServerList
             rows={rows}
             focusedIdx={focusedIdx}
