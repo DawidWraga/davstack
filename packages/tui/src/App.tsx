@@ -34,7 +34,7 @@ function DaemonSupervisor({
 }: {
   descriptor: DaemonDescriptor
   autoStart: boolean
-  onUpdate: (row: DaemonRow, stop: () => void) => void
+  onUpdate: (row: DaemonRow, controls: { start: () => void; stop: () => void }) => void
 }): null {
   const proc = useDaemonProcess(descriptor)
   const startedRef = useRef(false)
@@ -54,9 +54,9 @@ function DaemonSupervisor({
         lines: proc.lines,
         exitCode: proc.exitCode,
       },
-      proc.stop,
+      { start: proc.start, stop: proc.stop },
     )
-  }, [descriptor, proc.status, proc.lines, proc.exitCode, proc.stop, onUpdate])
+  }, [descriptor, proc.status, proc.lines, proc.exitCode, proc.start, proc.stop, onUpdate])
 
   return null
 }
@@ -137,6 +137,7 @@ export function App({
     }
   }, [skipConfigDiscovery])
   const stopFnsRef = useRef<Map<DaemonKey, () => void>>(new Map())
+  const startFnsRef = useRef<Map<DaemonKey, () => void>>(new Map())
   const [quitting, setQuitting] = useState(false)
   const quittingRef = useRef(false)
   const rowsRef = useRef(rows)
@@ -147,8 +148,9 @@ export function App({
     installGlobalTeardown()
   }, [])
 
-  const updateRow = React.useCallback((row: DaemonRow, stop: () => void) => {
-    stopFnsRef.current.set(row.descriptor.key, stop)
+  const updateRow = React.useCallback((row: DaemonRow, controls: { start: () => void; stop: () => void }) => {
+    stopFnsRef.current.set(row.descriptor.key, controls.stop)
+    startFnsRef.current.set(row.descriptor.key, controls.start)
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.descriptor.key === row.descriptor.key)
       if (idx === -1) return prev
@@ -190,15 +192,47 @@ export function App({
     poll()
   }, [exit])
 
+  // Toggle the focused daemon: start if stopped, stop if running.
+  const toggleDaemon = React.useCallback((key: DaemonKey) => {
+    const row = rowsRef.current.find((r) => r.descriptor.key === key)
+    if (!row) return
+    if (row.status === "running" || row.status === "starting") {
+      stopFnsRef.current.get(key)?.()
+    } else {
+      startFnsRef.current.get(key)?.()
+    }
+  }, [])
+
   // Gate useInput on raw-mode support — when stdin is piped (CI, smoke
   // tests) Ink throws on raw-mode setup. In that case the user can still
   // SIGINT to quit; ServerList's input hook will also no-op.
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
-      if (input === "q") cascadeShutdown()
+      if (input === "q") {
+        cascadeShutdown()
+        return
+      }
       // ctrl-c in raw mode lands here too; Ink eats the default SIGINT.
-      if (key.ctrl && input === "c") cascadeShutdown()
+      if (key.ctrl && input === "c") {
+        cascadeShutdown()
+        return
+      }
+      // Global number-key jump: 1..9 drills into that daemon's log view
+      // from anywhere, including from inside another log view.
+      if (/^[1-9]$/.test(input)) {
+        const idx = Number(input) - 1
+        const target = rowsRef.current[idx]
+        if (target) {
+          setFocusedIdx(idx)
+          setView({ kind: "log", key: target.descriptor.key })
+        }
+        return
+      }
+      // Escape from any log view returns to the list.
+      if (key.escape) {
+        setView({ kind: "list" })
+      }
     },
     { isActive: rawModeSupported },
   )
@@ -229,6 +263,7 @@ export function App({
 
   const pills: DaemonPill[] = rows.map((r, i) => ({
     key: String(i + 1),
+    daemonKey: r.descriptor.key,
     label: r.descriptor.label,
     status: statusToPill(r.status),
   }))
@@ -259,6 +294,7 @@ export function App({
             focusedIdx={focusedIdx}
             onFocusChange={setFocusedIdx}
             onSelect={(i) => setView({ kind: "log", key: rows[i].descriptor.key })}
+            onToggle={(i) => toggleDaemon(rows[i].descriptor.key)}
           />
         ) : (
           (() => {
@@ -277,7 +313,10 @@ export function App({
         )}
       </Box>
       <Box marginTop={1}>
-        <StatusBar daemons={pills} />
+        <StatusBar
+          daemons={pills}
+          focusedKey={view.kind === "log" ? view.key : undefined}
+        />
       </Box>
       {quitting ? (
         <Box marginTop={1}>

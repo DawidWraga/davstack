@@ -40,6 +40,7 @@ interface ServerListProps {
   focusedIdx: number
   onFocusChange: (idx: number) => void
   onSelect: (idx: number) => void
+  onToggle?: (idx: number) => void
 }
 
 export function ServerList({
@@ -47,10 +48,11 @@ export function ServerList({
   focusedIdx,
   onFocusChange,
   onSelect,
+  onToggle,
 }: ServerListProps): React.ReactElement {
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
-    (_input, key) => {
+    (input, key) => {
       if (rows.length === 0) return
       if (key.upArrow) {
         onFocusChange((focusedIdx - 1 + rows.length) % rows.length)
@@ -58,6 +60,8 @@ export function ServerList({
         onFocusChange((focusedIdx + 1) % rows.length)
       } else if (key.return) {
         onSelect(focusedIdx)
+      } else if (input === "s") {
+        onToggle?.(focusedIdx)
       }
     },
     { isActive: rawModeSupported },
@@ -95,7 +99,7 @@ export function ServerList({
       })}
       <Box marginTop={1}>
         <Text dimColor>
-          ↑/↓ focus  enter drill in  q quit  ● running  ✗ crashed  ⚠ blocked
+          ↑/↓ focus  enter drill in  s start/stop  1-9 jump  q quit  ● running  ✗ crashed  ⚠ blocked
         </Text>
       </Box>
     </Box>

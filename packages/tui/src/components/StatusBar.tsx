@@ -8,7 +8,10 @@ import { Box, Text } from "ink"
 export type DaemonStatus = "not-running" | "running" | "crashed" | "blocked"
 
 export interface DaemonPill {
+  // Visible hotkey shown to the user — typically "1", "2", "3".
   key: string
+  // Daemon registry key, used to match against `focusedKey`.
+  daemonKey: string
   label: string
   status: DaemonStatus
 }
@@ -29,19 +32,25 @@ const STATUS_COLOR: Record<DaemonStatus, string | undefined> = {
 
 interface StatusBarProps {
   daemons: DaemonPill[]
+  // Daemon key currently being viewed (log view). The matching pill is
+  // rendered bold + inverse so users can see which one they're in.
+  focusedKey?: string
 }
 
-export function StatusBar({ daemons }: StatusBarProps): React.ReactElement {
+export function StatusBar({ daemons, focusedKey }: StatusBarProps): React.ReactElement {
   return (
     <Box flexDirection="row">
-      {daemons.map((d, i) => (
-        <Box key={d.key} marginRight={i === daemons.length - 1 ? 0 : 2}>
-          <Text>
-            {d.key} {d.label}{" "}
-            <Text color={STATUS_COLOR[d.status]}>{STATUS_GLYPH[d.status]}</Text>
-          </Text>
-        </Box>
-      ))}
+      {daemons.map((d, i) => {
+        const focused = focusedKey !== undefined && d.daemonKey === focusedKey
+        return (
+          <Box key={d.key} marginRight={i === daemons.length - 1 ? 0 : 2}>
+            <Text inverse={focused} bold={focused}>
+              {d.key} {d.label}{" "}
+              <Text color={STATUS_COLOR[d.status]}>{STATUS_GLYPH[d.status]}</Text>
+            </Text>
+          </Box>
+        )
+      })}
     </Box>
   )
 }
