@@ -13,11 +13,31 @@ import { runCheck, formatResult, exitCodeFor } from "./commands/check.ts"
 
 function runStart(opts: { noColor?: boolean }): void {
   if (opts.noColor) process.env.DAVSTACK_NO_COLOR = "1"
-  // Wipe stale shell scrollback so the Ink UI takes over a clean screen.
-  // Sequence: ED(2) clears viewport, ED(3) clears scrollback (xterm/WT),
-  // CUP homes the cursor.
-  process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
-  render(React.createElement(App))
+  // Use the terminal's alternate screen buffer so view transitions
+  // (drill in/back) don't leak prior frames into scrollback when Ink
+  // shrinks its render region. Falls back to a one-shot scrollback
+  // wipe when stdout isn't a TTY or DAVSTACK_NO_ALTSCREEN is set.
+  const altScreen =
+    process.stdout.isTTY === true && process.env.DAVSTACK_NO_ALTSCREEN !== "1"
+  if (altScreen) {
+    process.stdout.write("\x1b[?1049h\x1b[H")
+  } else {
+    process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
+  }
+  const restore = () => {
+    if (altScreen) process.stdout.write("\x1b[?1049l")
+  }
+  process.once("exit", restore)
+  process.once("SIGINT", () => {
+    restore()
+    process.exit(130)
+  })
+  process.once("SIGTERM", () => {
+    restore()
+    process.exit(143)
+  })
+  const ink = render(React.createElement(App))
+  ink.waitUntilExit().finally(restore)
 }
 
 const program = new Command()

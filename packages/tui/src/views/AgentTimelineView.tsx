@@ -11,6 +11,7 @@ import { readAgentDiff } from "../lib/read-agent-diff.ts"
 import { useAgents, type AgentPane } from "../state/agents-context.tsx"
 import { inferAgentTitle } from "../lib/agent-title.ts"
 import { ControlsHint } from "../components/ControlsHint.tsx"
+import { Markdown } from "../components/Markdown.tsx"
 
 const STATUS_COLOR: Record<JobStatus, string> = {
   running: "yellow",
@@ -133,20 +134,15 @@ function SpecPane({
   visible: number
 }): React.ReactElement {
   const content = useMemo(() => readAgentSpecContent({ repoPath, jobId }), [repoPath, jobId])
-  const lines = useMemo(() => (content ?? "").replace(/\r\n/g, "\n").split("\n"), [content])
   if (!content) {
     return <Text dimColor>(no spec file on disk)</Text>
   }
-  const slice = lines.slice(0, visible)
+  const totalLines = content.replace(/\r\n/g, "\n").split("\n").length
   return (
     <Box flexDirection="column">
-      {slice.map((l, i) => (
-        <Text key={i} wrap="truncate">
-          {l}
-        </Text>
-      ))}
-      {lines.length > visible ? (
-        <Text dimColor>… {lines.length - visible} more lines</Text>
+      <Markdown source={content} maxLines={visible} />
+      {totalLines > visible ? (
+        <Text dimColor>… {totalLines - visible} more lines</Text>
       ) : null}
     </Box>
   )
