@@ -1,5 +1,59 @@
 # @davstack/logs-server
 
+## 1.3.0
+
+### Minor Changes
+
+- ae18a50: Add `check` verb for install validation. Run `npx logs-server check` (or
+  `--json`) to probe a real install in one shot: Node version (gate >=20),
+  config file resolution, DB file existence + lifetime + last-300s row
+  counts, and daemon liveness via `GET /` to the resolved port.
+
+  Pretty output uses three glyphs to distinguish severities:
+
+  - `✓` — passing gate.
+  - `~` — advisory: gate passes but the row carries a `fix:` hint (e.g.
+    daemon not running, but exit code stays 0).
+  - `✗` — hard failure (e.g. Node too old), flips aggregate `ok: false`.
+
+  The stale-rows `fix:` hint ("no rows in last 300s — verify transmitter
+  DSN") is suppressed when the daemon is up and lifetime rows > 0 — that
+  combination is "idle dev sink", not a broken transmitter. It still
+  fires when the DB has zero rows total.
+
+  `--json` emits a structured `CheckResult` for agent/script consumers.
+  Port resolves via flag > `DIAG_*` env > config > default.
+
+- bf04284: Add CORS support for browser-origin envelope POSTs. The sink now responds to
+  `OPTIONS` preflights and attaches `Access-Control-Allow-*` headers to ingest
+  responses, so browser SDKs can post directly to `http://public@127.0.0.1:5181/1`
+  without a same-origin proxy (Vite, webpack-dev-server, etc).
+
+  New `cors` config field:
+
+  - `"*"` (default) — echo `Access-Control-Allow-Origin: *` (no credentials).
+  - `string[]` — allowlist; matching `Origin` is echoed back with `Vary: Origin`,
+    non-matching origins get no CORS headers.
+  - `false` — emit no CORS headers (legacy behaviour).
+
+  Default-permissive is safe: the sink binds `127.0.0.1` only, the response is
+  empty (POST) or a fixed `"diag sink ok"` literal (non-POST), and
+  `Access-Control-Allow-Credentials` is never set.
+
+### Patch Changes
+
+- ade2196: Ship `.d.ts` declarations so consumers can import `ServerConfig` (and
+  other public types) from `@davstack/{logs,vitest,playwright}-server/config`
+  and `@davstack/cli-utils` without `TS2307: Cannot find module ... or its
+corresponding type declarations`.
+
+  Runtime output is byte-stable — only declarations are new. Non-breaking.
+
+  See: 8065fc9 (`fix(daemons): ship .d.ts for @davstack/{cli-utils,logs-server,vitest-server,playwright-server}`)
+
+- Updated dependencies [ade2196]
+  - @davstack/cli-utils@1.1.1
+
 ## 1.1.0
 
 ### Minor Changes
