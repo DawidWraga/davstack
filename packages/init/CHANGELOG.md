@@ -1,5 +1,18 @@
 # @davstack/init
 
+## 1.2.2
+
+### Patch Changes
+
+- Install `@davstack/open-agents` globally instead of as a dev dep. The
+  `explore` / `fast-edit` bins are now on PATH from any repo, so the skill
+  bodies can drop the `npx` prefix — which was unreliable in fresh repos
+  because `npx explore` fell back to an unrelated public `explore` package
+  on the npm registry. Logs / vitest / playwright daemons stay
+  project-local; only open-agents goes global (it has no per-repo state,
+  just optional `.davstack/config/open-agents.config.ts` overrides which
+  are still read from cwd).
+
 ## 1.2.1
 
 ### Patch Changes

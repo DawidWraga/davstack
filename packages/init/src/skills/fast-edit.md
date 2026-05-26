@@ -11,7 +11,7 @@ description: >-
 
 Run (backgrounded — the harness notifies you):
 
-    npx fast-edit submit --file ~/.davstack/specs/<slug>.md
+    fast-edit submit --file ~/.davstack/specs/<slug>.md
 
 **Routing test.** Delegate when a *short* intent+constraints spec is enough
 for the executor to produce the **full** intended edit. If writing the spec
