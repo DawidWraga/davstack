@@ -24,7 +24,11 @@ export interface UseAgentTimelineResult {
   clear: () => void
 }
 
-export function useAgentTimeline(repoPath: string, id: string): UseAgentTimelineResult {
+export function useAgentTimeline(
+  repoPath: string,
+  id: string,
+  noColor: boolean,
+): UseAgentTimelineResult {
   const { lines, push, clear } = useRingBuffer()
   const eventsRef = useRef<ParsedEvent[]>([])
   const offsetRef = useRef(0)
@@ -57,7 +61,7 @@ export function useAgentTimeline(repoPath: string, id: string): UseAgentTimeline
 
       if (!startLineRef.current) {
         startLineRef.current = true
-        const start = formatStartLine({ prompt: fresh.prompt, noColor: false })
+        const start = formatStartLine({ prompt: fresh.prompt, noColor })
         push({ ts: Date.now(), stream: "out", text: start.text })
       }
 
@@ -66,7 +70,7 @@ export function useAgentTimeline(repoPath: string, id: string): UseAgentTimeline
         if (txt.length > offsetRef.current) {
           const slice = txt.slice(offsetRef.current)
           offsetRef.current = txt.length
-          ingestLines({ adapter, chunk: slice, eventsRef, push })
+          ingestLines({ adapter, chunk: slice, eventsRef, push, noColor })
         }
       }
 
@@ -82,7 +86,7 @@ export function useAgentTimeline(repoPath: string, id: string): UseAgentTimeline
             filesChanged: summaryRef.current.filesChanged,
             usage,
             cost,
-            noColor: false,
+            noColor,
           })
           push({ ts: Date.now(), stream: "out", text: summaryLine.text })
           setSummaryTick((t) => t + 1)
@@ -96,7 +100,7 @@ export function useAgentTimeline(repoPath: string, id: string): UseAgentTimeline
       cancelled = true
       clearInterval(idTimer)
     }
-  }, [repoPath, id, adapter, push])
+  }, [repoPath, id, adapter, push, noColor])
 
   const summary = useMemo(() => summaryRef.current, [summaryTick, done])
 
@@ -108,13 +112,14 @@ function ingestLines(opts: {
   chunk: string
   eventsRef: MutableRefObject<ParsedEvent[]>
   push: (line: LogLine) => void
+  noColor: boolean
 }): void {
   for (const line of opts.chunk.split("\n")) {
     if (!line.trim()) continue
     const ev = opts.adapter.parseLine(line)
     if (!ev) continue
     opts.eventsRef.current.push(ev)
-    for (const row of formatEventLines({ ev, noColor: false })) {
+    for (const row of formatEventLines({ ev, noColor: opts.noColor })) {
       opts.push({ ts: Date.now(), stream: "out", text: row.text })
     }
   }

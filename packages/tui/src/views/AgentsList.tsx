@@ -4,15 +4,9 @@ import { Box, Text, useInput } from "ink"
 import type { JobRecord, JobStatus } from "@davstack/open-agents/core/jobs"
 import { useAgentJobs } from "../hooks/useAgentJobs.ts"
 import { getRepoRootSafe } from "../lib/package-info.ts"
+import { jobStatusGlyph } from "../lib/agent-glyphs.ts"
 import { useView } from "../state/view-context.tsx"
 import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
-
-const STATUS_GLYPH: Record<JobStatus, string> = {
-  running: "●",
-  done: "✓",
-  failed: "✗",
-  cancelled: "○",
-}
 
 const STATUS_LABEL: Record<JobStatus, string> = {
   running: "run",
@@ -32,6 +26,7 @@ export function AgentsList(): React.ReactElement {
   const repoPath = getRepoRootSafe()
   const { jobs } = useAgentJobs(repoPath)
   const { focusedIdx, setFocusedIdx, showAgent } = useView()
+  const noColor = useNoColor()
 
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
@@ -69,7 +64,9 @@ export function AgentsList(): React.ReactElement {
       ))}
       <Box marginTop={1}>
         <Text dimColor>
-          ↑/↓ j/k focus  ←/→ cycle  enter drill in  esc back  g agents  q quit  ● running  ✓ done  ✗ failed
+          ↑/↓ j/k focus  ←/→ cycle  enter drill in  esc back  g agents  q quit{" "}
+          {jobStatusGlyph("running", noColor)} running {jobStatusGlyph("done", noColor)} done{" "}
+          {jobStatusGlyph("failed", noColor)} failed
         </Text>
       </Box>
     </Box>
@@ -89,7 +86,7 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
         {focused ? "› " : "  "}
       </Text>
       <Text color={colorOrUndef(STATUS_COLOR[job.status], noColor)}>
-        {STATUS_GLYPH[job.status]}
+        {jobStatusGlyph(job.status, noColor)}
       </Text>
       <Text> {STATUS_LABEL[job.status].padEnd(5)}</Text>
       <Text dimColor={!inferred}>{adapterLabel.padEnd(14)}</Text>
