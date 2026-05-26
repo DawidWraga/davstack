@@ -1,9 +1,11 @@
-// Bottom status bar — horizontal list of daemon pills. P1 only renders the
-// "not-running" glyph; the running/crashed glyphs are wired here so P2 can
-// flip them on without a UI rewrite.
+// Bottom status bar — horizontal list of daemon pills. Colors follow the
+// project-wide convention: green ● running, gray ○ idle/exited, red ✗
+// crashed, yellow ⚠ blocked.
 
 import React from "react"
 import { Box, Text } from "ink"
+
+import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 
 export type DaemonStatus = "not-running" | "running" | "crashed" | "blocked"
 
@@ -24,7 +26,7 @@ const STATUS_GLYPH: Record<DaemonStatus, string> = {
 }
 
 const STATUS_COLOR: Record<DaemonStatus, string | undefined> = {
-  "not-running": undefined,
+  "not-running": "gray",
   running: "green",
   crashed: "red",
   blocked: "yellow",
@@ -44,6 +46,7 @@ export function isPillFocused(pill: DaemonPill, focusedKey: string | undefined):
 }
 
 export function StatusBar({ daemons, focusedKey }: StatusBarProps): React.ReactElement {
+  const noColor = useNoColor()
   return (
     <Box flexDirection="row">
       {daemons.map((d, i) => {
@@ -52,7 +55,9 @@ export function StatusBar({ daemons, focusedKey }: StatusBarProps): React.ReactE
           <Box key={d.key} marginRight={i === daemons.length - 1 ? 0 : 2}>
             <Text inverse={focused} bold={focused}>
               {d.key} {d.label}{" "}
-              <Text color={STATUS_COLOR[d.status]}>{STATUS_GLYPH[d.status]}</Text>
+              <Text color={colorOrUndef(STATUS_COLOR[d.status], noColor)}>
+                {STATUS_GLYPH[d.status]}
+              </Text>
             </Text>
           </Box>
         )

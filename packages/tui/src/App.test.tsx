@@ -58,6 +58,16 @@ test("renders title, list view with logs row, and a status bar pill", () => {
   expect(frame).toMatch(/○/)
 })
 
+test("renders the empty state with version + init command when no daemons configured", () => {
+  active = render(<App registry={[]} autoStart={false} skipConfigDiscovery />)
+  const frame = active.lastFrame() ?? ""
+
+  expect(frame).toContain("davstack TUI v")
+  expect(frame).toContain("No davstack configs found")
+  expect(frame).toContain("pnpm dlx @davstack/init")
+  expect(frame).toContain("Press q to quit")
+})
+
 test("renders three daemon rows + three status pills when all configured", () => {
   active = render(
     <App

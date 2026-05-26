@@ -2,12 +2,13 @@
 // state and daemon rows from context.
 
 import React from "react"
-import { Text } from "ink"
+import { Box, Text, useStdout } from "ink"
 
 import { ServerList } from "../views/ServerList.tsx"
 import { ServerLogView } from "../views/ServerLogView.tsx"
 import { useView } from "../state/view-context.tsx"
 import { useDaemons } from "../state/daemons-context.tsx"
+import { getPackageVersion, getRepoRootSafe } from "../lib/package-info.ts"
 
 interface MainViewProps {
   // null = config discovery still in progress; empty array = none found.
@@ -23,11 +24,7 @@ export function MainView({ discoveryDone, hasAnyDaemon }: MainViewProps): React.
     return <Text dimColor>scanning .davstack/config…</Text>
   }
   if (!hasAnyDaemon) {
-    return (
-      <Text dimColor>
-        no davstack configs found. run `pnpm dlx @davstack/init` first. (press q to quit)
-      </Text>
-    )
+    return <EmptyState />
   }
   if (view.kind === "list") {
     return <ServerList />
@@ -41,5 +38,38 @@ export function MainView({ discoveryDone, hasAnyDaemon }: MainViewProps): React.
       lines={row.lines}
       exitCode={row.exitCode ?? null}
     />
+  )
+}
+
+function EmptyState(): React.ReactElement {
+  const version = getPackageVersion()
+  const repoRoot = getRepoRootSafe()
+  const { stdout } = useStdout()
+  // Reserve a few lines for the title bar + bottom pills so the centered
+  // block lands roughly mid-screen. Falls back to a sensible default in
+  // detached/non-TTY hosts (tests).
+  const rows = stdout?.rows ?? 18
+  const blockHeight = Math.max(8, rows - 6)
+  return (
+    <Box
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      height={blockHeight}
+    >
+      <Box marginBottom={1}>
+        <Text bold>davstack TUI v{version}</Text>
+      </Box>
+      <Box>
+        <Text>No davstack configs found in {repoRoot}.</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text>Run: </Text>
+        <Text bold>pnpm dlx @davstack/init</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text dimColor>Press q to quit.</Text>
+      </Box>
+    </Box>
   )
 }

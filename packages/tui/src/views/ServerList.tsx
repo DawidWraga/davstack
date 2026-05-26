@@ -9,6 +9,7 @@ import type { DaemonStatus } from "../hooks/useDaemonProcess.ts"
 import { useView } from "../state/view-context.tsx"
 import { useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
 import { useHotkeys } from "../hooks/useHotkeys.ts"
+import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 
 const STATUS_GLYPH: Record<DaemonStatus, string> = {
   idle: "○",
@@ -20,6 +21,8 @@ const STATUS_GLYPH: Record<DaemonStatus, string> = {
   blocked: "⚠",
 }
 
+// Color scheme: green=running, gray=idle/exited, red=crashed, yellow=blocked.
+// Transition states (starting, exiting) ride along on yellow.
 const STATUS_COLOR: Record<DaemonStatus, string> = {
   idle: "gray",
   starting: "yellow",
@@ -73,6 +76,7 @@ export function ServerList(): React.ReactElement {
 }
 
 function DaemonListRow({ row, focused }: { row: DaemonRow; focused: boolean }): React.ReactElement {
+  const noColor = useNoColor()
   const last = row.lines[row.lines.length - 1]
   const lastText = last ? truncate(last.text, 60) : ""
   const statusLabel =
@@ -84,10 +88,14 @@ function DaemonListRow({ row, focused }: { row: DaemonRow; focused: boolean }): 
   const rowColor = row.status === "crashed" ? "red" : undefined
   return (
     <Box>
-      <Text color={focused ? "cyan" : undefined}>{focused ? "› " : "  "}</Text>
-      <Text color={STATUS_COLOR[row.status]}>{STATUS_GLYPH[row.status]}</Text>
-      <Text color={rowColor}> {row.descriptor.label.padEnd(12)}</Text>
-      <Text color={rowColor} dimColor={!rowColor}>
+      <Text color={colorOrUndef(focused ? "cyan" : undefined, noColor)}>
+        {focused ? "› " : "  "}
+      </Text>
+      <Text color={colorOrUndef(STATUS_COLOR[row.status], noColor)}>
+        {STATUS_GLYPH[row.status]}
+      </Text>
+      <Text color={colorOrUndef(rowColor, noColor)}> {row.descriptor.label.padEnd(12)}</Text>
+      <Text color={colorOrUndef(rowColor, noColor)} dimColor={!rowColor}>
         {statusLabel.padEnd(22)}
       </Text>
       <Text dimColor>{lastText}</Text>

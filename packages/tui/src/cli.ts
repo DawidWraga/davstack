@@ -1,8 +1,7 @@
 // @davstack/tui — subcommand dispatcher.
 //
-// P1 only ships `davstack start`, which renders a hardcoded Ink shell.
-// Real daemon spawning lands in P2; `stop`/`status`/`logs` are reserved
-// for later phases.
+// Currently ships `davstack start`, which renders the Ink shell. The
+// other subcommands (stop/status/logs) are reserved.
 
 import { Command } from "commander"
 import React from "react"
@@ -10,7 +9,8 @@ import { render } from "ink"
 
 import { App } from "./App.tsx"
 
-function runStart(): void {
+function runStart(opts: { noColor?: boolean }): void {
+  if (opts.noColor) process.env.DAVSTACK_NO_COLOR = "1"
   render(React.createElement(App))
 }
 
@@ -24,9 +24,11 @@ program
 
 program
   .command("start")
-  .description("Launch the TUI (P1: hardcoded shell, no real daemons yet).")
-  .action(() => {
-    runStart()
+  .description("Launch the TUI.")
+  .option("--no-color", "Disable ANSI colors (also respects NO_COLOR env)")
+  .action((opts: { color?: boolean }) => {
+    // commander maps `--no-color` to opts.color === false.
+    runStart({ noColor: opts.color === false })
   })
 
 try {
