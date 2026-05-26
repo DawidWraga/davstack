@@ -1,5 +1,12 @@
 # @davstack/open-agents
 
+## 1.1.1
+
+### Patch Changes
+
+- Updated dependencies [ade2196]
+  - @davstack/cli-utils@1.1.1
+
 ## 1.0.1
 
 ### Patch Changes
