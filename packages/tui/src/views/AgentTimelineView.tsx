@@ -8,6 +8,7 @@ import { adapterForJob } from "../hooks/useAdapterFor.ts"
 import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 import { getRepoRootSafe } from "../lib/package-info.ts"
 import { readAgentResultContent, readAgentSpecContent } from "../lib/read-agent-overlay.ts"
+import { inferAgentTitle } from "../lib/agent-title.ts"
 import { useAgents } from "../state/agents-context.tsx"
 import { AgentFilePopover } from "./AgentFilePopover.tsx"
 
@@ -43,11 +44,12 @@ export function AgentTimelineView(props: AgentTimelineViewProps): React.ReactEle
   }, [jobId, setAgentPopover])
 
   const header = useMemo(() => {
-    if (!job) return { adapter: "?", model: "?", prompt: "" }
+    if (!job) return { adapter: "?", model: "?", prompt: "", title: "" }
     const m = job.model.toLowerCase()
     const adapter = m.startsWith("gemini-") ? "gemini" : "cursor"
     const prompt = job.prompt.replace(/\s+/g, " ").trim()
-    return { adapter, model: job.model, prompt }
+    const title = inferAgentTitle({ prompt: job.prompt })
+    return { adapter, model: job.model, prompt, title }
   }, [job])
 
   const popoverBody = useMemo(() => {
@@ -86,8 +88,8 @@ export function AgentTimelineView(props: AgentTimelineViewProps): React.ReactEle
   return (
     <Box flexDirection="column">
       <Box>
-        <Text bold>{jobId}</Text>
-        <Text> · {header.adapter} · {header.model} · </Text>
+        <Text bold>{header.title || jobId}</Text>
+        <Text dimColor> · {jobId} · {header.adapter} · {header.model} · </Text>
         <Text color={colorOrUndef(STATUS_COLOR[job.status], noColor)}>({job.status})</Text>
       </Box>
       <Box>

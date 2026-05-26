@@ -5,6 +5,7 @@ import type { JobRecord, JobStatus } from "@davstack/open-agents/core/jobs"
 import { useAgentJobs } from "../hooks/useAgentJobs.ts"
 import { getRepoRootSafe } from "../lib/package-info.ts"
 import { jobStatusGlyph } from "../lib/agent-glyphs.ts"
+import { inferAgentTitle } from "../lib/agent-title.ts"
 import { useView } from "../state/view-context.tsx"
 import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 
@@ -77,7 +78,7 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
   const noColor = useNoColor()
   const { adapter, inferred } = useMemo(() => inferAdapter(job.model), [job.model])
   const age = formatAge(job.startedAt)
-  const prompt = truncatePrompt(job.prompt)
+  const title = useMemo(() => truncateOneLine(inferAgentTitle({ prompt: job.prompt }), 36), [job.prompt])
   const adapterLabel = inferred ? `${adapter} (inferred)` : adapter
 
   return (
@@ -90,9 +91,9 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
       </Text>
       <Text> {STATUS_LABEL[job.status].padEnd(5)}</Text>
       <Text dimColor={!inferred}>{adapterLabel.padEnd(14)}</Text>
-      <Text> {job.id.padEnd(24)}</Text>
-      <Text dimColor>{age.padStart(4)}</Text>
-      <Text> {prompt.padEnd(28)}</Text>
+      <Text bold>{title.padEnd(36)}</Text>
+      <Text dimColor>{job.id.padEnd(22)}</Text>
+      <Text dimColor>{age.padStart(4)} </Text>
       <Text dimColor>{job.model}</Text>
     </Box>
   )
@@ -127,9 +128,8 @@ function formatAge(startedAt: string): string {
   return `${Math.round(ageMin / 60)}h`
 }
 
-function truncatePrompt(prompt: string): string {
-  const oneLine = prompt.replace(/\s+/g, " ").trim()
-  const quoted = `"${oneLine}"`
-  if (quoted.length <= 28) return quoted
-  return quoted.slice(0, 27) + "…"
+function truncateOneLine(s: string, n: number): string {
+  const one = s.replace(/\s+/g, " ").trim()
+  if (one.length <= n) return one
+  return one.slice(0, n - 1) + "…"
 }

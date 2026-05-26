@@ -54,6 +54,9 @@ export function formatEventLines(opts: {
     return []
   }
 
+  const cursorTC = extractCursorToolCall(ev, noColor)
+  if (cursorTC) return [cursorTC]
+
   const out: TimelineRenderLine[] = []
   for (const tu of walkToolUses(ev)) {
     const summary = summarizeToolInput(tu.input)
@@ -69,6 +72,48 @@ export function formatEventLines(opts: {
   }
 
   return []
+}
+
+function extractCursorToolCall(ev: ParsedEvent, noColor: boolean): TimelineRenderLine | null {
+  if (ev.type !== "tool_call") return null
+  const tc = ev.tool_call as Record<string, unknown> | undefined
+  if (!tc || typeof tc !== "object") return null
+  const entries = Object.entries(tc)
+  if (entries.length === 0) return null
+  const [rawKey, payload] = entries[0]!
+  if (!payload || typeof payload !== "object") return null
+  const toolName = rawKey.replace(/ToolCall$/, "")
+  const pl = payload as Record<string, unknown>
+  const subtype = typeof ev.subtype === "string" ? ev.subtype : "started"
+  if (subtype === "completed") {
+    const body = extractCursorResultText(pl.result)
+    const preview = truncateOneLine(body.replace(/\s+/g, " "), 160)
+    const size = body.length > 0 ? ` (${formatByteSize(body.length)})` : ""
+    return line("tool_result", noColor, `${toolName}${size}`, preview || "ok")
+  }
+  const summary = summarizeToolInput(pl.args ?? pl.input)
+  return line("tool_use", noColor, "tool_use", summary ? `${toolName}(${summary})` : toolName)
+}
+
+function extractCursorResultText(result: unknown): string {
+  if (result == null) return ""
+  if (typeof result === "string") return result
+  if (typeof result !== "object") return String(result)
+  const rec = result as Record<string, unknown>
+  // cursor-agent: { success: { content, ... } } or { error: { message } }
+  const success = rec.success as Record<string, unknown> | undefined
+  if (success) {
+    const direct = pickString(success, ["content", "text", "output", "result"])
+    if (direct) return direct
+  }
+  const error = rec.error as Record<string, unknown> | undefined
+  if (error) {
+    const msg = pickString(error, ["message", "error", "text"])
+    if (msg) return `error: ${msg}`
+  }
+  const top = pickString(rec, ["content", "text", "output", "message"])
+  if (top) return top
+  return ""
 }
 
 export function formatResultSummaryLine(opts: {
@@ -133,6 +178,18 @@ function extractAssistantText(ev: ParsedEvent): string {
   if (typeof ev.content === "string") return ev.content
   const msg = ev.message as Record<string, unknown> | undefined
   if (msg) {
+    const content = msg.content
+    if (Array.isArray(content)) {
+      const parts: string[] = []
+      for (const block of content) {
+        if (!block || typeof block !== "object") continue
+        const b = block as Record<string, unknown>
+        if (b.type === "text" && typeof b.text === "string" && b.text.length > 0) {
+          parts.push(b.text)
+        }
+      }
+      if (parts.length > 0) return parts.join(" ")
+    }
     const t = pickString(msg, ["text", "content"])
     if (t) return t
   }

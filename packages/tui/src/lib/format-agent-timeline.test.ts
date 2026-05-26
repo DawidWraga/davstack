@@ -87,3 +87,56 @@ test("formatStartLine uses ▶ glyph", () => {
   expect(row.text.startsWith(EVENT_GLYPH.start)).toBe(true)
   expect(row.text).toContain("audit auth flows")
 })
+
+describe("formatEventLines — real cursor-agent shapes", () => {
+  const CURSOR_REAL_TOOL_STARTED = JSON.stringify({
+    type: "tool_call",
+    subtype: "started",
+    call_id: "tool_abc",
+    tool_call: { readToolCall: { args: { path: "C:/foo/bar.ts", offset: 1, limit: 100 } } },
+  })
+  const CURSOR_REAL_TOOL_COMPLETED = JSON.stringify({
+    type: "tool_call",
+    subtype: "completed",
+    call_id: "tool_abc",
+    tool_call: {
+      readToolCall: {
+        args: { path: "C:/foo/bar.ts" },
+        result: { success: { content: "export function x() { return 1 }" } },
+      },
+    },
+  })
+  const CURSOR_REAL_ASSISTANT = JSON.stringify({
+    type: "assistant",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "I'll start by reading the file." }],
+    },
+  })
+
+  test("nested tool_call.readToolCall.args renders as tool_use with name + path", () => {
+    const ev = cursorAdapter.parseLine(CURSOR_REAL_TOOL_STARTED)!
+    const rows = formatEventLines({ ev, noColor: false })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text.startsWith(EVENT_GLYPH.tool_use)).toBe(true)
+    expect(rows[0]!.text).toContain("read")
+    expect(rows[0]!.text).toContain("C:/foo/bar.ts")
+  })
+
+  test("tool_call subtype completed renders as tool_result with preview", () => {
+    const ev = cursorAdapter.parseLine(CURSOR_REAL_TOOL_COMPLETED)!
+    const rows = formatEventLines({ ev, noColor: false })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text.startsWith(EVENT_GLYPH.tool_result)).toBe(true)
+    expect(rows[0]!.text).toContain("read")
+    expect(rows[0]!.text).toContain("export function x()")
+  })
+
+  test("assistant message.content[] text block renders as ✎ line", () => {
+    const ev = cursorAdapter.parseLine(CURSOR_REAL_ASSISTANT)!
+    const rows = formatEventLines({ ev, noColor: false })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text.startsWith(EVENT_GLYPH.assistant)).toBe(true)
+    expect(rows[0]!.text).toContain("I'll start by reading the file.")
+  })
+})
