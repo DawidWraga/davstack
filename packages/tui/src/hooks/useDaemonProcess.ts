@@ -35,6 +35,7 @@ export type UseDaemonProcessResult = {
   lines: LogLine[]
   start: () => void
   stop: () => void
+  clear: () => void
   exitCode: number | null
 }
 
@@ -71,7 +72,7 @@ export function useDaemonProcess(
   const unregisterChild = deps.unregisterChild ?? defaultUnregisterChild
   const doFetch = deps.fetch ?? globalThis.fetch
 
-  const { lines, push } = useRingBuffer(10_000)
+  const { lines, push, clear } = useRingBuffer(10_000)
   const [status, setStatus] = useState<DaemonStatus>("idle")
   const [exitCode, setExitCode] = useState<number | null>(null)
   const childRef = useRef<ChildProcess | null>(null)
@@ -225,5 +226,5 @@ export function useDaemonProcess(
     }
   }, [stop])
 
-  return { status, lines, start, stop, exitCode }
+  return { status, lines, start, stop, clear, exitCode }
 }

@@ -28,7 +28,7 @@ export type DaemonRow = {
   exitCode?: number | null
 }
 
-export type DaemonControls = { start: () => void; stop: () => void }
+export type DaemonControls = { start: () => void; stop: () => void; clear?: () => void }
 
 function makeInitialRow(descriptor: DaemonDescriptor): DaemonRow {
   return { descriptor, status: "idle", lines: [], exitCode: null }
@@ -87,6 +87,15 @@ function useDaemonsInner(descriptors: DaemonDescriptor[]) {
     for (const controls of controlsRef.current.values()) controls.stop()
   }, [])
 
+  const clearByKey = useCallback((key: DaemonKey) => {
+    const controls = controlsRef.current.get(key)
+    controls?.clear?.()
+  }, [])
+
+  const anyLive = useCallback(() => {
+    return rowsRef.current.some((r) => r.status === "running" || r.status === "starting")
+  }, [])
+
   return useMemo(
     () => ({
       rows,
@@ -96,8 +105,10 @@ function useDaemonsInner(descriptors: DaemonDescriptor[]) {
       registerControls,
       toggleByKey,
       stopAll,
+      clearByKey,
+      anyLive,
     }),
-    [rows, syncDescriptors, registerRow, registerControls, toggleByKey, stopAll],
+    [rows, syncDescriptors, registerRow, registerControls, toggleByKey, stopAll, clearByKey, anyLive],
   )
 }
 

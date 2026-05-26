@@ -9,6 +9,7 @@ import { installGlobalTeardown } from "./lib/global-teardown.ts"
 
 import { ViewProvider } from "./state/view-context.tsx"
 import { DaemonsProvider } from "./state/daemons-context.tsx"
+import { QuitProvider, useQuit } from "./state/quit-context.tsx"
 
 import { DaemonSupervisor } from "./components/DaemonSupervisor.tsx"
 import { DescriptorSync } from "./components/DescriptorSync.tsx"
@@ -16,6 +17,7 @@ import { GlobalHotkeys } from "./components/GlobalHotkeys.tsx"
 import { QuitController } from "./components/QuitController.tsx"
 import { MainView } from "./components/MainView.tsx"
 import { BottomBar } from "./components/BottomBar.tsx"
+import { QuitConfirm } from "./components/QuitConfirm.tsx"
 
 import { useConfigDiscovery } from "./hooks/useConfigDiscovery.ts"
 
@@ -43,32 +45,59 @@ export function App({
   return (
     <ViewProvider>
       <DaemonsProvider descriptors={filtered}>
-        <DescriptorSync descriptors={filtered} />
-        {filtered.map((d) => (
-          <DaemonSupervisor key={d.key} descriptor={d} autoStart={autoStart} />
-        ))}
-        <QuitController>
-          {({ quit, quitting }) => (
-            <Box flexDirection="column">
-              <GlobalHotkeys onQuit={quit} />
-              <Box>
-                <Text bold>davstack</Text>
-              </Box>
-              <Box marginTop={1} flexDirection="column">
-                <MainView discoveryDone={done} hasAnyDaemon={filtered.length > 0} />
-              </Box>
-              <Box marginTop={1}>
-                <BottomBar />
-              </Box>
-              {quitting ? (
-                <Box marginTop={1}>
-                  <Text dimColor>shutting down daemons…</Text>
-                </Box>
-              ) : null}
-            </Box>
-          )}
-        </QuitController>
+        <QuitProvider>
+          <DescriptorSync descriptors={filtered} />
+          {filtered.map((d) => (
+            <DaemonSupervisor key={d.key} descriptor={d} autoStart={autoStart} />
+          ))}
+          <QuitController>
+            {({ quit, quitting }) => (
+              <AppFrame
+                quit={quit}
+                quitting={quitting}
+                done={done}
+                hasAnyDaemon={filtered.length > 0}
+              />
+            )}
+          </QuitController>
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>
+  )
+}
+
+// Inner frame — pulled out so it can `useQuit()` (which requires being
+// inside QuitProvider). Renders the confirm overlay when active.
+function AppFrame({
+  quit,
+  quitting,
+  done,
+  hasAnyDaemon,
+}: {
+  quit: () => void
+  quitting: boolean
+  done: boolean
+  hasAnyDaemon: boolean
+}): React.ReactElement {
+  const { confirming } = useQuit()
+  return (
+    <Box flexDirection="column">
+      <GlobalHotkeys onQuit={quit} />
+      <Box>
+        <Text bold>davstack</Text>
+      </Box>
+      <Box marginTop={1} flexDirection="column">
+        <MainView discoveryDone={done} hasAnyDaemon={hasAnyDaemon} />
+      </Box>
+      <Box marginTop={1}>
+        <BottomBar />
+      </Box>
+      {confirming ? <QuitConfirm /> : null}
+      {quitting ? (
+        <Box marginTop={1}>
+          <Text dimColor>shutting down daemons…</Text>
+        </Box>
+      ) : null}
+    </Box>
   )
 }

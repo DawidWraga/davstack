@@ -10,6 +10,7 @@ import { render } from "ink-testing-library"
 
 import { ViewProvider, useView, type View } from "../state/view-context.tsx"
 import { DaemonsProvider, useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
+import { QuitProvider, useQuit } from "../state/quit-context.tsx"
 import { useHotkeys, type HotkeyHandlers } from "./useHotkeys.ts"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 
@@ -31,6 +32,7 @@ interface CapturedApis {
   setFocusedIdx: (n: number) => void
   registerRow: (row: DaemonRow) => void
   registerControls: ReturnType<typeof useDaemons>["registerControls"]
+  quitConfirming: boolean
 }
 
 function Capture({ onUpdate, onQuit }: {
@@ -40,6 +42,7 @@ function Capture({ onUpdate, onQuit }: {
   const hotkeys = useHotkeys(onQuit)
   const v = useView()
   const d = useDaemons()
+  const q = useQuit()
   // Publish during render so tests can synchronously read the latest
   // context values + handlers after render(...). Safe here — onUpdate
   // is a setter into a closure, not a React state update.
@@ -49,6 +52,7 @@ function Capture({ onUpdate, onQuit }: {
     setFocusedIdx: v.setFocusedIdx,
     registerRow: d.registerRow,
     registerControls: d.registerControls,
+    quitConfirming: q.confirming,
   })
   return null
 }
@@ -63,7 +67,9 @@ function renderWithProviders(descriptors: DaemonDescriptor[], onQuit: () => void
   const r = render(
     <ViewProvider>
       <DaemonsProvider descriptors={descriptors}>
-        <Capture onQuit={onQuit} onUpdate={(api) => (captured = api)} />
+        <QuitProvider>
+          <Capture onQuit={onQuit} onUpdate={(api) => (captured = api)} />
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>,
   )
@@ -204,4 +210,144 @@ test("onToggleFocused calls start on an idle focused daemon", async () => {
   get().hotkeys.onToggleFocused()
   expect(start).toHaveBeenCalledTimes(1)
   expect(stop).not.toHaveBeenCalled()
+})
+
+test("`q` with a running daemon enters the confirm-quit state instead of quitting", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("q", {})
+  await tick()
+
+  expect(onQuit).not.toHaveBeenCalled()
+  expect(get().quitConfirming).toBe(true)
+})
+
+test("pressing `y` while confirming triggers cascade shutdown", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("q", {})
+  await tick()
+  expect(get().quitConfirming).toBe(true)
+
+  get().hotkeys.handle("y", {})
+  await tick()
+  expect(onQuit).toHaveBeenCalledTimes(1)
+  expect(get().quitConfirming).toBe(false)
+})
+
+test("pressing `n` while confirming cancels back to the prior view", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("q", {})
+  await tick()
+  expect(get().quitConfirming).toBe(true)
+
+  get().hotkeys.handle("n", {})
+  await tick()
+  expect(get().quitConfirming).toBe(false)
+  expect(onQuit).not.toHaveBeenCalled()
+})
+
+test("pressing `esc` while confirming cancels", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.handle("q", {})
+  await tick()
+
+  get().hotkeys.handle("", { escape: true })
+  await tick()
+  expect(get().quitConfirming).toBe(false)
+  expect(onQuit).not.toHaveBeenCalled()
+})
+
+test("while confirming, number keys are swallowed", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  get().registerRow({ descriptor: descriptors[1], status: "idle", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.handle("q", {})
+  await tick()
+  expect(get().quitConfirming).toBe(true)
+
+  // Number key while confirming should NOT navigate.
+  get().hotkeys.handle("2", {})
+  await tick()
+  expect(get().view.kind).toBe("list")
+  expect(get().quitConfirming).toBe(true)
+})
+
+test("`q` with no running daemons quits immediately (no confirm)", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const onQuit = vi.fn()
+  const { r, get } = renderWithProviders(descriptors, onQuit)
+  unmount = () => r.unmount()
+
+  // All-idle rows.
+  get().registerRow({ descriptor: descriptors[0], status: "idle", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("q", {})
+  await tick()
+  expect(onQuit).toHaveBeenCalledTimes(1)
+  expect(get().quitConfirming).toBe(false)
+})
+
+test("`c` in log view clears the focused daemon's ring buffer", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  const clear = vi.fn()
+  get().registerControls("logs", { start: vi.fn(), stop: vi.fn(), clear })
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  // Drill into log view first.
+  get().hotkeys.handle("1", {})
+  await tick()
+  expect(get().view.kind).toBe("log")
+
+  get().hotkeys.handle("c", {})
+  expect(clear).toHaveBeenCalledTimes(1)
+})
+
+test("`c` in list view is a no-op (does not clear)", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  const clear = vi.fn()
+  get().registerControls("logs", { start: vi.fn(), stop: vi.fn(), clear })
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("c", {})
+  expect(clear).not.toHaveBeenCalled()
 })

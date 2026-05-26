@@ -10,6 +10,7 @@ import { render } from "ink-testing-library"
 import { ServerList } from "./ServerList.tsx"
 import { ViewProvider } from "../state/view-context.tsx"
 import { DaemonsProvider, useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
+import { QuitProvider } from "../state/quit-context.tsx"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 
 function makeDescriptor(key: "logs" | "vitest" | "playwright"): DaemonDescriptor {
@@ -56,7 +57,9 @@ test("legend advertises the new hotkeys", () => {
   active = render(
     <ViewProvider>
       <DaemonsProvider descriptors={descriptors}>
-        <ServerList />
+        <QuitProvider>
+          <ServerList />
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>,
   )
@@ -70,7 +73,9 @@ test("renders a row per descriptor with the focus marker on idx 0", () => {
   active = render(
     <ViewProvider>
       <DaemonsProvider descriptors={descriptors}>
-        <ServerList />
+        <QuitProvider>
+          <ServerList />
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>,
   )
@@ -102,15 +107,17 @@ test("toggleByKey dispatches stop() for a running daemon", async () => {
   active = render(
     <ViewProvider>
       <DaemonsProvider descriptors={descriptors}>
-        <Seed
-          rows={[
-            { descriptor: descriptors[0], status: "running", lines: [], exitCode: null },
-            { descriptor: descriptors[1], status: "idle", lines: [], exitCode: null },
-          ]}
-          startStop={{ logs: { start: startLogs, stop: stopLogs } }}
-        />
-        <Capture />
-        <ServerList />
+        <QuitProvider>
+          <Seed
+            rows={[
+              { descriptor: descriptors[0], status: "running", lines: [], exitCode: null },
+              { descriptor: descriptors[1], status: "idle", lines: [], exitCode: null },
+            ]}
+            startStop={{ logs: { start: startLogs, stop: stopLogs } }}
+          />
+          <Capture />
+          <ServerList />
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>,
   )
@@ -138,14 +145,16 @@ test("toggleByKey dispatches start() for an idle daemon", async () => {
   active = render(
     <ViewProvider>
       <DaemonsProvider descriptors={descriptors}>
-        <Seed
-          rows={[
-            { descriptor: descriptors[0], status: "idle", lines: [], exitCode: null },
-          ]}
-          startStop={{ logs: { start: startLogs, stop: stopLogs } }}
-        />
-        <Capture />
-        <ServerList />
+        <QuitProvider>
+          <Seed
+            rows={[
+              { descriptor: descriptors[0], status: "idle", lines: [], exitCode: null },
+            ]}
+            startStop={{ logs: { start: startLogs, stop: stopLogs } }}
+          />
+          <Capture />
+          <ServerList />
+        </QuitProvider>
       </DaemonsProvider>
     </ViewProvider>,
   )

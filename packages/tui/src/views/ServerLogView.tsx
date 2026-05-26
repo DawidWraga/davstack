@@ -1,6 +1,6 @@
 // Drill-in log view: renders the tail of a daemon's ring buffer to fill
 // the visible terminal height. `esc` (handled by GlobalHotkeys) returns
-// to the list.
+// to the list; `c` clears the ring buffer.
 
 import React from "react"
 import { Box, Text, useStdout } from "ink"
@@ -8,6 +8,7 @@ import { Box, Text, useStdout } from "ink"
 import type { LogLine } from "../hooks/useRingBuffer.ts"
 import type { DaemonStatus } from "../hooks/useDaemonProcess.ts"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
+import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 
 interface ServerLogViewProps {
   descriptor: DaemonDescriptor
@@ -16,12 +17,25 @@ interface ServerLogViewProps {
   exitCode?: number | null
 }
 
+// Same scheme as ServerList — keep these two tables aligned by hand
+// rather than sharing a module, since their domain types differ.
+const STATUS_COLOR: Record<DaemonStatus, string> = {
+  idle: "gray",
+  starting: "yellow",
+  running: "green",
+  exiting: "yellow",
+  exited: "gray",
+  crashed: "red",
+  blocked: "yellow",
+}
+
 export function ServerLogView({
   descriptor,
   status,
   lines,
   exitCode,
 }: ServerLogViewProps): React.ReactElement {
+  const noColor = useNoColor()
   const { stdout } = useStdout()
   const rows = stdout?.rows ?? 24
   // Reserve a couple of lines for header + footer.
@@ -32,11 +46,13 @@ export function ServerLogView({
     <Box flexDirection="column">
       <Box>
         <Text bold>{descriptor.label}</Text>
-        <Text dimColor> ({status}) — port {descriptor.port}</Text>
+        <Text> </Text>
+        <Text color={colorOrUndef(STATUS_COLOR[status], noColor)}>({status})</Text>
+        <Text dimColor> — port {descriptor.port}</Text>
       </Box>
       {status === "crashed" ? (
         <Box marginTop={1}>
-          <Text color="red">
+          <Text color={colorOrUndef("red", noColor)}>
             daemon exited with code {exitCode ?? "?"} — last logs preserved
           </Text>
         </Box>
@@ -46,14 +62,14 @@ export function ServerLogView({
           <Text dimColor>(no output yet)</Text>
         ) : (
           tail.map((l, i) => (
-            <Text key={i} color={l.stream === "err" ? "red" : undefined}>
+            <Text key={i} color={colorOrUndef(l.stream === "err" ? "red" : undefined, noColor)}>
               {l.text}
             </Text>
           ))
         )}
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>esc back  q quit</Text>
+        <Text dimColor>esc back · c clear · q quit</Text>
       </Box>
     </Box>
   )
