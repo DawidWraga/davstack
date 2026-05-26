@@ -10,6 +10,9 @@ description: >-
   or for prod logs (this is local-only).
 ---
 
+First run `davstack check` to confirm the daemon is running. If it isn't,
+the command prints the start instructions.
+
 The query CLI reads `.davstack/logs.db` directly — it works even if the
 ingest daemon isn't running. You only need `serve` running for the app to
 write new envelopes.

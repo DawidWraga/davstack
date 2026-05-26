@@ -9,10 +9,7 @@ export default defineConfig({
 	format: ["esm"],
 	target: "node20",
 	outDir: "dist",
-	// dts disabled: src has pre-existing type errors (narrowing misses,
-	// missing @types/node, dynamic .ts extension imports). Fix in a follow-up;
-	// runtime boot is the priority for this change.
-	dts: false,
+	dts: true,
 	clean: true,
 	splitting: false,
 	sourcemap: true,

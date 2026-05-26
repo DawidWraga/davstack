@@ -11,9 +11,9 @@
 // down per-origin or disable via the `cors` config field.
 
 import type { Database } from 'bun:sqlite';
-import type { ServerConfig } from './config.ts';
-import { handleIngest } from './ingest.ts';
-import { decodeBody } from './decode.ts';
+import type { ServerConfig } from './config.js';
+import { handleIngest } from './ingest.js';
+import { decodeBody } from './decode.js';
 
 export function corsHeadersFor(
   origin: string | null,

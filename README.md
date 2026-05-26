@@ -7,6 +7,7 @@ Local-first dev tooling for AI-coding-agent workflows. Long-lived daemons, struc
 | Package | What it is | Docs |
 |---|---|---|
 | [@davstack/init](./packages/init) | Bootstrap CLI — scaffolds `.davstack/config/*.config.ts` for every tool you opt into, updates `.gitignore`. | [README](./packages/init/README.md) |
+| [@davstack/tui](./packages/tui) | Terminal UI supervisor — `davstack start` spawns, surfaces, and tears down all configured daemons from a single attached terminal. | [README](./packages/tui/README.md) |
 | [@davstack/logs-server](./packages/logs-server) | Local Sentry-shaped log sink. Ingests envelopes over HTTP, writes to per-repo SQLite, queries by `trace_id` / `run_id` / `level`. | [README](./packages/logs-server/README.md) · [setup](./packages/logs-server/docs/setup.md) · [writing](./packages/logs-server/docs/writing-logs.md) · [reading](./packages/logs-server/docs/reading-logs.md) |
 | [@davstack/vitest-server](./packages/vitest-server) | Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3–15s warm. | [README](./packages/vitest-server/README.md) · [setup](./packages/vitest-server/docs/setup.md) · [usage](./packages/vitest-server/docs/usage.md) · [troubleshooting](./packages/vitest-server/docs/troubleshooting.md) |
 | [@davstack/playwright-server](./packages/playwright-server) | Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm. | [README](./packages/playwright-server/README.md) · [setup](./packages/playwright-server/docs/setup.md) · [usage](./packages/playwright-server/docs/usage.md) · [auth](./packages/playwright-server/docs/auth.md) · [troubleshooting](./packages/playwright-server/docs/troubleshooting.md) |
@@ -29,7 +30,18 @@ pnpm dlx @davstack/init --all
 pnpm dlx @davstack/init --tools=logs-server,vitest-server
 ```
 
-Each package has its own README + `docs/` covering install, config, usage, and troubleshooting.
+Then run all configured daemons together via the TUI (recommended):
+
+```bash
+# In a dedicated terminal — supervises every configured daemon
+# and cleans them up on quit.
+pnpm dlx @davstack/tui start
+```
+
+The TUI is the easy mode. Each daemon still ships its own CLI
+(`pnpm exec vitest-server serve`, etc.) if you'd rather run them
+individually. See each package's README + `docs/` for install,
+config, usage, and troubleshooting.
 
 ## Archive
 

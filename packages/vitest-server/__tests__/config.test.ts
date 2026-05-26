@@ -5,7 +5,7 @@ import { test, expect, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DEFAULT_CONFIG, loadConfig } from '../src/config.ts';
+import { DEFAULT_CONFIG, loadConfig } from '../src/config.js';
 
 const tmps: string[] = [];
 afterEach(() => {

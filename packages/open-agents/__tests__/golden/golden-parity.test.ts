@@ -14,10 +14,10 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exploreProfile } from '../../src/profiles/explore.ts';
-import { editProfile } from '../../src/profiles/edit.ts';
-import { cursorAdapter } from '../../src/adapters/cursor.ts';
-import { extractDeliverable, renderJobResult } from '../../src/core/deliverable.ts';
+import { exploreProfile } from '../../src/profiles/explore.js';
+import { editProfile } from '../../src/profiles/edit.js';
+import { cursorAdapter } from '../../src/adapters/cursor.js';
+import { extractDeliverable, renderJobResult } from '../../src/core/deliverable.js';
 
 // import.meta.dir is bun-only; resolve via fileURLToPath for vitest+node.
 const HERE = dirname(fileURLToPath(import.meta.url));

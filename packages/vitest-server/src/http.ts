@@ -4,7 +4,7 @@
 // both runtimes working.
 
 import http, { type IncomingMessage, type ServerResponse, type Server } from 'node:http';
-import type { VitestSession } from './session.ts';
+import type { VitestSession } from './session.js';
 
 export type ServeOpts = {
   session: VitestSession;

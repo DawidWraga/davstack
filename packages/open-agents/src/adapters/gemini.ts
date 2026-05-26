@@ -29,8 +29,8 @@ import { join } from 'node:path';
 import {
   parseLine as parseStreamLine,
   extractChatId as extractChatIdFromEvents,
-} from '../core/parse.ts';
-import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.ts';
+} from '../core/parse.js';
+import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.js';
 
 // Default: gemini-3.1-flash-lite-preview. Picked by the 2026-05-19 notes/exp
 // sweep over the three viable cheap-tier models (2.5-flash-lite, 3.1-flash-

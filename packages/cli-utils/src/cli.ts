@@ -256,19 +256,19 @@ export function defineCli(spec: CliSpec): { run(argv: string[]): Promise<number>
       const result = parseArgs(argv, spec);
       if (!result.ok) {
         // Dynamic import to keep cold path lean.
-        const { formatHelp } = await import('./cli-help.ts');
+        const { formatHelp } = await import('./cli-help.js');
         console.error(`error: ${result.error}\n`);
         console.error(formatHelp(result.commandPath, spec));
         return 2;
       }
       if (result.helpRequested) {
-        const { formatHelp } = await import('./cli-help.ts');
+        const { formatHelp } = await import('./cli-help.js');
         console.log(formatHelp(result.commandPath, spec));
         return 0;
       }
       const handler = result.spec.run;
       if (!handler) {
-        const { formatHelp } = await import('./cli-help.ts');
+        const { formatHelp } = await import('./cli-help.js');
         console.log(formatHelp(result.commandPath, spec));
         return 0;
       }

@@ -6,7 +6,7 @@
 // batch) so this is a faithful contract, not a shallow seam.
 
 import { test, expect } from 'vitest';
-import { parseEnvelope } from '../src/envelope.ts';
+import { parseEnvelope } from '../src/envelope.js';
 
 const a = (value: unknown, type = 'string') => ({ value, type });
 

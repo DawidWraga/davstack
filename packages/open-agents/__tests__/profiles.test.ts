@@ -3,9 +3,9 @@
 // "behaviour identical" contract starts at the prompt the subagent receives.
 
 import { describe, expect, test } from 'vitest';
-import { exploreProfile } from '../src/profiles/explore.ts';
-import { editProfile } from '../src/profiles/edit.ts';
-import { SENTINEL } from '../src/profiles/types.ts';
+import { exploreProfile } from '../src/profiles/explore.js';
+import { editProfile } from '../src/profiles/edit.js';
+import { SENTINEL } from '../src/profiles/types.js';
 
 const EXPLORE_SPEC =
   '<goal>List the exact signature and return type of every exported symbol in the scratch lib, each with its path:line.</goal>\n' +

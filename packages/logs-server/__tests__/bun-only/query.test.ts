@@ -4,14 +4,14 @@
 // and the error-context window must center on the error and clamp at edges.
 
 import { test, expect } from 'bun:test';
-import { openDb, insertLogs, type LogRow } from '../src/db.ts';
+import { openDb, insertLogs, type LogRow } from '../src/db.js';
 import {
   runTimeline,
   traceAssembly,
   errorContext,
   filterLogs,
   format,
-} from '../src/query.ts';
+} from '../src/query.js';
 
 let seq = 0;
 function mk(over: Partial<LogRow>): LogRow {

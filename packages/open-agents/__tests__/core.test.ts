@@ -3,7 +3,7 @@
 // Phase-0 golden result files given the golden summary strings.
 
 import { describe, expect, test } from 'vitest';
-import { extractDeliverable, renderJobResult } from '../src/core/deliverable.ts';
+import { extractDeliverable, renderJobResult } from '../src/core/deliverable.js';
 
 const SENTINEL = '___FINAL_OUTPUT___';
 

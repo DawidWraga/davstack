@@ -40,7 +40,7 @@ import { resolve, isAbsolute, relative, join } from 'node:path';
 import { readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { DEFAULT_CONFIG, loadConfig, type ResolvedConfig } from './config.ts';
+import { DEFAULT_CONFIG, loadConfig, type ResolvedConfig } from './config.js';
 
 // First story file under cwd — used when consumer didn't set primeFile.
 // Skips node_modules + dotfiles. Returns a forward-slash cwd-relative path.
@@ -100,7 +100,7 @@ import {
   isStorybookWrapper,
   walkTaskTreeForTests,
   type TestEntry,
-} from './format.ts';
+} from './format.js';
 
 export type RunOpts = {
   file: string;

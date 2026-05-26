@@ -2,6 +2,11 @@
 
 Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3-15s warm.
 
+> **Recommended**: run this daemon via `pnpm dlx @davstack/tui start` —
+> the TUI supervises all configured davstack daemons together and cleans
+> them up on quit. The standalone CLI below still works if you want to
+> run this daemon in isolation.
+
 ## Why
 
 - **Warm-boot speed.** Vite optimize + playwright launch + storybook preset only happen once; per-file reruns reuse the hot pool.

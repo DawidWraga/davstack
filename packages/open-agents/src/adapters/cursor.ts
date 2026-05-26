@@ -16,8 +16,8 @@ import {
   parseLine as parseStreamLine,
   summariseEvents,
   extractChatId as extractChatIdFromEvents,
-} from '../core/parse.ts';
-import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.ts';
+} from '../core/parse.js';
+import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.js';
 
 // Two named tiers are the documented interface; raw --model still overrides.
 // composer-2.5 is the default: cheaper input than composer-2, same output,

@@ -2,8 +2,8 @@
 // explore entrypoint — binds the explore profile, then dispatches the cli verbs.
 // The profile is forced, so `submit` is explore regardless of flags (no --edit).
 
-import { bindProfile, main } from '../cli.ts';
-import { exploreProfile } from '../profiles/explore.ts';
+import { bindProfile, main } from '../cli.js';
+import { exploreProfile } from '../profiles/explore.js';
 
 bindProfile(exploreProfile);
 main().catch((err: any) => {

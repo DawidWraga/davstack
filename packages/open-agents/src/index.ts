@@ -2,12 +2,12 @@
 // a generic self-waiting subagent run loop split along two orthogonal axes,
 // profile (what the subagent is) × adapter (which CLI runs it).
 
-export { runJob, resultFilePath, DEFAULT_TIMEOUT_SEC } from './core/run.ts';
+export { runJob, resultFilePath, DEFAULT_TIMEOUT_SEC } from './core/run.js';
 export {
   extractDeliverable,
   renderJobResult,
   readDeliverable,
-} from './core/deliverable.ts';
+} from './core/deliverable.js';
 export {
   createJob,
   readJob,
@@ -17,22 +17,22 @@ export {
   mostRecentFinishedJob,
   findRunningJobs,
   pruneOlderThanDays,
-} from './core/jobs.ts';
-export { dataHome, jobsDir, logsDir, repoHash, ensureDir } from './core/paths.ts';
-export { parseLine, summariseEvents, extractChatId, walkToolUses } from './core/parse.ts';
+} from './core/jobs.js';
+export { dataHome, jobsDir, logsDir, repoHash, ensureDir } from './core/paths.js';
+export { parseLine, summariseEvents, extractChatId, walkToolUses } from './core/parse.js';
 
-export type { Profile, ProfileMode } from './profiles/types.ts';
-export { SENTINEL } from './profiles/types.ts';
-export { exploreProfile } from './profiles/explore.ts';
-export { editProfile } from './profiles/edit.ts';
+export type { Profile, ProfileMode } from './profiles/types.js';
+export { SENTINEL } from './profiles/types.js';
+export { exploreProfile } from './profiles/explore.js';
+export { editProfile } from './profiles/edit.js';
 
-export type { AgentAdapter, Tier, BuildArgsInput, RunSummary } from './adapters/types.ts';
+export type { AgentAdapter, Tier, BuildArgsInput, RunSummary } from './adapters/types.js';
 export {
   cursorAdapter,
   resolveBin,
   resolveCursorAgentNode,
   sweepDotTest,
-} from './adapters/cursor.ts';
+} from './adapters/cursor.js';
 export {
   agyAdapter,
   brainBaseDir,
@@ -45,6 +45,6 @@ export {
   summariseAgy,
   sweepLitterDir,
   TRUNCATION_RE,
-} from './adapters/agy.ts';
+} from './adapters/agy.js';
 
-export { main, bindProfile } from './cli.ts';
+export { main, bindProfile } from './cli.js';

@@ -11,7 +11,7 @@ import {
   getSuiteChain,
   buildTestEntry,
   walkTaskTreeForTests,
-} from '../src/format.ts';
+} from '../src/format.js';
 
 // ─── stripAnsi ──────────────────────────────────────────────────────────────
 

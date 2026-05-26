@@ -14,7 +14,7 @@
 // Node + tsx is the supported launcher today.
 
 import http, { type IncomingMessage, type ServerResponse, type Server } from 'node:http';
-import type { PlaywrightSession } from './session.ts';
+import type { PlaywrightSession } from './session.js';
 
 export type ServeOpts = {
   session: PlaywrightSession;

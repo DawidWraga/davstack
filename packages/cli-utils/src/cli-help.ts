@@ -1,7 +1,7 @@
 // Plain-text help formatter for the CLI helper. Kept layout-loose on
 // purpose — tests assert content, not whitespace, so the visual can evolve.
 
-import type { CliSpec, CommandSpec, FlagSpec, Positional } from './cli.ts';
+import type { CliSpec, CommandSpec, FlagSpec, Positional } from './cli.js';
 
 export function formatHelp(commandPath: string[], spec: CliSpec): string {
   // Walk to the node we're describing.
