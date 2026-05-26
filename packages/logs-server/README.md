@@ -1,6 +1,11 @@
 # @davstack/logs-server
 
-Local Sentry-shaped app -> sqlite log sink. 
+Local Sentry-shaped app -> sqlite log sink.
+
+> **Recommended**: run this daemon via `pnpm dlx @davstack/tui start` —
+> the TUI supervises all configured davstack daemons together and cleans
+> them up on quit. The standalone CLI below still works if you want to
+> run this daemon in isolation.
 
 ## Why
 

@@ -2,6 +2,11 @@
 
 Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm.
 
+> **Recommended**: run this daemon via `pnpm dlx @davstack/tui start` —
+> the TUI supervises all configured davstack daemons together and cleans
+> them up on quit. The standalone CLI below still works if you want to
+> run this daemon in isolation.
+
 ## Why
 
 - **Warm chromium context.** Reuse warm browser across tabs for super fast agentic feedback loops.
