@@ -10,6 +10,7 @@ import { render } from "ink-testing-library"
 
 import { ViewProvider, useView, type View } from "../state/view-context.tsx"
 import { DaemonsProvider, useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
+import { AgentsProvider } from "../state/agents-context.tsx"
 import { QuitProvider, useQuit } from "../state/quit-context.tsx"
 import { useHotkeys, type HotkeyHandlers } from "./useHotkeys.ts"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
@@ -66,11 +67,13 @@ function renderWithProviders(descriptors: DaemonDescriptor[], onQuit: () => void
   let captured: CapturedApis | null = null
   const r = render(
     <ViewProvider>
-      <DaemonsProvider descriptors={descriptors}>
-        <QuitProvider>
-          <Capture onQuit={onQuit} onUpdate={(api) => (captured = api)} />
-        </QuitProvider>
-      </DaemonsProvider>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={descriptors}>
+          <QuitProvider>
+            <Capture onQuit={onQuit} onUpdate={(api) => (captured = api)} />
+          </QuitProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>,
   )
   if (!captured) throw new Error("Capture never published")

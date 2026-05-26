@@ -11,12 +11,12 @@ import type { JobRecord } from "@davstack/open-agents/core/jobs"
 import { useAgentJobs } from "../hooks/useAgentJobs.ts"
 import { getRepoRootSafe } from "../lib/package-info.ts"
 
-export type AgentPopoverKind = "result" | "spec"
+export type AgentPane = "spec" | "logs" | "diff"
 
 interface AgentsContextValue {
   jobs: JobRecord[]
-  agentPopover: AgentPopoverKind | null
-  setAgentPopover: (kind: AgentPopoverKind | null) => void
+  agentPane: AgentPane
+  setAgentPane: (pane: AgentPane) => void
   registerTimelineClear: (fn: (() => void) | null) => void
   clearAgentTimeline: () => void
 }
@@ -27,7 +27,7 @@ export function AgentsProvider({ children }: { children: ReactNode }): React.Rea
   const repoPath = getRepoRootSafe()
   const { jobs } = useAgentJobs(repoPath)
   const clearRef = useRef<(() => void) | null>(null)
-  const [agentPopover, setAgentPopover] = useState<AgentPopoverKind | null>(null)
+  const [agentPane, setAgentPane] = useState<AgentPane>("spec")
 
   const registerTimelineClear = useCallback((fn: (() => void) | null) => {
     clearRef.current = fn
@@ -41,8 +41,8 @@ export function AgentsProvider({ children }: { children: ReactNode }): React.Rea
     <AgentsContext.Provider
       value={{
         jobs,
-        agentPopover,
-        setAgentPopover,
+        agentPane,
+        setAgentPane,
         registerTimelineClear,
         clearAgentTimeline,
       }}

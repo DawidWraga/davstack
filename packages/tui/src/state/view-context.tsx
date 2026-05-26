@@ -12,27 +12,15 @@ export type View =
   | { kind: "agents" }
   | { kind: "agent"; id: string }
 
-export type AgentOverlay = "result" | "spec"
-
 function useViewInner() {
   const [view, setView] = useState<View>({ kind: "list" })
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [highlightedAgentId, setHighlightedAgentId] = useState<string | undefined>(undefined)
-  const [agentOverlay, setAgentOverlay] = useState<AgentOverlay | null>(null)
 
-  const showList = useCallback(() => {
-    setAgentOverlay(null)
-    setView({ kind: "list" })
-  }, [])
+  const showList = useCallback(() => setView({ kind: "list" }), [])
   const showLog = useCallback((key: DaemonKey) => setView({ kind: "log", key }), [])
-  const showAgents = useCallback(() => {
-    setAgentOverlay(null)
-    setView({ kind: "agents" })
-  }, [])
-  const showAgent = useCallback((id: string) => {
-    setAgentOverlay(null)
-    setView({ kind: "agent", id })
-  }, [])
+  const showAgents = useCallback(() => setView({ kind: "agents" }), [])
+  const showAgent = useCallback((id: string) => setView({ kind: "agent", id }), [])
 
   return {
     view,
@@ -40,8 +28,6 @@ function useViewInner() {
     setFocusedIdx,
     highlightedAgentId,
     setHighlightedAgentId,
-    agentOverlay,
-    setAgentOverlay,
     showList,
     showLog,
     showAgents,

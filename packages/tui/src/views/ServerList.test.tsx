@@ -10,6 +10,7 @@ import { render } from "ink-testing-library"
 import { ServerList } from "./ServerList.tsx"
 import { ViewProvider } from "../state/view-context.tsx"
 import { DaemonsProvider, useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
+import { AgentsProvider } from "../state/agents-context.tsx"
 import { QuitProvider } from "../state/quit-context.tsx"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 
@@ -52,32 +53,35 @@ afterEach(() => {
   active = null
 })
 
-test("legend advertises the new hotkeys", () => {
+test("controls hint is collapsed by default", () => {
   const descriptors = [makeDescriptor("logs")]
   active = render(
     <ViewProvider>
-      <DaemonsProvider descriptors={descriptors}>
-        <QuitProvider>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={descriptors}>
+          <QuitProvider>
           <ServerList />
-        </QuitProvider>
-      </DaemonsProvider>
+          </QuitProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>,
   )
   const frame = active.lastFrame() ?? ""
-  expect(frame).toContain("s start/stop")
-  expect(frame).toContain("k takeover")
-  expect(frame).toContain("1-9 jump")
+  expect(frame).toContain("c for controls")
+  expect(frame).not.toContain("s start/stop")
 })
 
 test("renders a row per descriptor with the focus marker on idx 0", () => {
   const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest")]
   active = render(
     <ViewProvider>
-      <DaemonsProvider descriptors={descriptors}>
-        <QuitProvider>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={descriptors}>
+          <QuitProvider>
           <ServerList />
-        </QuitProvider>
-      </DaemonsProvider>
+          </QuitProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>,
   )
   const frame = active.lastFrame() ?? ""
@@ -107,8 +111,9 @@ test("toggleByKey dispatches stop() for a running daemon", async () => {
 
   active = render(
     <ViewProvider>
-      <DaemonsProvider descriptors={descriptors}>
-        <QuitProvider>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={descriptors}>
+          <QuitProvider>
           <Seed
             rows={[
               { descriptor: descriptors[0], status: "running", lines: [], exitCode: null },
@@ -118,8 +123,9 @@ test("toggleByKey dispatches stop() for a running daemon", async () => {
           />
           <Capture />
           <ServerList />
-        </QuitProvider>
-      </DaemonsProvider>
+          </QuitProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>,
   )
   await tick()
@@ -145,8 +151,9 @@ test("toggleByKey dispatches start() for an idle daemon", async () => {
 
   active = render(
     <ViewProvider>
-      <DaemonsProvider descriptors={descriptors}>
-        <QuitProvider>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={descriptors}>
+          <QuitProvider>
           <Seed
             rows={[
               { descriptor: descriptors[0], status: "idle", lines: [], exitCode: null },
@@ -155,8 +162,9 @@ test("toggleByKey dispatches start() for an idle daemon", async () => {
           />
           <Capture />
           <ServerList />
-        </QuitProvider>
-      </DaemonsProvider>
+          </QuitProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>,
   )
   await tick()

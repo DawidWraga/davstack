@@ -48,11 +48,9 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
     focusedIdx,
     highlightedAgentId,
     setHighlightedAgentId,
-    agentOverlay,
-    setAgentOverlay,
   } = useView()
   const { rowsRef, toggleByKey, clearByKey, takeoverByKey, anyLive } = useDaemons()
-  const { jobs, agentPopover, setAgentPopover, clearAgentTimeline } = useAgents()
+  const { jobs, agentPane, clearAgentTimeline } = useAgents()
   const { confirming, requestConfirm, cancelConfirm } = useQuit()
 
   const onQuit = useCallback(() => {
@@ -75,10 +73,6 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
 
   const onEscape = useCallback(() => {
     if (view.kind === "agent") {
-      if (agentOverlay) {
-        setAgentOverlay(null)
-        return
-      }
       showAgents()
       return
     }
@@ -86,7 +80,7 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
       if (view.kind === "agents") setHighlightedAgentId(undefined)
       showList()
     }
-  }, [view, showList, showAgents, setHighlightedAgentId, agentOverlay, setAgentOverlay])
+  }, [view, showList, showAgents, setHighlightedAgentId])
 
   const onToggleFocused = useCallback(() => {
     const target = rowsRef.current[focusedIdx]
@@ -147,18 +141,8 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
           onClearLog()
           return
         }
-        if (view.kind === "agent") {
+        if (view.kind === "agent" && agentPane === "logs") {
           clearAgentTimeline()
-          return
-        }
-      }
-      if (view.kind === "agent") {
-        if (input === "r") {
-          setAgentPopover("result")
-          return
-        }
-        if (input === "s") {
-          setAgentPopover("spec")
           return
         }
       }
@@ -199,10 +183,6 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         return
       }
       if (key.escape) {
-        if (view.kind === "agent" && agentPopover) {
-          setAgentPopover(null)
-          return
-        }
         onEscape()
         return
       }
@@ -225,8 +205,7 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
       highlightedAgentId,
       setHighlightedAgentId,
       setFocusedIdx,
-      agentPopover,
-      setAgentPopover,
+      agentPane,
       clearAgentTimeline,
     ],
   )
