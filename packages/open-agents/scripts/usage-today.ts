@@ -11,7 +11,7 @@
 
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs"
 import { join } from "node:path"
-import { dataHome } from "../src/core/paths.ts"
+import { dataHome } from "../src/core/paths.js"
 
 interface Usage {
   inputTokens?: number

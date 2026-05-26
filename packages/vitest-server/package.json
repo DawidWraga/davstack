@@ -13,8 +13,14 @@
     "vitest-server": "./bin/vitest-server.mjs"
   },
   "exports": {
-    ".": "./dist/index.js",
-    "./config": "./dist/config.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    }
   },
   "files": [
     "bin/**",
@@ -27,13 +33,14 @@
     "@davstack/cli-utils": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "vitest": ">=4",
+    "@storybook/addon-vitest": ">=10",
     "@vitest/browser": ">=4",
-    "@storybook/addon-vitest": ">=10"
+    "vitest": ">=4"
   },
   "peerDependenciesMeta": {
     "@vitest/browser": {

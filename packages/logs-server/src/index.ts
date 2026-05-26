@@ -34,10 +34,10 @@ function outputFlags() {
 // file > built-in default. Used by every verb so query/prune/serve share the
 // same source of truth and don't accidentally hit different DBs.
 async function resolveDbPath(flagDb: string | undefined): Promise<string> {
-  const { dbPath } = await import('./paths.ts');
+  const { dbPath } = await import('./paths.js');
   if (flagDb && flagDb.trim()) return dbPath(flagDb);
   if (process.env.DIAG_DB && process.env.DIAG_DB.trim()) return dbPath();
-  const { loadConfig } = await import('./config.ts');
+  const { loadConfig } = await import('./config.js');
   const cfg = await loadConfig(process.cwd());
   if (cfg._dbPathResolved) return cfg._dbPathResolved;
   if (cfg.dbPath) return dbPath(cfg.dbPath);
@@ -53,8 +53,8 @@ const queryRun: CommandSpec = {
     ...outputFlags(),
   },
   run: async (ctx) => {
-    const { openDb } = await import('./db.ts');
-    const { runTimeline, format } = await import('./query.ts');
+    const { openDb } = await import('./db.js');
+    const { runTimeline, format } = await import('./query.js');
     const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = runTimeline(db, {
       project: ctx.flags.project as string,
@@ -74,8 +74,8 @@ const queryTrace: CommandSpec = {
     ...outputFlags(),
   },
   run: async (ctx) => {
-    const { openDb } = await import('./db.ts');
-    const { traceAssembly, format } = await import('./query.ts');
+    const { openDb } = await import('./db.js');
+    const { traceAssembly, format } = await import('./query.js');
     const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = traceAssembly(db, {
       project: ctx.flags.project as string,
@@ -98,8 +98,8 @@ const queryErrors: CommandSpec = {
     human: { type: 'boolean', default: false },
   },
   run: async (ctx) => {
-    const { openDb } = await import('./db.ts');
-    const { errorContext, format } = await import('./query.ts');
+    const { openDb } = await import('./db.js');
+    const { errorContext, format } = await import('./query.js');
     const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const groups = errorContext(db, {
       project: ctx.flags.project as string,
@@ -132,8 +132,8 @@ const queryFilter: CommandSpec = {
     ...outputFlags(),
   },
   run: async (ctx) => {
-    const { openDb } = await import('./db.ts');
-    const { filterLogs, format } = await import('./query.ts');
+    const { openDb } = await import('./db.js');
+    const { filterLogs, format } = await import('./query.js');
     const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
     const rows = filterLogs(db, {
       project: ctx.flags.project as string | undefined,
@@ -165,10 +165,10 @@ const cli = defineCli({
         },
       },
       run: async (ctx) => {
-        const { openDb, prune } = await import('./db.ts');
-        const { dbPath, ensureParent } = await import('./paths.ts');
-        const { startServer } = await import('./server.ts');
-        const { loadConfig } = await import('./config.ts');
+        const { openDb, prune } = await import('./db.js');
+        const { dbPath, ensureParent } = await import('./paths.js');
+        const { startServer } = await import('./server.js');
+        const { loadConfig } = await import('./config.js');
         const config = await loadConfig(process.cwd());
         // CLI flags already fold env vars (via `env:` spec) — so flag > config > built-in.
         const effectivePort = (ctx.flags.port as number | undefined) ?? config.port;
@@ -207,9 +207,9 @@ const cli = defineCli({
         'max-age-ms': { type: 'number' },
       },
       run: async (ctx) => {
-        const { openDb, prune } = await import('./db.ts');
-        const { dbPath } = await import('./paths.ts');
-        const { loadConfig } = await import('./config.ts');
+        const { openDb, prune } = await import('./db.js');
+        const { dbPath } = await import('./paths.js');
+        const { loadConfig } = await import('./config.js');
         const config = await loadConfig(process.cwd());
         const configDbPath = config._dbPathResolved ?? config.dbPath;
         const db = openDb(

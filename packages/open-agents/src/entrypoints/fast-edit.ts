@@ -3,8 +3,8 @@
 // verbs. The profile is forced, so `submit` is an edit job (the old --edit
 // semantics are now implicit in this entrypoint).
 
-import { bindProfile, main } from '../cli.ts';
-import { editProfile } from '../profiles/edit.ts';
+import { bindProfile, main } from '../cli.js';
+import { editProfile } from '../profiles/edit.js';
 
 bindProfile(editProfile);
 main().catch((err: any) => {

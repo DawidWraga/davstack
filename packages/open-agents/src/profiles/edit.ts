@@ -2,7 +2,7 @@
 // acceptance-warn. Was the `guardEdit` branch of buildPrompt(body, edit=true)
 // plus the missing-<acceptance> warning in cmdSubmit.
 
-import { type Profile, assembleScaffold } from './types.ts';
+import { type Profile, assembleScaffold } from './types.js';
 
 const GUARDS =
   '- VERIFY: typecheck only (tsc --noEmit / project equiv) on changed files. NEVER run or write ' +

@@ -5,8 +5,8 @@
 // app it observes (notes 03).
 
 import type { Database } from 'bun:sqlite';
-import { handleIngest } from './ingest.ts';
-import { decodeBody } from './decode.ts';
+import { handleIngest } from './ingest.js';
+import { decodeBody } from './decode.js';
 
 export function startServer(opts: {
   db: Database;

@@ -3,8 +3,8 @@
 // rendered. That keeps the visual layout free to evolve without churn.
 
 import { test, expect } from 'vitest';
-import { formatHelp } from '../src/cli-help.ts';
-import type { CliSpec } from '../src/cli.ts';
+import { formatHelp } from '../src/cli-help.js';
+import type { CliSpec } from '../src/cli.js';
 
 test('formatHelp renders name, description, flags, defaults', () => {
   const spec: CliSpec = {

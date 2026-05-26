@@ -20,9 +20,9 @@ import {
   writeStorageState,
   type AuthSeed,
   type ResolvedConfig,
-} from './auth.ts';
-import { extractTestBody } from './extract.ts';
-import { dismissDialog, resetState } from './reset.ts';
+} from './auth.js';
+import { extractTestBody } from './extract.js';
+import { dismissDialog, resetState } from './reset.js';
 
 // Peer-dep load: resolve @playwright/test from the consumer's cwd, not from
 // the skill script's own dir (which has no node_modules; bun would fall back

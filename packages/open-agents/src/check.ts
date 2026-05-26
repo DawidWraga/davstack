@@ -9,9 +9,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { platform } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { resolveCursorAgentNode } from './adapters/cursor.ts';
-import { loadConfig } from './config.ts';
-import { jobsDir } from './core/paths.ts';
+import { resolveCursorAgentNode } from './adapters/cursor.js';
+import { loadConfig } from './config.js';
+import { jobsDir } from './core/paths.js';
 
 const REQUIRED_NODE_MAJOR = 20;
 

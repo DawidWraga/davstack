@@ -21,7 +21,7 @@ import {
   brainBaseDir,
   resetBrainSnapshot,
   summariseAgy,
-} from '../../src/adapters/agy.ts';
+} from '../../src/adapters/agy.js';
 
 describe('agy adapter — brain-dir extraction (bun-only quarantine)', () => {
   const origUserProfile = process.env.USERPROFILE;

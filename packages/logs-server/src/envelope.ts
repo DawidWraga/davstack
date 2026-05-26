@@ -6,7 +6,7 @@
 // then (item header, item payload) line pairs; a `log` payload is
 // `{ items: [ <log>, ... ] }`.
 
-import type { LogRow } from './db.ts';
+import type { LogRow } from './db.js';
 
 export type ParsedLog = Omit<LogRow, 'recv_ts'>;
 

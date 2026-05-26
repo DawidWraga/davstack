@@ -5,9 +5,9 @@
 // downstream injection still goes through unmodified.
 
 import { describe, expect, test } from 'vitest';
-import { combineAddendums } from '../src/cli.ts';
-import { exploreProfile } from '../src/profiles/explore.ts';
-import { SENTINEL } from '../src/profiles/types.ts';
+import { combineAddendums } from '../src/cli.js';
+import { exploreProfile } from '../src/profiles/explore.js';
+import { SENTINEL } from '../src/profiles/types.js';
 
 describe('combineAddendums', () => {
   test('both empty → empty (goldens stay byte-identical)', () => {
