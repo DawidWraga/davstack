@@ -1,6 +1,6 @@
 {
   "name": "@davstack/open-agents",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "type": "module",
   "description": "Self-waiting Cursor-jobs primitive: delegate scoped explore (read-only) and fast-edit (mechanical) work to cursor-agent, harness-trackable, results persisted per job.",
