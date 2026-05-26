@@ -1,31 +1,23 @@
 #!/usr/bin/env node
-// playwright-server launcher. Default to tsx (handles TS under
-// node_modules, which Node 24's --experimental-transform-types refuses).
-// Opt into bun with PLAYWRIGHT_SERVER_RUNTIME=bun, or plain Node with
-// =node (only works when src is NOT under node_modules).
+// playwright-server launcher. Plain node runs the compiled dist/ directly;
+// bun stays as an opt-in (PLAYWRIGHT_SERVER_RUNTIME=bun) for cold-boot speed.
 import { spawn } from 'node:child_process'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const entry = path.join(here, '..', 'src', 'index.ts')
-const runtime = process.env.PLAYWRIGHT_SERVER_RUNTIME ?? 'tsx'
+const entry = path.join(here, '..', 'dist', 'index.js')
+const runtime = process.env.PLAYWRIGHT_SERVER_RUNTIME ?? 'node'
 
 let cmd, args
-if (runtime === 'tsx') {
-  const require = createRequire(import.meta.url)
-  const tsxCli = require.resolve('tsx/cli')
+if (runtime === 'node') {
   cmd = process.execPath
-  args = [tsxCli, entry, ...process.argv.slice(2)]
+  args = [entry, ...process.argv.slice(2)]
 } else if (runtime === 'bun') {
   cmd = 'bun'
   args = [entry, ...process.argv.slice(2)]
-} else if (runtime === 'node') {
-  cmd = process.execPath
-  args = ['--experimental-transform-types', entry, ...process.argv.slice(2)]
 } else {
-  console.error(`playwright-server: unknown PLAYWRIGHT_SERVER_RUNTIME='${runtime}' (expected 'tsx', 'bun', or 'node')`)
+  console.error(`playwright-server: unknown PLAYWRIGHT_SERVER_RUNTIME='${runtime}' (expected 'node' or 'bun')`)
   process.exit(2)
 }
 

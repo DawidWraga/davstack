@@ -5,17 +5,20 @@
   "type": "module",
   "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite, query by trace_id/run_id/level.",
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project logs-server"
   },
   "bin": {
     "logs-server": "./bin/logs-server.mjs"
   },
   "exports": {
-    "./config": "./src/config.ts"
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js"
   },
   "files": [
     "bin/**",
-    "src/**"
+    "dist/**"
   ],
   "engines": {
     "node": ">=20",
@@ -23,6 +26,10 @@
   },
   "dependencies": {
     "@davstack/cli-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
   },
   "publishConfig": {
     "access": "public"
