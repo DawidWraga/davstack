@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { Box, Text, useInput, useStdout } from "ink"
 
 import type { JobStatus } from "@davstack/open-agents/core/jobs"
@@ -48,7 +48,7 @@ export function AgentTimelineView(props: AgentTimelineViewProps): React.ReactEle
   }, [jobId, setAgentPane])
 
   const rawModeSupported = process.stdin.isTTY === true
-  const [controlsOpen, setControlsOpen] = React.useState(false)
+  const [controlsOpen, setControlsOpen] = useState(false)
   useInput(
     (input) => {
       if (input === "s") setAgentPane("spec")
@@ -81,7 +81,7 @@ export function AgentTimelineView(props: AgentTimelineViewProps): React.ReactEle
         <Text color={colorOrUndef(STATUS_COLOR[job.status], noColor)}>({job.status})</Text>
       </Box>
       <PaneTabs active={agentPane} />
-      <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="column" marginTop={1} height={visible} flexShrink={0}>
         <PaneBody pane={agentPane} jobId={jobId} repoPath={repoPath} job={job} lines={lines} visible={visible} />
       </Box>
       <ControlsHint expanded={controlsOpen} controls={TIMELINE_CONTROLS} />
@@ -183,7 +183,27 @@ function DiffPane({
   job: PaneBodyProps["job"]
   visible: number
 }): React.ReactElement {
-  const { diff, files } = useMemo(() => readAgentDiff(job), [job])
+  // Cache by jobId + filesChanged size — re-running git on every poll
+  // tick (job ref changes every 700ms) blocks the render thread and
+  // causes stale frames to stick around between pane switches.
+  const jobId = job.id
+  const filesCount = job.filesChanged?.length ?? 0
+  const repoPath = job.repoPath
+  const [state, setState] = useState<{ diff: string; files: string[] } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setState(null)
+    readAgentDiff(job).then((r) => {
+      if (!cancelled) setState(r)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId, filesCount, repoPath])
+
+  if (state == null) return <Text dimColor>(computing diff…)</Text>
+  const { diff, files } = state
   if (files.length === 0) {
     return <Text dimColor>(no filesChanged recorded for this job)</Text>
   }
@@ -202,16 +222,17 @@ function DiffPane({
       </Box>
     )
   }
-  const lines = diff.split("\n").slice(0, visible)
+  const allLines = diff.split("\n")
+  const slice = allLines.slice(0, visible)
   return (
     <Box flexDirection="column">
-      {lines.map((l, i) => (
+      {slice.map((l, i) => (
         <Text key={i} wrap="truncate" color={colorForDiffLine(l)}>
           {l}
         </Text>
       ))}
-      {diff.split("\n").length > visible ? (
-        <Text dimColor>… {diff.split("\n").length - visible} more lines</Text>
+      {allLines.length > visible ? (
+        <Text dimColor>… {allLines.length - visible} more lines</Text>
       ) : null}
     </Box>
   )
