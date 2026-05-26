@@ -62,9 +62,12 @@ export function ServerLogView({
           <Text dimColor>(no output yet)</Text>
         ) : (
           tail.map((l, i) => (
-            <Text key={i} color={colorOrUndef(l.stream === "err" ? "red" : undefined, noColor)}>
-              {l.text}
-            </Text>
+            // Per-line color intentionally left default. stderr is used
+            // by most daemons as a diagnostic channel (info/warn lines
+            // routed there to keep stdout clean), so painting it red
+            // misrepresents normal output. The status pill above is the
+            // signal for daemon-level health.
+            <Text key={i}>{l.text}</Text>
           ))
         )}
       </Box>
