@@ -4,11 +4,12 @@
 // daemon packages themselves load these via tsx — the TUI does NOT parse
 // them. Ports/hosts stay hardcoded in daemon-registry.ts for now.
 //
-// TODO(P5+): tolerant regex parse of `port:` / `host:` / `enabled:` from
+// TODO: tolerant regex parse of `port:` / `host:` / `enabled:` from
 // the config file text, OR have the daemons emit a resolved config JSON
 // that the TUI can read.
 
 import fs from "node:fs/promises"
+import fsSync from "node:fs"
 import path from "node:path"
 
 import type { DaemonKey } from "./daemon-registry.ts"
@@ -36,4 +37,21 @@ export async function discoverEnabledDaemons(repoRoot: string): Promise<Set<Daem
     if (key !== undefined) enabled.add(key)
   }
   return enabled
+}
+
+// Walk up from `startDir` looking for the nearest `.davstack/config/`
+// directory; returns the parent dir (treat as the config root) or null.
+// Consumers can park `.davstack/config/` at the monorepo root while
+// running the TUI from a workspace subdir.
+export function findConfigRoot(startDir: string): string | null {
+  let dir = path.resolve(startDir)
+  while (true) {
+    try {
+      const stat = fsSync.statSync(path.join(dir, ".davstack", "config"))
+      if (stat.isDirectory()) return dir
+    } catch {}
+    const parent = path.dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
 }

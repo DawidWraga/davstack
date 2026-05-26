@@ -9,7 +9,7 @@
 //   1 — at least one configured daemon is not reachable
 //   2 — no davstack configs found in this repo
 
-import { discoverEnabledDaemons } from "../lib/config-discovery.ts"
+import { discoverEnabledDaemons, findConfigRoot } from "../lib/config-discovery.ts"
 import {
   daemonRegistry,
   type DaemonDescriptor,
@@ -36,7 +36,8 @@ export type CheckDeps = {
 }
 
 export async function runCheck(deps: CheckDeps = {}): Promise<CheckResult> {
-  const repoRoot = deps.repoRoot ?? findRepoRoot(process.cwd())
+  const cwd = process.cwd()
+  const repoRoot = deps.repoRoot ?? findConfigRoot(cwd) ?? findRepoRoot(cwd)
   const discover = deps.discover ?? discoverEnabledDaemons
   const probe = deps.probe ?? ((h, p) => probePort(h, p, PROBE_TIMEOUT_MS))
   const registry = deps.registry ?? daemonRegistry

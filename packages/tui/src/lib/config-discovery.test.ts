@@ -5,7 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
 
-import { discoverEnabledDaemons } from "./config-discovery.ts"
+import { discoverEnabledDaemons, findConfigRoot } from "./config-discovery.ts"
 
 let tmpRoot = ""
 
@@ -50,5 +50,28 @@ describe("discoverEnabledDaemons", () => {
     await writeConfig("open-agents.config.ts")
     const set = await discoverEnabledDaemons(tmpRoot)
     expect(set).toEqual(new Set(["logs"]))
+  })
+})
+
+describe("findConfigRoot", () => {
+  test("returns the dir holding .davstack/config when called from itself", async () => {
+    await writeConfig("logs-server.config.ts")
+    expect(findConfigRoot(tmpRoot)).toBe(path.resolve(tmpRoot))
+  })
+
+  test("walks up from a workspace subdir to find the configs", async () => {
+    await writeConfig("logs-server.config.ts")
+    const sub = path.join(tmpRoot, "apps", "web", "src")
+    await fs.mkdir(sub, { recursive: true })
+    expect(findConfigRoot(sub)).toBe(path.resolve(tmpRoot))
+  })
+
+  test("returns null when no .davstack/config exists on the chain", async () => {
+    const lonelyDir = await fs.mkdtemp(path.join(os.tmpdir(), "davstack-noconf-"))
+    try {
+      expect(findConfigRoot(lonelyDir)).toBe(null)
+    } finally {
+      await fs.rm(lonelyDir, { recursive: true, force: true })
+    }
   })
 })

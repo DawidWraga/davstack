@@ -25,6 +25,7 @@
 // config-discovery.ts) and keep these hardcoded defaults.
 
 import { spawn, type ChildProcess } from "node:child_process"
+import { createRequire } from "node:module"
 import path from "node:path"
 
 import { findRepoRoot } from "./repo-root.ts"
@@ -52,8 +53,18 @@ const PLAYWRIGHT_DEFAULT_PORT = 5180
 const DEFAULT_HOST = "127.0.0.1"
 
 function pkgLauncher(pkgName: string, binName: string): string {
-  const repoRoot = findRepoRoot(process.cwd())
-  return path.join(repoRoot, "packages", pkgName, "bin", `${binName}.mjs`)
+  // Prefer the installed package in the consumer's node_modules chain
+  // — handles `pnpm dlx @davstack/init` consumers and globally-linked
+  // TUI alike. Fall back to the in-repo `packages/<pkg>/` layout so
+  // we still work when running from the davstack monorepo itself.
+  try {
+    const fromCwd = createRequire(path.join(process.cwd(), "package.json"))
+    const pkgJson = fromCwd.resolve(`@davstack/${pkgName}/package.json`)
+    return path.join(path.dirname(pkgJson), "bin", `${binName}.mjs`)
+  } catch {
+    const repoRoot = findRepoRoot(process.cwd())
+    return path.join(repoRoot, "packages", pkgName, "bin", `${binName}.mjs`)
+  }
 }
 
 function spawnLauncher(launcher: string, args: string[]): ChildProcess {

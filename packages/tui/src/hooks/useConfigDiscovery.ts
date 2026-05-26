@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { findRepoRoot } from "../lib/repo-root.ts"
-import { discoverEnabledDaemons } from "../lib/config-discovery.ts"
+import { discoverEnabledDaemons, findConfigRoot } from "../lib/config-discovery.ts"
 import type { DaemonDescriptor, DaemonKey } from "../lib/daemon-registry.ts"
 
 export interface ConfigDiscoveryResult {
@@ -28,8 +28,13 @@ export function useConfigDiscovery(
     let cancelled = false
     void (async (): Promise<void> => {
       try {
-        const repoRoot = findRepoRoot(process.cwd())
-        const enabled = await discoverEnabledDaemons(repoRoot)
+        const cwd = process.cwd()
+        // Prefer the nearest .davstack/config/ on the chain so consumers
+        // who run the TUI from a workspace subdir (e.g. apps/foo) still
+        // hit the root-level configs. Fall back to findRepoRoot for
+        // monorepos that haven't been scaffolded yet.
+        const configRoot = findConfigRoot(cwd) ?? findRepoRoot(cwd)
+        const enabled = await discoverEnabledDaemons(configRoot)
         if (!cancelled) setEnabledKeys(enabled)
       } catch {
         // findRepoRoot can throw outside a davstack repo. Treat as "no
