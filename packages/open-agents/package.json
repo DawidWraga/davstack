@@ -14,7 +14,35 @@
     "fast-edit": "./bin/fast-edit.mjs"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./core/jobs": {
+      "types": "./dist/core/jobs.d.ts",
+      "default": "./dist/core/jobs.js"
+    },
+    "./core/parse": {
+      "types": "./dist/core/parse.d.ts",
+      "default": "./dist/core/parse.js"
+    },
+    "./core/paths": {
+      "types": "./dist/core/paths.d.ts",
+      "default": "./dist/core/paths.js"
+    },
+    "./core/deliverable": {
+      "types": "./dist/core/deliverable.d.ts",
+      "default": "./dist/core/deliverable.js"
+    },
+    "./adapters/types": {
+      "types": "./dist/adapters/types.d.ts",
+      "default": "./dist/adapters/types.js"
+    },
+    "./adapters/cursor": {
+      "types": "./dist/adapters/cursor.d.ts",
+      "default": "./dist/adapters/cursor.js"
+    },
+    "./adapters/gemini": {
+      "types": "./dist/adapters/gemini.d.ts",
+      "default": "./dist/adapters/gemini.js"
+    }
   },
   "files": [
     "bin/**",
@@ -29,6 +57,7 @@
     "@davstack/cli-utils": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^25.9.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
