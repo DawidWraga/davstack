@@ -178,7 +178,12 @@ const cli = defineCli({
           dbPath((ctx.flags.db as string | undefined) ?? configDbPath),
         );
         const db = openDb(file);
-        const srv = startServer({ db, port: effectivePort, host: effectiveHost });
+        const srv = startServer({
+          db,
+          port: effectivePort,
+          host: effectiveHost,
+          cors: config.cors,
+        });
         process.stdout.write(
           `log-server listening on http://${srv.host}:${srv.port}  db=${file}\n`,
         );
