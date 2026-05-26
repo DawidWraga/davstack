@@ -4,14 +4,14 @@ Local-first dev tooling for AI-coding-agent workflows. Long-lived daemons, struc
 
 ## Packages
 
-| Package | What it is |
-|---|---|
-| [@davstack/init](./packages/init) | Bootstrap CLI — scaffolds `.davstack/config/*.config.ts` for every tool you opt into, updates `.gitignore`. |
-| [@davstack/logs-server](./packages/logs-server) | Local Sentry-shaped log sink. Ingests envelopes over HTTP, writes to per-repo SQLite, queries by `trace_id` / `run_id` / `level`. |
-| [@davstack/vitest-server](./packages/vitest-server) | Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3–15s warm. |
-| [@davstack/playwright-server](./packages/playwright-server) | Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm. |
-| [@davstack/open-agents](./packages/open-agents) | One-shot agent runner (cursor-agent et al) with structured deliverables — explore, fast-edit, etc. |
-| [@davstack/cli-utils](./packages/cli-utils) | Internal: `defineCli` + shared config-resolver (`findRepoRoot`, `findToolConfig`). |
+| Package | What it is | Docs |
+|---|---|---|
+| [@davstack/init](./packages/init) | Bootstrap CLI — scaffolds `.davstack/config/*.config.ts` for every tool you opt into, updates `.gitignore`. | [README](./packages/init/README.md) |
+| [@davstack/logs-server](./packages/logs-server) | Local Sentry-shaped log sink. Ingests envelopes over HTTP, writes to per-repo SQLite, queries by `trace_id` / `run_id` / `level`. | [README](./packages/logs-server/README.md) · [setup](./packages/logs-server/docs/setup.md) · [writing](./packages/logs-server/docs/writing-logs.md) · [reading](./packages/logs-server/docs/reading-logs.md) |
+| [@davstack/vitest-server](./packages/vitest-server) | Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3–15s warm. | [README](./packages/vitest-server/README.md) · [setup](./packages/vitest-server/docs/setup.md) · [usage](./packages/vitest-server/docs/usage.md) · [troubleshooting](./packages/vitest-server/docs/troubleshooting.md) |
+| [@davstack/playwright-server](./packages/playwright-server) | Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm. | [README](./packages/playwright-server/README.md) · [setup](./packages/playwright-server/docs/setup.md) · [usage](./packages/playwright-server/docs/usage.md) · [auth](./packages/playwright-server/docs/auth.md) · [troubleshooting](./packages/playwright-server/docs/troubleshooting.md) |
+| [@davstack/open-agents](./packages/open-agents) | One-shot agent runner (cursor-agent et al) with structured deliverables — explore, fast-edit, etc. | [README](./packages/open-agents/README.md) · [cursor-jobs overview](./packages/open-agents/docs/cursor-jobs-overview.md) |
+| [@davstack/cli-utils](./packages/cli-utils) | Internal: `defineCli` + shared config-resolver (`findRepoRoot`, `findToolConfig`). | [README](./packages/cli-utils/README.md) |
 
 ## Skills
 
