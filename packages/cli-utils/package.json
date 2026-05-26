@@ -5,16 +5,22 @@
   "type": "module",
   "description": "Zero-dep CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
   "exports": {
-    ".": "./src/cli.ts",
-    "./help": "./src/cli-help.ts",
-    "./config": "./src/config.ts"
+    ".": "./dist/cli.js",
+    "./help": "./dist/cli-help.js",
+    "./config": "./dist/config.js"
   },
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project cli-utils"
   },
   "files": [
-    "src/**"
+    "dist/**"
   ],
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
   "publishConfig": {
     "access": "public"
   }

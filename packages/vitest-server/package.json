@@ -5,24 +5,30 @@
   "type": "module",
   "description": "Warm vitest daemon for fast TDD reruns. Keeps a long-lived vitest runtime hot so per-file reruns drop from ~50s cold to ~3-15s.",
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project vitest-server"
   },
   "bin": {
     "vitest-server": "./bin/vitest-server.mjs"
   },
   "exports": {
-    "./config": "./src/config.ts"
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js"
   },
   "files": [
     "bin/**",
-    "src/**"
+    "dist/**"
   ],
   "engines": {
-    "node": ">=24"
+    "node": ">=20"
   },
   "dependencies": {
-    "@davstack/cli-utils": "workspace:*",
-    "tsx": "^4.19.0"
+    "@davstack/cli-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "vitest": ">=4",

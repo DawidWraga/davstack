@@ -1,33 +1,24 @@
 #!/usr/bin/env node
-// vitest-server launcher. Default to tsx (handles TS under node_modules,
-// which Node 24's --experimental-transform-types refuses; bun runs the
-// daemon fine but spawns vitest workers that misbehave under bun, so
-// node-via-tsx is the safe default). Opt into bun with
-// VITEST_SERVER_RUNTIME=bun, or plain Node with =node (only works when
-// src is NOT under node_modules).
+// vitest-server launcher. Plain node runs the compiled dist/ directly; bun
+// stays as an opt-in (VITEST_SERVER_RUNTIME=bun) for users who want the
+// cold-boot speed but accept the Storybook-on-Windows caveat.
 import { spawn } from 'node:child_process'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const entry = path.join(here, '..', 'src', 'index.ts')
-const runtime = process.env.VITEST_SERVER_RUNTIME ?? 'tsx'
+const entry = path.join(here, '..', 'dist', 'index.js')
+const runtime = process.env.VITEST_SERVER_RUNTIME ?? 'node'
 
 let cmd, args
-if (runtime === 'tsx') {
-  const require = createRequire(import.meta.url)
-  const tsxCli = require.resolve('tsx/cli')
+if (runtime === 'node') {
   cmd = process.execPath
-  args = [tsxCli, entry, ...process.argv.slice(2)]
+  args = [entry, ...process.argv.slice(2)]
 } else if (runtime === 'bun') {
   cmd = 'bun'
   args = [entry, ...process.argv.slice(2)]
-} else if (runtime === 'node') {
-  cmd = process.execPath
-  args = ['--experimental-transform-types', entry, ...process.argv.slice(2)]
 } else {
-  console.error(`vitest-server: unknown VITEST_SERVER_RUNTIME='${runtime}' (expected 'tsx', 'bun', or 'node')`)
+  console.error(`vitest-server: unknown VITEST_SERVER_RUNTIME='${runtime}' (expected 'node' or 'bun')`)
   process.exit(2)
 }
 

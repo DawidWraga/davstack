@@ -5,24 +5,30 @@
   "type": "module",
   "description": "Warm chromium daemon for fast e2e/UI iteration. Keeps a long-lived browser context hot so spec reruns hit the live window in 1-3s instead of paying cold-boot.",
   "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project playwright-server"
   },
   "bin": {
     "playwright-server": "./bin/playwright-server.mjs"
   },
   "exports": {
-    "./config": "./src/config.ts"
+    ".": "./dist/index.js",
+    "./config": "./dist/config.js"
   },
   "files": [
     "bin/**",
-    "src/**"
+    "dist/**"
   ],
   "engines": {
-    "node": ">=24"
+    "node": ">=20"
   },
   "dependencies": {
-    "@davstack/cli-utils": "workspace:*",
-    "tsx": "^4.19.0"
+    "@davstack/cli-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.50"
