@@ -215,7 +215,7 @@ const cli = defineCli({
         json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
       },
       run: async (ctx) => {
-        const { runCheck } = await import('./check.ts');
+        const { runCheck } = await import('./check.js');
         return runCheck({
           cwd: ctx.flags.cwd as string,
           host: ctx.flags.host as string | undefined,
