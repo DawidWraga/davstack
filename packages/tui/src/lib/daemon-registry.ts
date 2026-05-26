@@ -25,7 +25,7 @@
 // config-discovery.ts) and keep these hardcoded defaults.
 
 import { spawn, type ChildProcess } from "node:child_process"
-import { createRequire } from "node:module"
+import fs from "node:fs"
 import path from "node:path"
 
 import { findRepoRoot } from "./repo-root.ts"
@@ -53,18 +53,28 @@ const PLAYWRIGHT_DEFAULT_PORT = 5180
 const DEFAULT_HOST = "127.0.0.1"
 
 function pkgLauncher(pkgName: string, binName: string): string {
-  // Prefer the installed package in the consumer's node_modules chain
-  // — handles `pnpm dlx @davstack/init` consumers and globally-linked
-  // TUI alike. Fall back to the in-repo `packages/<pkg>/` layout so
-  // we still work when running from the davstack monorepo itself.
-  try {
-    const fromCwd = createRequire(path.join(process.cwd(), "package.json"))
-    const pkgJson = fromCwd.resolve(`@davstack/${pkgName}/package.json`)
-    return path.join(path.dirname(pkgJson), "bin", `${binName}.mjs`)
-  } catch {
-    const repoRoot = findRepoRoot(process.cwd())
-    return path.join(repoRoot, "packages", pkgName, "bin", `${binName}.mjs`)
+  // Walk up from cwd looking for node_modules/@davstack/<pkg>/bin/<bin>.mjs.
+  // We can't use require.resolve('@davstack/<pkg>/package.json') because
+  // Node's strict exports field blocks subpath access to /package.json
+  // for every daemon package (they only export `.` and `./config`).
+  let dir = process.cwd()
+  while (true) {
+    const candidate = path.join(
+      dir,
+      "node_modules",
+      "@davstack",
+      pkgName,
+      "bin",
+      `${binName}.mjs`,
+    )
+    if (fs.existsSync(candidate)) return candidate
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
   }
+  // Fallback: in-repo dev (running from the davstack monorepo itself).
+  const repoRoot = findRepoRoot(process.cwd())
+  return path.join(repoRoot, "packages", pkgName, "bin", `${binName}.mjs`)
 }
 
 function spawnLauncher(launcher: string, args: string[]): ChildProcess {
