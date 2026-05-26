@@ -19,10 +19,15 @@ would mean pasting the new file contents or spelling out every line, the spec
 costs as much as the edit — just do it yourself. (Having read the files is
 fine; verbatim-detail specs are the only real waste.)
 
+Begin every spec with a markdown `# 3-5 word title` line — a short overview of
+the task. The TUI agent viewer renders this as the job label; without it the
+viewer falls back to the first 5 words of the spec, which is rarely meaningful.
+
 The spec is intent / changes (exact files) / constraints / acceptance tags —
 expressed as intent and constraints, never verbatim file content unless the
 edit is genuinely adversarial/precision.
 
+    # Rename fooBar to computeFoo
     <intent>Rename util fooBar to computeFoo and update all call sites.</intent>
     <changes>src/lib/foo.ts plus every importer of fooBar.</changes>
     <constraints>No signature or behaviour change. No reformatting.</constraints>

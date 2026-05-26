@@ -83,6 +83,9 @@ importers:
         specifier: workspace:*
         version: link:../cli-utils
     devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(typescript@5.3.3)
@@ -111,6 +114,9 @@ importers:
 
   packages/tui:
     dependencies:
+      '@davstack/open-agents':
+        specifier: workspace:*
+        version: link:../open-agents
       commander:
         specifier: ^12.0.0
         version: 12.1.0
@@ -124,12 +130,18 @@ importers:
         specifier: ^4.19.0
         version: 4.22.3
     devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
       '@types/react':
         specifier: ^18.3.3
         version: 18.3.29
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@18.3.29)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.3.3
 
   packages/vitest-server:
     dependencies:

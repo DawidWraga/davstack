@@ -1,6 +1,5 @@
-// Persistent bottom bar — renders in both list and log views. Reads
-// rows + current view from context to derive pills and which one is
-// focused (highlighted bold + inverse).
+// Persistent bottom bar — daemon pills only. Running-agent pills used
+// to live here too but the dedicated `g` view supersedes them.
 
 import React from "react"
 
@@ -18,11 +17,13 @@ function statusToPill(s: DaemonRow["status"]): PillStatus {
 export function BottomBar(): React.ReactElement {
   const { rows } = useDaemons()
   const { view } = useView()
+
   const pills: DaemonPill[] = rows.map((r, i) => ({
     key: String(i + 1),
     daemonKey: r.descriptor.key,
     label: r.descriptor.label,
     status: statusToPill(r.status),
   }))
+
   return <StatusBar daemons={pills} focusedKey={view.kind === "log" ? view.key : undefined} />
 }
