@@ -379,3 +379,130 @@ test("`k` on a running focused row is a no-op", async () => {
   get().hotkeys.handle("k", {})
   expect(takeover).not.toHaveBeenCalled()
 })
+
+test("left arrow from list-view cycles focus backward and wraps from 0 to last", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  // focusedIdx starts at 0; left wraps to last (index 2).
+  get().hotkeys.handle("", { leftArrow: true })
+  await tick()
+  // Still in list view; assert via onToggleFocused targeting the focused row.
+  expect(get().view.kind).toBe("list")
+  const stop = vi.fn()
+  get().registerControls("playwright", { start: vi.fn(), stop })
+  get().registerRow({ descriptor: descriptors[2], status: "running", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.onToggleFocused()
+  expect(stop).toHaveBeenCalledTimes(1)
+})
+
+test("right arrow from list-view cycles focus forward and wraps from last to 0", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  // Advance focus to the last (index 2): two right presses.
+  get().hotkeys.handle("", { rightArrow: true })
+  await tick()
+  get().hotkeys.handle("", { rightArrow: true })
+  await tick()
+  // One more right wraps back to index 0.
+  get().hotkeys.handle("", { rightArrow: true })
+  await tick()
+  expect(get().view.kind).toBe("list")
+  const stop = vi.fn()
+  get().registerControls("logs", { start: vi.fn(), stop })
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.onToggleFocused()
+  expect(stop).toHaveBeenCalledTimes(1)
+})
+
+test("left arrow from log-view cycles the focused log target backward", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  // Drill into log view on daemon 2 (index 1).
+  get().hotkeys.handle("2", {})
+  await tick()
+  expect(get().view).toEqual({ kind: "log", key: "vitest" })
+
+  get().hotkeys.handle("", { leftArrow: true })
+  await tick()
+  expect(get().view).toEqual({ kind: "log", key: "logs" })
+})
+
+test("right arrow from log-view cycles the focused log target forward", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  get().hotkeys.handle("1", {})
+  await tick()
+  expect(get().view).toEqual({ kind: "log", key: "logs" })
+
+  get().hotkeys.handle("", { rightArrow: true })
+  await tick()
+  expect(get().view).toEqual({ kind: "log", key: "vitest" })
+})
+
+test("tab from list-view cycles focus forward like right arrow", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  // From focusedIdx 0, one tab -> idx 1 (vitest).
+  get().hotkeys.handle("", { tab: true })
+  await tick()
+  expect(get().view.kind).toBe("list")
+  const stop = vi.fn()
+  get().registerControls("vitest", { start: vi.fn(), stop })
+  get().registerRow({ descriptor: descriptors[1], status: "running", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.onToggleFocused()
+  expect(stop).toHaveBeenCalledTimes(1)
+})
+
+test("shift+tab from list-view cycles focus backward like left arrow", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest"), makeDescriptor("playwright")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  for (const d of descriptors) {
+    get().registerRow({ descriptor: d, status: "idle", lines: [], exitCode: null })
+  }
+  await tick()
+  // From focusedIdx 0, shift+tab wraps backward -> idx 2 (playwright).
+  get().hotkeys.handle("", { tab: true, shift: true })
+  await tick()
+  expect(get().view.kind).toBe("list")
+  const stop = vi.fn()
+  get().registerControls("playwright", { start: vi.fn(), stop })
+  get().registerRow({ descriptor: descriptors[2], status: "running", lines: [], exitCode: null })
+  await tick()
+  get().hotkeys.onToggleFocused()
+  expect(stop).toHaveBeenCalledTimes(1)
+})

@@ -12,6 +12,10 @@ import { useQuit } from "../state/quit-context.tsx"
 export interface KeyEvent {
   ctrl?: boolean
   escape?: boolean
+  leftArrow?: boolean
+  rightArrow?: boolean
+  tab?: boolean
+  shift?: boolean
 }
 
 export interface HotkeyHandlers {
@@ -24,6 +28,9 @@ export interface HotkeyHandlers {
   onTakeoverFocused: () => void
   // Log-view-only: clear the currently-viewed daemon's ring buffer.
   onClearLog: () => void
+  // Cycle the focused daemon by +1 / -1 with wrap-around. In log view this
+  // also swaps the displayed daemon; in list view it just moves focus.
+  onCycleFocus: (offset: 1 | -1) => void
   // Master dispatcher used by ink's useInput.
   handle: (input: string, key: KeyEvent) => void
 }
@@ -75,6 +82,20 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
     clearByKey(view.key)
   }, [view, clearByKey])
 
+  const onCycleFocus = useCallback(
+    (offset: 1 | -1) => {
+      const n = rowsRef.current.length
+      if (n === 0) return
+      const nextIdx = (focusedIdx + offset + n) % n
+      setFocusedIdx(nextIdx)
+      if (view.kind === "log") {
+        const target = rowsRef.current[nextIdx]
+        if (target) showLog(target.descriptor.key)
+      }
+    },
+    [rowsRef, focusedIdx, setFocusedIdx, view, showLog],
+  )
+
   const handle = useCallback(
     (input: string, key: KeyEvent) => {
       // Confirm overlay swallows everything except y / n / esc.
@@ -110,13 +131,34 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         onNumberKey(Number(input) - 1)
         return
       }
+      if (key.leftArrow) {
+        onCycleFocus(-1)
+        return
+      }
+      if (key.rightArrow) {
+        onCycleFocus(1)
+        return
+      }
+      if (key.tab) {
+        onCycleFocus(key.shift ? -1 : 1)
+        return
+      }
       if (key.escape) {
         onEscape()
         return
       }
     },
-    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, view],
+    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, onCycleFocus, view],
   )
 
-  return { onQuit, onNumberKey, onEscape, onToggleFocused, onTakeoverFocused, onClearLog, handle }
+  return {
+    onQuit,
+    onNumberKey,
+    onEscape,
+    onToggleFocused,
+    onTakeoverFocused,
+    onClearLog,
+    onCycleFocus,
+    handle,
+  }
 }

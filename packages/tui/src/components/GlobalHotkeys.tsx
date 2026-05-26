@@ -15,7 +15,14 @@ export function GlobalHotkeys({ onQuit }: GlobalHotkeysProps): null {
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
-      handle(input, { ctrl: key.ctrl, escape: key.escape })
+      handle(input, {
+        ctrl: key.ctrl,
+        escape: key.escape,
+        leftArrow: key.leftArrow,
+        rightArrow: key.rightArrow,
+        tab: key.tab,
+        shift: key.shift,
+      })
     },
     { isActive: rawModeSupported },
   )

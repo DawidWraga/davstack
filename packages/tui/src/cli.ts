@@ -13,6 +13,10 @@ import { runCheck, formatResult, exitCodeFor } from "./commands/check.ts"
 
 function runStart(opts: { noColor?: boolean }): void {
   if (opts.noColor) process.env.DAVSTACK_NO_COLOR = "1"
+  // Wipe stale shell scrollback so the Ink UI takes over a clean screen.
+  // Sequence: ED(2) clears viewport, ED(3) clears scrollback (xterm/WT),
+  // CUP homes the cursor.
+  process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
   render(React.createElement(App))
 }
 
