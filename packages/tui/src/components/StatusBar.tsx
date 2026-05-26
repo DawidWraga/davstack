@@ -37,11 +37,17 @@ interface StatusBarProps {
   focusedKey?: string
 }
 
+// Exported for unit tests — avoids depending on ANSI escape detection
+// in the rendered frame (ink-testing-library strips them in debug mode).
+export function isPillFocused(pill: DaemonPill, focusedKey: string | undefined): boolean {
+  return focusedKey !== undefined && pill.daemonKey === focusedKey
+}
+
 export function StatusBar({ daemons, focusedKey }: StatusBarProps): React.ReactElement {
   return (
     <Box flexDirection="row">
       {daemons.map((d, i) => {
-        const focused = focusedKey !== undefined && d.daemonKey === focusedKey
+        const focused = isPillFocused(d, focusedKey)
         return (
           <Box key={d.key} marginRight={i === daemons.length - 1 ? 0 : 2}>
             <Text inverse={focused} bold={focused}>

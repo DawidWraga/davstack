@@ -1,19 +1,14 @@
-// Daemon list view: one row per registered daemon, focused row highlighted.
-// `↑/↓` move focus, `enter` drills into the focused daemon's log view.
+// Daemon list view. Reads rows + focus from context, owns the row-level
+// hotkeys (`↑/↓`, `enter`, `s`). Global hotkeys (`1..9`, `esc`, `q`) live
+// in <GlobalHotkeys>.
 
 import React from "react"
 import { Box, Text, useInput } from "ink"
 
 import type { DaemonStatus } from "../hooks/useDaemonProcess.ts"
-import type { LogLine } from "../hooks/useRingBuffer.ts"
-import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
-
-export type DaemonRow = {
-  descriptor: DaemonDescriptor
-  status: DaemonStatus
-  lines: LogLine[]
-  exitCode?: number | null
-}
+import { useView } from "../state/view-context.tsx"
+import { useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
+import { useHotkeys } from "../hooks/useHotkeys.ts"
 
 const STATUS_GLYPH: Record<DaemonStatus, string> = {
   idle: "○",
@@ -35,33 +30,26 @@ const STATUS_COLOR: Record<DaemonStatus, string> = {
   blocked: "yellow",
 }
 
-interface ServerListProps {
-  rows: DaemonRow[]
-  focusedIdx: number
-  onFocusChange: (idx: number) => void
-  onSelect: (idx: number) => void
-  onToggle?: (idx: number) => void
-}
+export function ServerList(): React.ReactElement {
+  const { rows } = useDaemons()
+  const { focusedIdx, setFocusedIdx, showLog } = useView()
+  // Hotkeys hook gives us the toggle; quit isn't called here so we pass
+  // a noop — the global useInput owns the q routing.
+  const { onToggleFocused } = useHotkeys(() => {})
 
-export function ServerList({
-  rows,
-  focusedIdx,
-  onFocusChange,
-  onSelect,
-  onToggle,
-}: ServerListProps): React.ReactElement {
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
       if (rows.length === 0) return
       if (key.upArrow) {
-        onFocusChange((focusedIdx - 1 + rows.length) % rows.length)
+        setFocusedIdx((focusedIdx - 1 + rows.length) % rows.length)
       } else if (key.downArrow) {
-        onFocusChange((focusedIdx + 1) % rows.length)
+        setFocusedIdx((focusedIdx + 1) % rows.length)
       } else if (key.return) {
-        onSelect(focusedIdx)
+        const target = rows[focusedIdx]
+        if (target) showLog(target.descriptor.key)
       } else if (input === "s") {
-        onToggle?.(focusedIdx)
+        onToggleFocused()
       }
     },
     { isActive: rawModeSupported },
@@ -72,36 +60,37 @@ export function ServerList({
       <Box marginBottom={1}>
         <Text bold>Daemons</Text>
       </Box>
-      {rows.map((row, i) => {
-        const focused = i === focusedIdx
-        const last = row.lines[row.lines.length - 1]
-        const lastText = last ? truncate(last.text, 60) : ""
-        const statusLabel =
-          row.status === "crashed" && typeof row.exitCode === "number"
-            ? `crashed (exit ${row.exitCode})`
-            : row.status === "blocked"
-              ? `blocked :${row.descriptor.port}`
-              : row.status
-        const rowColor = row.status === "crashed" ? "red" : undefined
-        return (
-          <Box key={row.descriptor.key}>
-            <Text color={focused ? "cyan" : undefined}>
-              {focused ? "› " : "  "}
-            </Text>
-            <Text color={STATUS_COLOR[row.status]}>{STATUS_GLYPH[row.status]}</Text>
-            <Text color={rowColor}> {row.descriptor.label.padEnd(12)}</Text>
-            <Text color={rowColor} dimColor={!rowColor}>
-              {statusLabel.padEnd(22)}
-            </Text>
-            <Text dimColor>{lastText}</Text>
-          </Box>
-        )
-      })}
+      {rows.map((row, i) => (
+        <DaemonListRow key={row.descriptor.key} row={row} focused={i === focusedIdx} />
+      ))}
       <Box marginTop={1}>
         <Text dimColor>
           ↑/↓ focus  enter drill in  s start/stop  1-9 jump  q quit  ● running  ✗ crashed  ⚠ blocked
         </Text>
       </Box>
+    </Box>
+  )
+}
+
+function DaemonListRow({ row, focused }: { row: DaemonRow; focused: boolean }): React.ReactElement {
+  const last = row.lines[row.lines.length - 1]
+  const lastText = last ? truncate(last.text, 60) : ""
+  const statusLabel =
+    row.status === "crashed" && typeof row.exitCode === "number"
+      ? `crashed (exit ${row.exitCode})`
+      : row.status === "blocked"
+        ? `blocked :${row.descriptor.port}`
+        : row.status
+  const rowColor = row.status === "crashed" ? "red" : undefined
+  return (
+    <Box>
+      <Text color={focused ? "cyan" : undefined}>{focused ? "› " : "  "}</Text>
+      <Text color={STATUS_COLOR[row.status]}>{STATUS_GLYPH[row.status]}</Text>
+      <Text color={rowColor}> {row.descriptor.label.padEnd(12)}</Text>
+      <Text color={rowColor} dimColor={!rowColor}>
+        {statusLabel.padEnd(22)}
+      </Text>
+      <Text dimColor>{lastText}</Text>
     </Box>
   )
 }

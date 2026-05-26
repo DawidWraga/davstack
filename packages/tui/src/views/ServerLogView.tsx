@@ -1,8 +1,9 @@
 // Drill-in log view: renders the tail of a daemon's ring buffer to fill
-// the visible terminal height. `esc` returns to the list.
+// the visible terminal height. `esc` (handled by GlobalHotkeys) returns
+// to the list.
 
 import React from "react"
-import { Box, Text, useInput, useStdout } from "ink"
+import { Box, Text, useStdout } from "ink"
 
 import type { LogLine } from "../hooks/useRingBuffer.ts"
 import type { DaemonStatus } from "../hooks/useDaemonProcess.ts"
@@ -13,7 +14,6 @@ interface ServerLogViewProps {
   status: DaemonStatus
   lines: LogLine[]
   exitCode?: number | null
-  onBack: () => void
 }
 
 export function ServerLogView({
@@ -21,21 +21,12 @@ export function ServerLogView({
   status,
   lines,
   exitCode,
-  onBack,
 }: ServerLogViewProps): React.ReactElement {
   const { stdout } = useStdout()
   const rows = stdout?.rows ?? 24
   // Reserve a couple of lines for header + footer.
   const visible = Math.max(5, rows - 4)
   const tail = lines.slice(-visible)
-
-  const rawModeSupported = process.stdin.isTTY === true
-  useInput(
-    (_input, key) => {
-      if (key.escape) onBack()
-    },
-    { isActive: rawModeSupported },
-  )
 
   return (
     <Box flexDirection="column">

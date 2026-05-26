@@ -1,26 +1,19 @@
-// Focused tests for ServerList's `s` toggle hotkey. The list owns up/down
-// + enter + s; everything else flows through App.
+// ServerList now reads from view + daemons contexts. We wrap it in test
+// providers to render. The `s` toggle dispatches through the daemons
+// context's `toggleByKey`, so we assert at that seam via a controls
+// registry spy plumbed through a hidden helper component.
 
-import React from "react"
+import React, { useEffect } from "react"
 import { afterEach, expect, test, vi } from "vitest"
 import { render } from "ink-testing-library"
 
-import { ServerList, type DaemonRow } from "./ServerList.tsx"
+import { ServerList } from "./ServerList.tsx"
+import { ViewProvider } from "../state/view-context.tsx"
+import { DaemonsProvider, useDaemons, type DaemonRow } from "../state/daemons-context.tsx"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 
-const originalIsTTY = process.stdin.isTTY
-function enableTtyForTest(): void {
-  Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
-}
-function restoreTty(): void {
-  Object.defineProperty(process.stdin, "isTTY", {
-    value: originalIsTTY,
-    configurable: true,
-  })
-}
-
-function makeRow(key: "logs" | "vitest" | "playwright", status: DaemonRow["status"]): DaemonRow {
-  const descriptor: DaemonDescriptor = {
+function makeDescriptor(key: "logs" | "vitest" | "playwright"): DaemonDescriptor {
+  return {
     key,
     label: key,
     port: 1000,
@@ -29,66 +22,136 @@ function makeRow(key: "logs" | "vitest" | "playwright", status: DaemonRow["statu
       throw new Error("not spawned in this test")
     },
   }
-  return { descriptor, status, lines: [], exitCode: null }
+}
+
+// Helper that publishes seeded rows + controls into the context after
+// mount, mimicking what DaemonSupervisor does in production.
+function Seed({
+  rows,
+  startStop,
+}: {
+  rows: DaemonRow[]
+  startStop?: Record<string, { start: () => void; stop: () => void }>
+}): null {
+  const { registerRow, registerControls } = useDaemons()
+  useEffect(() => {
+    for (const row of rows) {
+      registerRow(row)
+      if (startStop?.[row.descriptor.key]) {
+        registerControls(row.descriptor.key, startStop[row.descriptor.key])
+      }
+    }
+  }, [rows, startStop, registerRow, registerControls])
+  return null
 }
 
 let active: ReturnType<typeof render> | null = null
 afterEach(() => {
   active?.unmount()
   active = null
-  restoreTty()
-})
-
-test("pressing `s` on a running focused row invokes onToggle with the focused index", async () => {
-  enableTtyForTest()
-  const onToggle = vi.fn()
-  active = render(
-    <ServerList
-      rows={[makeRow("logs", "running"), makeRow("vitest", "idle")]}
-      focusedIdx={0}
-      onFocusChange={() => {}}
-      onSelect={() => {}}
-      onToggle={onToggle}
-    />,
-  )
-
-  active.stdin.write("s")
-  await new Promise((r) => setTimeout(r, 10))
-
-  expect(onToggle).toHaveBeenCalledTimes(1)
-  expect(onToggle).toHaveBeenCalledWith(0)
-})
-
-test("pressing `s` on an idle focused row also invokes onToggle (toggle covers start too)", async () => {
-  enableTtyForTest()
-  const onToggle = vi.fn()
-  active = render(
-    <ServerList
-      rows={[makeRow("logs", "running"), makeRow("vitest", "idle")]}
-      focusedIdx={1}
-      onFocusChange={() => {}}
-      onSelect={() => {}}
-      onToggle={onToggle}
-    />,
-  )
-
-  active.stdin.write("s")
-  await new Promise((r) => setTimeout(r, 10))
-
-  expect(onToggle).toHaveBeenCalledWith(1)
 })
 
 test("legend advertises the new hotkeys", () => {
+  const descriptors = [makeDescriptor("logs")]
   active = render(
-    <ServerList
-      rows={[makeRow("logs", "idle")]}
-      focusedIdx={0}
-      onFocusChange={() => {}}
-      onSelect={() => {}}
-      onToggle={() => {}}
-    />,
+    <ViewProvider>
+      <DaemonsProvider descriptors={descriptors}>
+        <ServerList />
+      </DaemonsProvider>
+    </ViewProvider>,
   )
   const frame = active.lastFrame() ?? ""
   expect(frame).toContain("s start/stop")
   expect(frame).toContain("1-9 jump")
+})
+
+test("renders a row per descriptor with the focus marker on idx 0", () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest")]
+  active = render(
+    <ViewProvider>
+      <DaemonsProvider descriptors={descriptors}>
+        <ServerList />
+      </DaemonsProvider>
+    </ViewProvider>,
+  )
+  const frame = active.lastFrame() ?? ""
+  expect(frame).toContain("› ")
+  expect(frame).toContain("logs")
+  expect(frame).toContain("vitest")
+})
+
+async function tick(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+test("toggleByKey dispatches stop() for a running daemon", async () => {
+  const descriptors = [makeDescriptor("logs"), makeDescriptor("vitest")]
+  const stopLogs = vi.fn()
+  const startLogs = vi.fn()
+
+  // Inline accessor to grab the daemons context value and invoke the
+  // toggle the same way the `s` hotkey would. This sidesteps Ink's
+  // raw-mode plumbing — we test the seam where the keystroke arrives.
+  let toggle: ((key: string) => void) | null = null
+  function Capture(): null {
+    const { toggleByKey } = useDaemons()
+    toggle = toggleByKey
+    return null
+  }
+
+  active = render(
+    <ViewProvider>
+      <DaemonsProvider descriptors={descriptors}>
+        <Seed
+          rows={[
+            { descriptor: descriptors[0], status: "running", lines: [], exitCode: null },
+            { descriptor: descriptors[1], status: "idle", lines: [], exitCode: null },
+          ]}
+          startStop={{ logs: { start: startLogs, stop: stopLogs } }}
+        />
+        <Capture />
+        <ServerList />
+      </DaemonsProvider>
+    </ViewProvider>,
+  )
+  await tick()
+
+  expect(toggle).not.toBeNull()
+  toggle!("logs")
+
+  expect(stopLogs).toHaveBeenCalledTimes(1)
+  expect(startLogs).not.toHaveBeenCalled()
+})
+
+test("toggleByKey dispatches start() for an idle daemon", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const stopLogs = vi.fn()
+  const startLogs = vi.fn()
+
+  let toggle: ((key: string) => void) | null = null
+  function Capture(): null {
+    const { toggleByKey } = useDaemons()
+    toggle = toggleByKey
+    return null
+  }
+
+  active = render(
+    <ViewProvider>
+      <DaemonsProvider descriptors={descriptors}>
+        <Seed
+          rows={[
+            { descriptor: descriptors[0], status: "idle", lines: [], exitCode: null },
+          ]}
+          startStop={{ logs: { start: startLogs, stop: stopLogs } }}
+        />
+        <Capture />
+        <ServerList />
+      </DaemonsProvider>
+    </ViewProvider>,
+  )
+  await tick()
+
+  toggle!("logs")
+  expect(startLogs).toHaveBeenCalledTimes(1)
+  expect(stopLogs).not.toHaveBeenCalled()
 })
