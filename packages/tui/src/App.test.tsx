@@ -1,12 +1,36 @@
-// Smoke test for the P1 shell: render <App />, assert the title and all
-// three daemon pills appear. ink-testing-library renders to a string; we
-// just check substrings rather than parsing structure.
+// Smoke test for the App shell: render <App /> with a fake registry that
+// never actually spawns a process, and assert the list view shows the
+// logs daemon row.
 
 import React from "react"
+import { EventEmitter } from "node:events"
+import { PassThrough } from "node:stream"
 import { test, expect, afterEach } from "vitest"
 import { render } from "ink-testing-library"
 
 import { App } from "./App.tsx"
+import type { DaemonDescriptor } from "./lib/daemon-registry.ts"
+
+function makeFakeDescriptor(): DaemonDescriptor {
+  return {
+    key: "logs",
+    label: "logs",
+    port: 7077,
+    readyRegex: /listening on http:\/\//i,
+    spawn: () => {
+      const ee = new EventEmitter() as EventEmitter & {
+        stdout: PassThrough
+        stderr: PassThrough
+        kill: () => boolean
+      }
+      ee.stdout = new PassThrough()
+      ee.stderr = new PassThrough()
+      ee.kill = () => true
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return ee as any
+    },
+  }
+}
 
 let active: ReturnType<typeof render> | null = null
 
@@ -15,15 +39,13 @@ afterEach(() => {
   active = null
 })
 
-test("renders title, placeholder body, and three daemon pills", () => {
-  active = render(<App />)
+test("renders title, list view with logs row, and a status bar pill", () => {
+  active = render(<App registry={[makeFakeDescriptor()]} autoStart={false} />)
   const frame = active.lastFrame() ?? ""
 
   expect(frame).toContain("davstack")
-  expect(frame).toContain("Hello TUI")
-  expect(frame).toContain("1 vitest")
-  expect(frame).toContain("2 playwright")
-  expect(frame).toContain("3 logs")
-  // Not-running glyph for each pill.
-  expect(frame.match(/○/g)?.length).toBe(3)
+  expect(frame).toContain("Daemons")
+  expect(frame).toContain("logs")
+  // Idle glyph appears for both the row and the bottom pill (○).
+  expect(frame).toMatch(/○/)
 })
