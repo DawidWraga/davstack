@@ -7,6 +7,7 @@ import { Box, Text, useStdout } from "ink"
 import { ServerList } from "../views/ServerList.tsx"
 import { ServerLogView } from "../views/ServerLogView.tsx"
 import { AgentsList } from "../views/AgentsList.tsx"
+import { AgentTimelineView } from "../views/AgentTimelineView.tsx"
 import { useView } from "../state/view-context.tsx"
 import { useDaemons } from "../state/daemons-context.tsx"
 import { getPackageVersion, getRepoRootSafe } from "../lib/package-info.ts"
@@ -21,6 +22,9 @@ export function MainView({ discoveryDone, hasAnyDaemon }: MainViewProps): React.
   const { view } = useView()
   const { rows } = useDaemons()
 
+  if (view.kind === "agent") {
+    return <AgentTimelineView jobId={view.id} />
+  }
   if (view.kind === "agents") {
     return <AgentsList />
   }

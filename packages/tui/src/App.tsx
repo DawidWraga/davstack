@@ -8,6 +8,7 @@ import { daemonRegistry, type DaemonDescriptor } from "./lib/daemon-registry.ts"
 import { installGlobalTeardown } from "./lib/global-teardown.ts"
 
 import { ViewProvider } from "./state/view-context.tsx"
+import { AgentsProvider } from "./state/agents-context.tsx"
 import { DaemonsProvider } from "./state/daemons-context.tsx"
 import { QuitProvider, useQuit } from "./state/quit-context.tsx"
 
@@ -44,7 +45,8 @@ export function App({
 
   return (
     <ViewProvider>
-      <DaemonsProvider descriptors={filtered}>
+      <AgentsProvider>
+        <DaemonsProvider descriptors={filtered}>
         <QuitProvider>
           <DescriptorSync descriptors={filtered} />
           {filtered.map((d) => (
@@ -61,7 +63,8 @@ export function App({
             )}
           </QuitController>
         </QuitProvider>
-      </DaemonsProvider>
+        </DaemonsProvider>
+      </AgentsProvider>
     </ViewProvider>
   )
 }

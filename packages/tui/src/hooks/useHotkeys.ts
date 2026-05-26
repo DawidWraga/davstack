@@ -7,8 +7,8 @@ import { useCallback } from "react"
 
 import { useView } from "../state/view-context.tsx"
 import { useDaemons } from "../state/daemons-context.tsx"
+import { useAgents } from "../state/agents-context.tsx"
 import { useQuit } from "../state/quit-context.tsx"
-
 export interface KeyEvent {
   ctrl?: boolean
   escape?: boolean
@@ -39,8 +39,18 @@ export interface HotkeyHandlers {
 // it directly when no daemons are live; otherwise we route through the
 // confirm overlay (requestConfirm).
 export function useHotkeys(quit: () => void): HotkeyHandlers {
-  const { showLog, showList, showAgents, setFocusedIdx, view, focusedIdx } = useView()
+  const {
+    showLog,
+    showList,
+    showAgents,
+    setFocusedIdx,
+    view,
+    focusedIdx,
+    highlightedAgentId,
+    setHighlightedAgentId,
+  } = useView()
   const { rowsRef, toggleByKey, clearByKey, takeoverByKey, anyLive } = useDaemons()
+  const { jobs } = useAgents()
   const { confirming, requestConfirm, cancelConfirm } = useQuit()
 
   const onQuit = useCallback(() => {
@@ -62,8 +72,15 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
   )
 
   const onEscape = useCallback(() => {
-    if (view.kind === "log" || view.kind === "agents") showList()
-  }, [view, showList])
+    if (view.kind === "agent") {
+      showAgents()
+      return
+    }
+    if (view.kind === "log" || view.kind === "agents") {
+      if (view.kind === "agents") setHighlightedAgentId(undefined)
+      showList()
+    }
+  }, [view, showList, showAgents, setHighlightedAgentId])
 
   const onToggleFocused = useCallback(() => {
     const target = rowsRef.current[focusedIdx]
@@ -124,7 +141,18 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         return
       }
       if (input === "g") {
-        if (view.kind !== "agents") showAgents()
+        if (view.kind !== "agents") {
+          showAgents()
+          if (highlightedAgentId) {
+            const idx = jobs.findIndex((j) => j.id === highlightedAgentId)
+            if (idx >= 0) setFocusedIdx(idx)
+          }
+          return
+        }
+        const safeFocus = jobs.length === 0 ? 0 : Math.min(focusedIdx, jobs.length - 1)
+        const job = jobs[safeFocus]
+        if (job?.status === "running") setHighlightedAgentId(job.id)
+        showList()
         return
       }
       if (input === "k" && view.kind === "list") {
@@ -153,7 +181,25 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         return
       }
     },
-    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, onCycleFocus, showAgents, view],
+    [
+      confirming,
+      cancelConfirm,
+      quit,
+      onQuit,
+      onNumberKey,
+      onEscape,
+      onClearLog,
+      onTakeoverFocused,
+      onCycleFocus,
+      showAgents,
+      showList,
+      view,
+      jobs,
+      focusedIdx,
+      highlightedAgentId,
+      setHighlightedAgentId,
+      setFocusedIdx,
+    ],
   )
 
   return {

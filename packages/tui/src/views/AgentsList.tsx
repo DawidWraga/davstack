@@ -31,7 +31,7 @@ const STATUS_COLOR: Record<JobStatus, string> = {
 export function AgentsList(): React.ReactElement {
   const repoPath = getRepoRootSafe()
   const { jobs } = useAgentJobs(repoPath)
-  const { focusedIdx, setFocusedIdx } = useView()
+  const { focusedIdx, setFocusedIdx, showAgent } = useView()
 
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
@@ -45,6 +45,9 @@ export function AgentsList(): React.ReactElement {
         setFocusedIdx((focusedIdx - 1 + jobs.length) % jobs.length)
       } else if (key.rightArrow) {
         setFocusedIdx((focusedIdx + 1) % jobs.length)
+      } else if (key.return) {
+        const job = jobs[Math.min(focusedIdx, jobs.length - 1)]
+        if (job) showAgent(job.id)
       }
     },
     { isActive: rawModeSupported },
@@ -66,7 +69,7 @@ export function AgentsList(): React.ReactElement {
       ))}
       <Box marginTop={1}>
         <Text dimColor>
-          ↑/↓ j/k focus  ←/→ cycle  esc back  g agents  q quit  ● running  ✓ done  ✗ failed
+          ↑/↓ j/k focus  ←/→ cycle  enter drill in  esc back  g agents  q quit  ● running  ✓ done  ✗ failed
         </Text>
       </Box>
     </Box>
