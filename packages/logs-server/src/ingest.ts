@@ -4,8 +4,8 @@
 // would block the app it is meant to observe (notes 03).
 
 import type { Database } from 'bun:sqlite';
-import { insertLogs, type LogRow } from './db.ts';
-import { parseEnvelope } from './envelope.ts';
+import { insertLogs, type LogRow } from './db.js';
+import { parseEnvelope } from './envelope.js';
 
 export function handleIngest(
   db: Database,

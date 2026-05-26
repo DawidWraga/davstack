@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import { gzipSync, deflateSync } from 'node:zlib';
-import { decodeBody } from '../src/decode.ts';
+import { decodeBody } from '../src/decode.js';
 
 const Bun = {
   gzipSync: (buf: Uint8Array) => new Uint8Array(gzipSync(buf)),

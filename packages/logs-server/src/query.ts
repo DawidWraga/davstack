@@ -5,7 +5,7 @@
 // row, agent-consumable) and human (grouped by service).
 
 import type { Database } from 'bun:sqlite';
-import type { LogRow } from './db.ts';
+import type { LogRow } from './db.js';
 
 const ERROR_LEVELS = new Set(['error', 'fatal']);
 

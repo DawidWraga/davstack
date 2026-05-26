@@ -4,8 +4,8 @@
 // for one bad record ("sink garbage-in must not crash the app", notes 03).
 
 import { test, expect } from 'bun:test';
-import { openDb } from '../src/db.ts';
-import { handleIngest } from '../src/ingest.ts';
+import { openDb } from '../src/db.js';
+import { handleIngest } from '../src/ingest.js';
 
 function envelope(items: unknown[], extraLines: string[] = []) {
   return [

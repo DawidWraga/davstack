@@ -6,7 +6,7 @@
 //       clock must not strand or instantly evict its rows (notes 03 schema).
 
 import { test, expect } from 'bun:test';
-import { openDb, insertLogs, selectByTrace, prune, type LogRow } from '../src/db.ts';
+import { openDb, insertLogs, selectByTrace, prune, type LogRow } from '../src/db.js';
 
 function row(over: Partial<LogRow>): LogRow {
   return {

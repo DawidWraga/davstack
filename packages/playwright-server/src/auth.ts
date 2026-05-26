@@ -12,9 +12,9 @@ export {
   type ServerConfig,
   type StorageState,
   type StorageStateOrigin,
-} from './config.ts';
+} from './config.js';
 
-import type { StorageState } from './config.ts';
+import type { StorageState } from './config.js';
 
 export type AuthSeed = {
   origin: string;
