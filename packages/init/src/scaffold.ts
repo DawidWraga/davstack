@@ -36,7 +36,11 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATE_DIR = path.join(here, "templates")
 const SKILL_DIR = path.join(here, "skills")
 
-export const GITIGNORE_LINES = [".davstack/*", "!.davstack/config/"]
+export const GITIGNORE_LINES = [
+  ".davstack/*",
+  "!.davstack/config/",
+  ".playwright-profile/",
+]
 
 export interface ScaffoldResult {
   written: string[]
