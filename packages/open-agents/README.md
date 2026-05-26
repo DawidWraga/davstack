@@ -14,11 +14,16 @@ status truncation, no near-miss re-send.
 ## Install
 
 ```bash
-pnpm add -wD @davstack/open-agents     # in your repo
-npx explore   check                    # validate cursor-agent install
-npx explore   submit --file <spec>.md
-npx fast-edit submit --file <spec>.md
+pnpm add -g @davstack/open-agents      # global so `explore`/`fast-edit` are on PATH everywhere
+explore   check                        # validate cursor-agent install
+explore   submit --file <spec>.md
+fast-edit submit --file <spec>.md
 ```
+
+Bins are global because they have no per-repo state — per-repo config is
+still read from `.davstack/config/open-agents.config.ts` in your cwd.
+`@davstack/init` installs open-agents globally by default for the same
+reason; the other daemons (logs/vitest/playwright) stay project-local.
 
 Two bins, one package — both bins resolve to the same engine with a
 different profile bound (read-only vs `--force` edit).

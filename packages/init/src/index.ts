@@ -47,12 +47,33 @@ async function pickTools(opts: CliOptions): Promise<Tool[]> {
   return picked
 }
 
+// Tools whose bins must be on PATH regardless of cwd — install globally so
+// `explore` / `fast-edit` resolve everywhere and `npx explore` never falls
+// back to the unrelated public `explore` package on the npm registry.
+// (open-agents reads per-repo .davstack/config/open-agents.config.ts via
+// findRepoRoot(cwd), so global install doesn't lose per-repo settings.)
+const GLOBAL_TOOLS: Tool[] = ["open-agents"]
+
 function installCommand(
   manager: PackageManager,
   tools: Tool[],
   workspaceRoot: boolean,
+  global: boolean,
 ): { cmd: string; args: string[] } {
   const packages = tools.map((t) => `@davstack/${t}`)
+  if (global) {
+    switch (manager) {
+      case "pnpm":
+        return { cmd: "pnpm", args: ["add", "-g", ...packages] }
+      case "yarn":
+        return { cmd: "yarn", args: ["global", "add", ...packages] }
+      case "bun":
+        return { cmd: "bun", args: ["add", "-g", ...packages] }
+      case "npm":
+      default:
+        return { cmd: "npm", args: ["install", "-g", ...packages] }
+    }
+  }
   switch (manager) {
     case "pnpm":
       return {
@@ -69,9 +90,14 @@ function installCommand(
   }
 }
 
-function runInstall(root: string, manager: PackageManager, tools: Tool[]): void {
+function runInstallGroup(
+  root: string,
+  manager: PackageManager,
+  tools: Tool[],
+  global: boolean,
+): void {
   const workspaceRoot = manager === "pnpm" && isPnpmWorkspaceRoot(root)
-  const { cmd, args } = installCommand(manager, tools, workspaceRoot)
+  const { cmd, args } = installCommand(manager, tools, workspaceRoot, global)
   console.log(`\n> ${cmd} ${args.join(" ")}`)
   const result = spawnSync(cmd, args, {
     cwd: root,
@@ -83,6 +109,13 @@ function runInstall(root: string, manager: PackageManager, tools: Tool[]): void 
   }
 }
 
+function runInstall(root: string, manager: PackageManager, tools: Tool[]): void {
+  const local = tools.filter((t) => !GLOBAL_TOOLS.includes(t))
+  const global = tools.filter((t) => GLOBAL_TOOLS.includes(t))
+  if (local.length > 0) runInstallGroup(root, manager, local, false)
+  if (global.length > 0) runInstallGroup(root, manager, global, true)
+}
+
 function printNextSteps(tools: Tool[]): void {
   console.log("")
   console.log("Done. Next:")
@@ -90,13 +123,14 @@ function printNextSteps(tools: Tool[]): void {
   if (tools.includes("vitest-server")) console.log("  npx vitest-server check")
   if (tools.includes("playwright-server")) console.log("  npx playwright-server check")
   if (tools.includes("open-agents")) {
-    console.log("  npx explore check                 # verifies cursor-agent install")
-    console.log("  npx explore   submit '<goal>…</goal> <scope>…</scope>'")
-    console.log("  npx fast-edit submit --file <spec>.md")
+    console.log("  explore check                 # verifies cursor-agent install")
+    console.log("  explore   submit '<goal>…</goal> <scope>…</scope>'")
+    console.log("  fast-edit submit --file <spec>.md")
     console.log("")
-    console.log("  open-agents needs the `cursor-agent` binary on PATH (or vendored")
-    console.log("  on Windows). If `npx explore check` flags it as missing, install")
-    console.log("  from https://cursor.com/cli.")
+    console.log("  open-agents is installed globally so `explore` / `fast-edit` are")
+    console.log("  on PATH from any repo. It still needs the `cursor-agent` binary")
+    console.log("  on PATH (or vendored on Windows). If `explore check` flags it as")
+    console.log("  missing, install from https://cursor.com/cli.")
   }
   console.log("")
   console.log("Config files are in .davstack/config/ (committed).")
