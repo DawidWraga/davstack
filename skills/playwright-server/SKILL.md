@@ -10,7 +10,10 @@ description: >-
   configuring playwright itself.
 ---
 
-Boot once per session, then drive cheaply.
+Boot once per session, then drive cheaply. First run `davstack check` to
+confirm the daemon is running — if it isn't, the command prints the start
+instructions. Fall back to the per-daemon CLI below to run
+playwright-server in isolation.
 
     playwright-server check                  # daemon liveness + chromium + auth
     playwright-server serve &                # boot if check fails (~5-15s)

@@ -20,6 +20,12 @@ Flags:
 
 - `--no-color` — disable ANSI colors (also honours `NO_COLOR` env).
 
+## Checking daemon health
+
+`davstack check` probes every configured daemon and exits 0 if all are
+running, 1 if any are missing, 2 if no davstack configs exist. Cheap
+enough to run at the start of any agent workflow.
+
 ## Keybindings
 
 | Key      | Where      | What                                             |
