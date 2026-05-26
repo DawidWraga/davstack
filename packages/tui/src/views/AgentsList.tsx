@@ -76,10 +76,8 @@ export function AgentsList(): React.ReactElement {
 
 function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): React.ReactElement {
   const noColor = useNoColor()
-  const { adapter, inferred } = useMemo(() => inferAdapter(job.model), [job.model])
-  const age = formatAge(job.startedAt)
-  const title = useMemo(() => truncateOneLine(inferAgentTitle({ prompt: job.prompt }), 36), [job.prompt])
-  const adapterLabel = inferred ? `${adapter} (inferred)` : adapter
+  const title = useMemo(() => truncateOneLine(inferAgentTitle({ prompt: job.prompt }), 48), [job.prompt])
+  const when = formatWhen(job.startedAt)
 
   return (
     <Box>
@@ -89,12 +87,9 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
       <Text color={colorOrUndef(STATUS_COLOR[job.status], noColor)}>
         {jobStatusGlyph(job.status, noColor)}
       </Text>
-      <Text> {STATUS_LABEL[job.status].padEnd(5)}</Text>
-      <Text dimColor={!inferred}>{adapterLabel.padEnd(14)}</Text>
-      <Text bold>{title.padEnd(36)}</Text>
-      <Text dimColor>{job.id.padEnd(22)}</Text>
-      <Text dimColor>{age.padStart(4)} </Text>
-      <Text dimColor>{job.model}</Text>
+      <Text> {STATUS_LABEL[job.status].padEnd(7)}</Text>
+      <Text bold>{title.padEnd(50)}</Text>
+      <Text dimColor>{when}</Text>
     </Box>
   )
 }
@@ -115,17 +110,27 @@ function AgentsEmptyState(): React.ReactElement {
   )
 }
 
-function inferAdapter(model: string): { adapter: string; inferred: boolean } {
-  const m = model.toLowerCase()
-  if (m.startsWith("gemini-")) return { adapter: "gemini", inferred: false }
-  if (m.startsWith("composer-") || m.startsWith("cursor-")) return { adapter: "cursor", inferred: false }
-  return { adapter: "cursor", inferred: true }
+function formatWhen(startedAt: string, now = Date.now()): string {
+  const then = new Date(startedAt).getTime()
+  const ageMs = now - then
+  const dayMs = 24 * 60 * 60 * 1000
+  if (ageMs < dayMs) {
+    const ageMin = Math.max(0, Math.round(ageMs / 60000))
+    if (ageMin < 1) return "just now"
+    if (ageMin < 60) return `${ageMin}m ago`
+    const ageHr = Math.round(ageMin / 60)
+    return `${ageHr}h ago`
+  }
+  const d = new Date(then)
+  return `${ordinal(d.getDate())} ${MONTHS[d.getMonth()]}`
 }
 
-function formatAge(startedAt: string): string {
-  const ageMin = Math.round((Date.now() - new Date(startedAt).getTime()) / 60000)
-  if (ageMin < 60) return `${ageMin}m`
-  return `${Math.round(ageMin / 60)}h`
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"]
+  const v = n % 100
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
 }
 
 function truncateOneLine(s: string, n: number): string {
