@@ -34,6 +34,10 @@ importers:
         version: 1.4.0(@vitest/ui@1.4.0)
 
   packages/cli-utils:
+    dependencies:
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
     devDependencies:
       '@types/node':
         specifier: ^25.9.1
@@ -5476,6 +5480,11 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
+  /dotenv@16.6.1:
+    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
+    dev: false
+
   /electron-to-chromium@1.4.591:
     resolution: {integrity: sha512-vLv/P7wwAPKQoY+CVMyyI6rsTp+A14KGtPXx92oz1FY41AAqa9l6Wkizcixg0LDuJgyeo8xgNN9+9hsnGp66UA==}
     dev: true
@@ -8161,7 +8170,7 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       react: 18.3.1
-      scheduler: 0.23.0
+      scheduler: 0.23.2
     dev: false
 
   /react-is@16.13.1:

@@ -3,7 +3,7 @@
   "version": "1.1.1",
   "license": "MIT",
   "type": "module",
-  "description": "Zero-dep CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
+  "description": "Tiny CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
   "exports": {
     ".": {
       "types": "./dist/cli.d.ts",
@@ -16,6 +16,10 @@
     "./config": {
       "types": "./dist/config.d.ts",
       "default": "./dist/config.js"
+    },
+    "./dotenv": {
+      "types": "./dist/dotenv.d.ts",
+      "default": "./dist/dotenv.js"
     }
   },
   "scripts": {
@@ -26,6 +30,9 @@
   "files": [
     "dist/**"
   ],
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "tsup": "^8.0.0",
