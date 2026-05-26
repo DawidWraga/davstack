@@ -6,7 +6,7 @@ import React, { createContext, useCallback, useContext, useState, type ReactNode
 
 import type { DaemonKey } from "../lib/daemon-registry.ts"
 
-export type View = { kind: "list" } | { kind: "log"; key: DaemonKey }
+export type View = { kind: "list" } | { kind: "log"; key: DaemonKey } | { kind: "agents" }
 
 function useViewInner() {
   const [view, setView] = useState<View>({ kind: "list" })
@@ -14,8 +14,9 @@ function useViewInner() {
 
   const showList = useCallback(() => setView({ kind: "list" }), [])
   const showLog = useCallback((key: DaemonKey) => setView({ kind: "log", key }), [])
+  const showAgents = useCallback(() => setView({ kind: "agents" }), [])
 
-  return { view, focusedIdx, setFocusedIdx, showList, showLog }
+  return { view, focusedIdx, setFocusedIdx, showList, showLog, showAgents }
 }
 
 type ViewContextValue = ReturnType<typeof useViewInner>

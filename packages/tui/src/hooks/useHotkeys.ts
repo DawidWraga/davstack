@@ -39,7 +39,7 @@ export interface HotkeyHandlers {
 // it directly when no daemons are live; otherwise we route through the
 // confirm overlay (requestConfirm).
 export function useHotkeys(quit: () => void): HotkeyHandlers {
-  const { showLog, showList, setFocusedIdx, view, focusedIdx } = useView()
+  const { showLog, showList, showAgents, setFocusedIdx, view, focusedIdx } = useView()
   const { rowsRef, toggleByKey, clearByKey, takeoverByKey, anyLive } = useDaemons()
   const { confirming, requestConfirm, cancelConfirm } = useQuit()
 
@@ -62,7 +62,7 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
   )
 
   const onEscape = useCallback(() => {
-    if (view.kind === "log") showList()
+    if (view.kind === "log" || view.kind === "agents") showList()
   }, [view, showList])
 
   const onToggleFocused = useCallback(() => {
@@ -123,24 +123,29 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         onClearLog()
         return
       }
+      if (input === "g") {
+        if (view.kind !== "agents") showAgents()
+        return
+      }
       if (input === "k" && view.kind === "list") {
         onTakeoverFocused()
         return
       }
       if (/^[1-9]$/.test(input)) {
+        if (view.kind === "agents") return
         onNumberKey(Number(input) - 1)
         return
       }
       if (key.leftArrow) {
-        onCycleFocus(-1)
+        if (view.kind !== "agents") onCycleFocus(-1)
         return
       }
       if (key.rightArrow) {
-        onCycleFocus(1)
+        if (view.kind !== "agents") onCycleFocus(1)
         return
       }
       if (key.tab) {
-        onCycleFocus(key.shift ? -1 : 1)
+        if (view.kind !== "agents") onCycleFocus(key.shift ? -1 : 1)
         return
       }
       if (key.escape) {
@@ -148,7 +153,7 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         return
       }
     },
-    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, onCycleFocus, view],
+    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, onCycleFocus, showAgents, view],
   )
 
   return {
