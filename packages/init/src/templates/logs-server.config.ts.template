@@ -9,4 +9,9 @@ export default {
   host: '127.0.0.1',
   dbPath: '.davstack/logs.db',
   pruneDays: 14,
+  // CORS for browser-origin envelope POSTs. Default "*" is safe (sink binds
+  // 127.0.0.1, no credentials, no readable response). Lock down with an
+  // allowlist or disable entirely:
+  // cors: ["http://localhost:3001"],
+  // cors: false,
 } satisfies ServerConfig;
