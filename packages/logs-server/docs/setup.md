@@ -10,6 +10,7 @@ export default {
   host: "127.0.0.1",
   dbPath: ".davstack/logs.db", // relative to repo root
   pruneDays: 14,                // 0 disables background prune
+  // cors: "*",                 // browser CORS policy (see §7); default permissive
 }
 ```
 
@@ -149,7 +150,30 @@ Working reference: `~/dev/traffease_man/react/src/config/sentry.ts`.
 
 The bin shim spawns **`bun`** by default (server uses `bun:sqlite` + `Bun.serve`). Force Node with `LOGS_SERVER_RUNTIME=node` — uses `--experimental-transform-types`, no build step.
 
-## 6. Sanity check
+## 6. CORS (browser DSN posts)
+
+Browser SDKs that post envelopes directly to the sink (via `Sentry.init({ dsn: "http://public@127.0.0.1:5181/1" })`) trigger a CORS preflight — Sentry's `Content-Type: application/x-sentry-envelope` is non-simple. The sink ships with default-permissive CORS so this Just Works; no Vite/webpack proxy needed.
+
+Three modes via the `cors` config field:
+
+```ts
+// .davstack/config/logs-server.config.ts
+export default {
+  cors: "*",                                 // default; echo Allow-Origin: * (no creds)
+  // cors: ["http://localhost:3001"],        // allowlist; echo matching origin + Vary: Origin
+  // cors: false,                            // emit no CORS headers (legacy behaviour)
+}
+```
+
+Default-permissive is safe because:
+
+1. The sink binds to `127.0.0.1` only — unreachable off-host.
+2. The response body is empty on `POST` and a fixed `"diag sink ok"` on non-POST — nothing readable to leak cross-origin.
+3. `Access-Control-Allow-Credentials` is never set, so cookies/auth are not in scope.
+
+Lock down with an allowlist or `false` if you disagree.
+
+## 7. Sanity check
 
 ```bash
 curl -s -X POST http://127.0.0.1:5181/envelope/ \
