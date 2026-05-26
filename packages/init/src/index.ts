@@ -119,7 +119,7 @@ function runInstall(root: string, manager: PackageManager, tools: Tool[]): void 
 function printNextSteps(tools: Tool[]): void {
   console.log("")
   console.log("Done. Next:")
-  if (tools.includes("logs-server")) console.log("  npx logs-server serve &")
+  if (tools.includes("logs-server")) console.log("  npx logs-server check")
   if (tools.includes("vitest-server")) console.log("  npx vitest-server check")
   if (tools.includes("playwright-server")) console.log("  npx playwright-server check")
   if (tools.includes("open-agents")) {

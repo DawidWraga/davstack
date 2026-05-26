@@ -9,6 +9,7 @@
 //   query errors  errors with surrounding context
 //   query filter  generic level/grep/run/trace filter
 //   prune         delete rows older than --days / --max-age-ms
+//   check         validate local install (node, config, db rows, daemon liveness)
 //
 // Output defaults to compact (one line per row, agent-consumable); --human
 // groups by service. The DB is the one shared store (notes 03).
@@ -202,6 +203,26 @@ const cli = defineCli({
         trace: queryTrace,
         errors: queryErrors,
         filter: queryFilter,
+      },
+    },
+    check: {
+      description: 'Validate local install (node, config, db rows, daemon liveness)',
+      flags: {
+        db: dbFlag(),
+        port: { type: 'number', env: 'DIAG_PORT' },
+        host: { type: 'string', env: 'DIAG_HOST' },
+        cwd: { type: 'string', default: process.cwd() },
+        json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
+      },
+      run: async (ctx) => {
+        const { runCheck } = await import('./check.ts');
+        return runCheck({
+          cwd: ctx.flags.cwd as string,
+          host: ctx.flags.host as string | undefined,
+          port: ctx.flags.port as number | undefined,
+          db: ctx.flags.db as string | undefined,
+          json: ctx.flags.json as boolean,
+        });
       },
     },
     prune: {
