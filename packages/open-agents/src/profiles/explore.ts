@@ -1,7 +1,7 @@
 // explore profile — read-only quote-extractor. Mode `ask`. Was the
 // `guardRO`/`guardExtract` branch of the old buildPrompt(body, edit=false).
 
-import { type Profile, assembleScaffold } from './types.ts';
+import { type Profile, assembleScaffold } from './types.js';
 
 const GUARDS =
   '- READ-ONLY: do not create, modify, or delete any file, and do not run mutating commands. ' +

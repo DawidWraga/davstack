@@ -4,7 +4,7 @@
 
 import { test, expect, afterEach } from 'bun:test';
 import type { Server } from 'bun';
-import { runFile, health, shutdown, type ClientOpts } from '../src/client.ts';
+import { runFile, health, shutdown, type ClientOpts } from '../src/client.js';
 
 const servers: Server[] = [];
 afterEach(() => {

@@ -9,7 +9,10 @@ description: >-
   itself (daemon caches go stale).
 ---
 
-Boot once per session, then rerun cheaply.
+Boot once per session, then rerun cheaply. First run `davstack check` to
+confirm the daemon is running — if it isn't, the command prints the start
+instructions. Fall back to the per-daemon CLI below to run vitest-server
+in isolation.
 
     vitest-server check                # verifies daemon liveness + config
     vitest-server serve &              # boot if check fails (heavy ~50s first time)

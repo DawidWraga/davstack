@@ -12,7 +12,7 @@ import {
   readAuthSeed,
   writeStorageState,
   type StorageState,
-} from '../src/auth.ts';
+} from '../src/auth.js';
 
 const tmps: string[] = [];
 afterEach(() => {

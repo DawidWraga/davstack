@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { ensureDir, jobsDir, logsDir } from './paths.ts';
+import { ensureDir, jobsDir, logsDir } from './paths.js';
 
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled';
 

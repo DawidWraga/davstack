@@ -18,8 +18,8 @@ import {
   summariseAgy,
   sweepLitterDir,
   TRUNCATION_RE,
-} from '../src/adapters/agy.ts';
-import { parseFlags, pickAdapter } from '../src/cli.ts';
+} from '../src/adapters/agy.js';
+import { parseFlags, pickAdapter } from '../src/cli.js';
 
 describe('agy adapter — tier map (no-op: CLI has no model selection)', () => {
   test('tierModel returns empty for both tiers; defaultModel matches', () => {

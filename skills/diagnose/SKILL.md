@@ -36,6 +36,10 @@ largest avoidable token sink. Format/cadence provisional; iterate via
 or a delegated `explore` slice — never a full re-read
 (`feedback_delegate_big_file_recon`). Compounds with the note rule above.
 
+**Daemon prereq.** This loop leans on `logs-server`, `vitest-server`, and
+`playwright-server`. First run `davstack check` to confirm the required
+daemons are running — it prints the start instructions if anything's missing.
+
 ## 0 — Frame
 
 The problem in the user's terms, before code: exact symptom verbatim (expected

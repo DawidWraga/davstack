@@ -9,9 +9,9 @@ import { test, expect, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb, prune } from '../src/db.ts';
-import { startServer } from '../src/server.ts';
-import { traceAssembly, errorContext } from '../src/query.ts';
+import { openDb, prune } from '../src/db.js';
+import { startServer } from '../src/server.js';
+import { traceAssembly, errorContext } from '../src/query.js';
 
 const SHARED = '0123456789abcdef0123456789abcdef';
 

@@ -4,8 +4,8 @@
 // which is passed in.
 
 import { existsSync, readFileSync } from 'node:fs';
-import type { AgentAdapter } from '../adapters/types.ts';
-import { SENTINEL } from '../profiles/types.ts';
+import type { AgentAdapter } from '../adapters/types.js';
+import { SENTINEL } from '../profiles/types.js';
 
 // The marker is a whole-line match — not a substring. A preamble mention
 // ("I'll end with ___FINAL_OUTPUT___") is not an exact line so it's skipped;

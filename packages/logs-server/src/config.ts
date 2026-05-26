@@ -17,6 +17,16 @@ export type ServerConfig = {
   host?: string;
   dbPath?: string;
   pruneDays?: number;
+  /**
+   * CORS policy for browser-origin requests. Sink binds to 127.0.0.1
+   * so default-permissive is safe.
+   *
+   *   "*"      — default; echo Access-Control-Allow-Origin: * (no creds)
+   *   string[] — allowlist; if request Origin matches, echo it back + Vary: Origin
+   *              otherwise send no CORS headers (browser will block)
+   *   false    — emit no CORS headers (legacy behaviour)
+   */
+  cors?: '*' | string[] | false;
 };
 
 export type LoadedConfig = ServerConfig & {
@@ -55,6 +65,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<LoadedCon
     host: typeof raw.host === 'string' ? raw.host : undefined,
     dbPath: typeof raw.dbPath === 'string' ? raw.dbPath : undefined,
     pruneDays: typeof raw.pruneDays === 'number' ? raw.pruneDays : undefined,
+    cors: normalizeCors(raw.cors),
     _source: configPath,
     _repoRoot: repoRoot,
   };
@@ -66,6 +77,15 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<LoadedCon
   }
 
   return merged;
+}
+
+function normalizeCors(value: unknown): ServerConfig['cors'] {
+  if (value === false) return false;
+  if (value === '*') return '*';
+  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+    return value as string[];
+  }
+  return undefined;
 }
 
 function pathToFileUrl(p: string): string {

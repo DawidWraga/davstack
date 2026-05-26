@@ -8,10 +8,10 @@ import { spawnSync } from "node:child_process"
 import { Command } from "commander"
 import { checkbox } from "@inquirer/prompts"
 
-import { detectPackageManager, detectRepoRoot, isPnpmWorkspaceRoot } from "./detect.ts"
-import type { PackageManager } from "./detect.ts"
-import { ALL_TOOLS, scaffold } from "./scaffold.ts"
-import type { Tool } from "./scaffold.ts"
+import { detectPackageManager, detectRepoRoot, isPnpmWorkspaceRoot } from "./detect.js"
+import type { PackageManager } from "./detect.js"
+import { ALL_TOOLS, scaffold } from "./scaffold.js"
+import type { Tool } from "./scaffold.js"
 
 interface CliOptions {
   all?: boolean

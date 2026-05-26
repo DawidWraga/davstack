@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { findRepoRoot, findToolConfig } from '@davstack/cli-utils/config';
-import { loadConfig } from './auth.ts';
+import { loadConfig } from './auth.js';
 
 const REQUIRED_NODE_MAJOR = 20;
 

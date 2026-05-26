@@ -4,7 +4,7 @@
 // negation, and conventional exit codes (0/1/2).
 
 import { test, expect, afterEach, beforeEach } from 'vitest';
-import { coerceFlag, parseArgs, defineCli, type CliSpec } from '../src/cli.ts';
+import { coerceFlag, parseArgs, defineCli, type CliSpec } from '../src/cli.js';
 
 // ─── coerceFlag ─────────────────────────────────────────────────────────────
 

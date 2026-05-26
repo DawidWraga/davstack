@@ -6,11 +6,11 @@
 import { spawn } from 'node:child_process';
 import { createWriteStream, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentAdapter } from '../adapters/types.ts';
-import type { Profile } from '../profiles/types.ts';
-import { extractDeliverable } from './deliverable.ts';
-import { readJob, updateJob } from './jobs.ts';
-import { jobsDir } from './paths.ts';
+import type { AgentAdapter } from '../adapters/types.js';
+import type { Profile } from '../profiles/types.js';
+import { extractDeliverable } from './deliverable.js';
+import { readJob, updateJob } from './jobs.js';
+import { jobsDir } from './paths.js';
 
 export const DEFAULT_TIMEOUT_SEC = 1800; // explore can take ~12+ min; be generous
 

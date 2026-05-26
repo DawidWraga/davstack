@@ -10,7 +10,7 @@ import {
   cursorAdapter,
   resolveBin,
   resolveCursorAgentNode,
-} from '../src/adapters/cursor.ts';
+} from '../src/adapters/cursor.js';
 
 describe('cursor adapter — tier map', () => {
   test('smarter → composer-2.5, faster → composer-2-fast', () => {

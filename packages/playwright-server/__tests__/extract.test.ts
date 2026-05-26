@@ -4,7 +4,7 @@
 // `}`, escape sequences in single-quoted strings (e.g. apostrophes in selectors).
 
 import { test, expect } from 'vitest';
-import { extractTestBody } from '../src/extract.ts';
+import { extractTestBody } from '../src/extract.js';
 
 test('returns null when source has no test() block', () => {
   expect(extractTestBody('// no test here\nconst x = 1')).toBeNull();

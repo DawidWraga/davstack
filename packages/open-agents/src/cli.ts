@@ -15,25 +15,25 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agyAdapter } from './adapters/agy.ts';
-import { cursorAdapter } from './adapters/cursor.ts';
-import { geminiAdapter } from './adapters/gemini.ts';
-import type { AgentAdapter, Tier } from './adapters/types.ts';
-import { readDeliverable, renderJobResult } from './core/deliverable.ts';
+import { agyAdapter } from './adapters/agy.js';
+import { cursorAdapter } from './adapters/cursor.js';
+import { geminiAdapter } from './adapters/gemini.js';
+import type { AgentAdapter, Tier } from './adapters/types.js';
+import { readDeliverable, renderJobResult } from './core/deliverable.js';
 import {
   createJob,
   listJobs,
   mostRecentFinishedJob,
   readJob,
   updateJob,
-} from './core/jobs.ts';
-import { jobsDir } from './core/paths.ts';
-import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.ts';
-import { editProfile } from './profiles/edit.ts';
-import { exploreProfile } from './profiles/explore.ts';
-import type { Profile } from './profiles/types.ts';
-import { loadConfig } from './config.ts';
-import { runCheck } from './check.ts';
+} from './core/jobs.js';
+import { jobsDir } from './core/paths.js';
+import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.js';
+import { editProfile } from './profiles/edit.js';
+import { exploreProfile } from './profiles/explore.js';
+import type { Profile } from './profiles/types.js';
+import { loadConfig } from './config.js';
+import { runCheck } from './check.js';
 
 const SELF = fileURLToPath(import.meta.url);
 const TERMINAL = new Set(['done', 'failed', 'cancelled']);

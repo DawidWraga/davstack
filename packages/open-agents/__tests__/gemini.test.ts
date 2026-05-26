@@ -13,9 +13,9 @@ import {
   resolveBin,
   resolveGeminiEntry,
   summariseGemini,
-} from '../src/adapters/gemini.ts';
-import { cursorAdapter } from '../src/adapters/cursor.ts';
-import { parseFlags, pickAdapter } from '../src/cli.ts';
+} from '../src/adapters/gemini.js';
+import { cursorAdapter } from '../src/adapters/cursor.js';
+import { parseFlags, pickAdapter } from '../src/cli.js';
 
 describe('gemini adapter — tier map', () => {
   test('smarter → 3-pro-preview, faster → 3.1-flash-lite-preview', () => {

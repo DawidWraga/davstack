@@ -1,0 +1,33 @@
+{
+  "name": "@davstack/tui",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Long-running terminal UI that spawns, owns, and surfaces the davstack daemons (vitest-server, playwright-server, logs-server).",
+  "scripts": {
+    "test": "pnpm -w exec vitest run --project tui"
+  },
+  "bin": {
+    "davstack": "./bin/davstack.mjs"
+  },
+  "files": [
+    "bin/**",
+    "src/**"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "ink-testing-library": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

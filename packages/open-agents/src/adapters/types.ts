@@ -3,7 +3,7 @@
 // litter handling (pre-spawn / post-exit hooks). The generic run loop in
 // core/run.ts is adapter-agnostic and only talks to this interface.
 
-import type { ProfileMode } from '../profiles/types.ts';
+import type { ProfileMode } from '../profiles/types.js';
 
 export type Tier = 'smarter' | 'faster';
 

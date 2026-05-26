@@ -41,8 +41,8 @@ const serveSpec: CommandSpec = {
   },
   run: async (ctx) => {
     // Heavy imports deferred so the non-serve verbs stay cheap.
-    const { PlaywrightSession } = await import('./session.ts');
-    const { startServer } = await import('./http.ts');
+    const { PlaywrightSession } = await import('./session.js');
+    const { startServer } = await import('./http.js');
     const session = await PlaywrightSession.create({ cwd: ctx.flags.cwd as string });
     const server = startServer({
       session,
@@ -75,7 +75,7 @@ const cli = defineCli({
       positionals: [{ name: 'file', required: true, description: 'Spec path' }],
       flags: clientFlags(),
       run: async (ctx) => {
-        const { runFile } = await import('./client.ts');
+        const { runFile } = await import('./client.js');
         const result = await runFile(ctx.positionals[0], clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return result.ok ? 0 : 1;
@@ -86,7 +86,7 @@ const cli = defineCli({
       positionals: [{ name: 'url', required: true }],
       flags: clientFlags(),
       run: async (ctx) => {
-        const { gotoUrl } = await import('./client.ts');
+        const { gotoUrl } = await import('./client.js');
         const result = await gotoUrl(ctx.positionals[0], clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return 0;
@@ -96,7 +96,7 @@ const cli = defineCli({
       description: 'Mint a fresh session and reseed the live context',
       flags: clientFlags(),
       run: async (ctx) => {
-        const { refreshAuth } = await import('./client.ts');
+        const { refreshAuth } = await import('./client.js');
         const result = await refreshAuth(clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return result.ok ? 0 : 1;
@@ -106,7 +106,7 @@ const cli = defineCli({
       description: 'Daemon liveness check',
       flags: clientFlags(),
       run: async (ctx) => {
-        const { health } = await import('./client.ts');
+        const { health } = await import('./client.js');
         const result = await health(clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return 0;
@@ -116,7 +116,7 @@ const cli = defineCli({
       description: 'Stop the running daemon',
       flags: clientFlags(),
       run: async (ctx) => {
-        const { shutdown } = await import('./client.ts');
+        const { shutdown } = await import('./client.js');
         await shutdown(clientOpts(ctx.flags));
         return 0;
       },
@@ -129,7 +129,7 @@ const cli = defineCli({
         json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
       },
       run: async (ctx) => {
-        const { runCheck } = await import('./check.ts');
+        const { runCheck } = await import('./check.js');
         return runCheck({
           cwd: ctx.flags.cwd as string,
           host: ctx.flags.host as string,
