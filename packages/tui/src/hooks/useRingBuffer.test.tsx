@@ -56,3 +56,31 @@ test("push triggers re-render with new lines; clear resets", async () => {
   await tick()
   expect(captured!.lines).toEqual([])
 })
+
+test("lines array reference is stable across renders unless push/clear fires", async () => {
+  // Regression: without memoization, toArray() allocates a fresh array
+  // every render. Consumers that include `lines` in effect deps
+  // (DaemonSupervisor) then loop forever, even when contents are
+  // identical. Lines MUST share a reference between renders that didn't
+  // mutate the buffer.
+  const seenLines: LogLine[][] = []
+  const Spy = (): React.ReactElement => {
+    const r = useRingBuffer(3)
+    seenLines.push(r.lines)
+    return React.createElement(Text, null, " ")
+  }
+
+  active = render(React.createElement(Spy))
+  const initial = seenLines[0]
+  active.rerender(React.createElement(Spy))
+  active.rerender(React.createElement(Spy))
+  active.rerender(React.createElement(Spy))
+
+  expect(seenLines.length).toBeGreaterThanOrEqual(4)
+  for (const snap of seenLines) {
+    expect(snap).toBe(initial)
+  }
+})
+
+// Local type import for the regression test.
+type LogLine = { ts: number; stream: "out" | "err"; text: string }

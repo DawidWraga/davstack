@@ -5,7 +5,7 @@
 // keep a stable ref, tick a counter on push, and snapshot `toArray()` on
 // each render.
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 
 import { RingBuffer } from "../lib/ring-buffer.ts"
 
@@ -24,7 +24,7 @@ export type UseRingBufferResult = {
 export function useRingBuffer(capacity: number = 10_000): UseRingBufferResult {
   const bufRef = useRef<RingBuffer<LogLine> | null>(null)
   if (bufRef.current === null) bufRef.current = new RingBuffer<LogLine>(capacity)
-  const [, setTick] = useState(0)
+  const [tick, setTick] = useState(0)
 
   const push = useCallback((line: LogLine) => {
     bufRef.current!.push(line)
@@ -36,5 +36,11 @@ export function useRingBuffer(capacity: number = 10_000): UseRingBufferResult {
     setTick((t) => (t + 1) | 0)
   }, [])
 
-  return { lines: bufRef.current.toArray(), push, clear }
+  // Snapshot the buffer only when tick changes. Without this memo
+  // every render produces a new array reference, and consumers that
+  // include `lines` in their effect deps (e.g. DaemonSupervisor) loop
+  // forever — even when the buffer's contents are identical.
+  const lines = useMemo(() => bufRef.current!.toArray(), [tick])
+
+  return { lines, push, clear }
 }
