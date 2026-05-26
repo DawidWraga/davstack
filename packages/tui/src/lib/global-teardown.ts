@@ -22,6 +22,10 @@ export function unregisterChild(pid: number): void {
   supervised.delete(pid)
 }
 
+export function isSupervisedChild(pid: number): boolean {
+  return supervised.has(pid)
+}
+
 // Sync best-effort kill — used inside process exit handlers where async
 // has no time to run.
 function killAllSync(): void {

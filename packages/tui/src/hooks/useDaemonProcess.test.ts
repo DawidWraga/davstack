@@ -242,6 +242,49 @@ describe("useDaemonProcess", () => {
     ).toBe(true)
   })
 
+  test("takeover() kills external port owner, polls port free, then re-spawns", async () => {
+    const child = makeFakeChild()
+    const spawnSpy = vi.fn(() => child as never)
+    const desc: DaemonDescriptor = {
+      key: "logs",
+      label: "logs",
+      port: 7077,
+      readyRegex: /listening on http:\/\//i,
+      spawn: spawnSpy,
+    }
+    let probeCall = 0
+    const { deps, killTreeCalls } = makeDeps({
+      probePort: async () => {
+        probeCall++
+        // start preflight → blocked; takeover poll → still busy, then free; start preflight → ok
+        return probeCall === 1 || probeCall === 2
+      },
+      findPortOwner: async () => 9999,
+      isSupervisedChild: () => false,
+    })
+    mount(desc, deps)
+
+    captured!.start()
+    await tick2()
+    expect(captured!.status).toBe("blocked")
+    expect(spawnSpy).not.toHaveBeenCalled()
+
+    captured!.takeover()
+    await tick()
+    await tick()
+    vi.advanceTimersByTime(250)
+    await tick()
+    await tick2()
+
+    expect(killTreeCalls).toEqual([{ pid: 9999, signal: "SIGKILL" }])
+    expect(spawnSpy).toHaveBeenCalledTimes(1)
+    expect(captured!.lines.some((l) => /taking over :7077 from PID 9999/.test(l.text))).toBe(true)
+
+    child.stdout.write("log-server listening on http://127.0.0.1:7077\n")
+    await tick()
+    expect(captured!.status).toBe("running")
+  })
+
   test("Windows path routes kill through killTree (no child.kill)", async () => {
     const child = makeFakeChild()
     const desc = makeDescriptor(child)

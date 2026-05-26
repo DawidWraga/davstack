@@ -25,9 +25,10 @@ export function DaemonSupervisor({
     registerControls(descriptor.key, {
       start: proc.start,
       stop: proc.stop,
+      takeover: proc.takeover,
       clear: proc.clear,
     })
-  }, [descriptor.key, proc.start, proc.stop, proc.clear, registerControls])
+  }, [descriptor.key, proc.start, proc.stop, proc.takeover, proc.clear, registerControls])
 
   useEffect(() => {
     if (autoStart && !startedRef.current) {

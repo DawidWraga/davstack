@@ -68,7 +68,7 @@ export function ServerList(): React.ReactElement {
       ))}
       <Box marginTop={1}>
         <Text dimColor>
-          ↑/↓ focus  enter drill in  s start/stop  1-9 jump  q quit  ● running  ✗ crashed  ⚠ blocked
+          ↑/↓ focus  enter drill in  s start/stop  k takeover  1-9 jump  q quit  ● running  ✗ crashed  ⚠ blocked
         </Text>
       </Box>
     </Box>

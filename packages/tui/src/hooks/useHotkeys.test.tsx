@@ -351,3 +351,31 @@ test("`c` in list view is a no-op (does not clear)", async () => {
   get().hotkeys.handle("c", {})
   expect(clear).not.toHaveBeenCalled()
 })
+
+test("`k` on a blocked focused row calls takeover", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  const takeover = vi.fn()
+  get().registerControls("logs", { start: vi.fn(), stop: vi.fn(), takeover })
+  get().registerRow({ descriptor: descriptors[0], status: "blocked", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("k", {})
+  expect(takeover).toHaveBeenCalledTimes(1)
+})
+
+test("`k` on a running focused row is a no-op", async () => {
+  const descriptors = [makeDescriptor("logs")]
+  const { r, get } = renderWithProviders(descriptors, () => {})
+  unmount = () => r.unmount()
+
+  const takeover = vi.fn()
+  get().registerControls("logs", { start: vi.fn(), stop: vi.fn(), takeover })
+  get().registerRow({ descriptor: descriptors[0], status: "running", lines: [], exitCode: null })
+  await tick()
+
+  get().hotkeys.handle("k", {})
+  expect(takeover).not.toHaveBeenCalled()
+})

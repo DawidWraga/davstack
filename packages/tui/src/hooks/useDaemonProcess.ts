@@ -15,8 +15,10 @@ import type { ChildProcess } from "node:child_process"
 import { useRingBuffer, type LogLine } from "./useRingBuffer.ts"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 import { killTree as defaultKillTree } from "../lib/kill-tree.ts"
+import { findPortOwner as defaultFindPortOwner } from "../lib/port-owner.ts"
 import { probePort as defaultProbePort } from "../lib/port-probe.ts"
 import {
+  isSupervisedChild as defaultIsSupervisedChild,
   registerChild as defaultRegisterChild,
   unregisterChild as defaultUnregisterChild,
 } from "../lib/global-teardown.ts"
@@ -35,6 +37,7 @@ export type UseDaemonProcessResult = {
   lines: LogLine[]
   start: () => void
   stop: () => void
+  takeover: () => void
   clear: () => void
   exitCode: number | null
 }
@@ -43,6 +46,8 @@ export type UseDaemonProcessResult = {
 // or open sockets.
 export type UseDaemonProcessDeps = {
   killTree?: (pid: number, signal: "SIGTERM" | "SIGKILL") => Promise<void>
+  findPortOwner?: (host: string, port: number) => Promise<number | null>
+  isSupervisedChild?: (pid: number) => boolean
   probePort?: (host: string, port: number, timeoutMs?: number) => Promise<boolean>
   registerChild?: (pid: number) => void
   unregisterChild?: (pid: number) => void
@@ -67,6 +72,8 @@ export function useDaemonProcess(
   deps: UseDaemonProcessDeps = {},
 ): UseDaemonProcessResult {
   const killTree = deps.killTree ?? defaultKillTree
+  const findPortOwner = deps.findPortOwner ?? defaultFindPortOwner
+  const isSupervisedChild = deps.isSupervisedChild ?? defaultIsSupervisedChild
   const probePort = deps.probePort ?? defaultProbePort
   const registerChild = deps.registerChild ?? defaultRegisterChild
   const unregisterChild = deps.unregisterChild ?? defaultUnregisterChild
@@ -79,6 +86,8 @@ export function useDaemonProcess(
   const killTimerRef = useRef<NodeJS.Timeout | null>(null)
   const readyRef = useRef(false)
   const stoppingRef = useRef(false)
+  const statusRef = useRef(status)
+  statusRef.current = status
 
   const clearKillTimer = useCallback(() => {
     if (killTimerRef.current) {
@@ -220,11 +229,47 @@ export function useDaemonProcess(
     escalate()
   }, [killTree, descriptor.shutdownUrl, descriptor.shutdownTimeoutMs, descriptor.label, doFetch, push])
 
+  const takeover = useCallback(() => {
+    void (async (): Promise<void> => {
+      if (statusRef.current !== "blocked") return
+      const host = descriptor.host ?? "127.0.0.1"
+      const owner = await findPortOwner(host, descriptor.port)
+      if (owner == null) {
+        push({
+          ts: Date.now(),
+          stream: "err",
+          text: `could not identify owner of :${descriptor.port} — kill it manually`,
+        })
+        return
+      }
+      if (isSupervisedChild(owner)) {
+        push({
+          ts: Date.now(),
+          stream: "out",
+          text: `port owner PID ${owner} is a supervised child — skipping kill`,
+        })
+        return
+      }
+      push({
+        ts: Date.now(),
+        stream: "out",
+        text: `taking over :${descriptor.port} from PID ${owner}`,
+      })
+      await killTree(owner, "SIGKILL")
+      for (let i = 0; i < 8; i++) {
+        if (!(await probePort(host, descriptor.port))) break
+        await new Promise((r) => setTimeout(r, 250))
+      }
+      setStatus("idle")
+      start()
+    })()
+  }, [descriptor, findPortOwner, isSupervisedChild, killTree, probePort, push, start])
+
   useEffect(() => {
     return () => {
       stop()
     }
   }, [stop])
 
-  return { status, lines, start, stop, clear, exitCode }
+  return { status, lines, start, stop, takeover, clear, exitCode }
 }

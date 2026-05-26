@@ -20,6 +20,8 @@ export interface HotkeyHandlers {
   onEscape: () => void
   // List-view-only: handle `s` toggle on the focused row.
   onToggleFocused: () => void
+  // List-view-only: kill external port owner and re-spawn when blocked.
+  onTakeoverFocused: () => void
   // Log-view-only: clear the currently-viewed daemon's ring buffer.
   onClearLog: () => void
   // Master dispatcher used by ink's useInput.
@@ -31,7 +33,7 @@ export interface HotkeyHandlers {
 // confirm overlay (requestConfirm).
 export function useHotkeys(quit: () => void): HotkeyHandlers {
   const { showLog, showList, setFocusedIdx, view, focusedIdx } = useView()
-  const { rowsRef, toggleByKey, clearByKey, anyLive } = useDaemons()
+  const { rowsRef, toggleByKey, clearByKey, takeoverByKey, anyLive } = useDaemons()
   const { confirming, requestConfirm, cancelConfirm } = useQuit()
 
   const onQuit = useCallback(() => {
@@ -61,6 +63,12 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
     if (!target) return
     toggleByKey(target.descriptor.key)
   }, [rowsRef, focusedIdx, toggleByKey])
+
+  const onTakeoverFocused = useCallback(() => {
+    const target = rowsRef.current[focusedIdx]
+    if (!target) return
+    takeoverByKey(target.descriptor.key)
+  }, [rowsRef, focusedIdx, takeoverByKey])
 
   const onClearLog = useCallback(() => {
     if (view.kind !== "log") return
@@ -94,6 +102,10 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         onClearLog()
         return
       }
+      if (input === "k" && view.kind === "list") {
+        onTakeoverFocused()
+        return
+      }
       if (/^[1-9]$/.test(input)) {
         onNumberKey(Number(input) - 1)
         return
@@ -103,8 +115,8 @@ export function useHotkeys(quit: () => void): HotkeyHandlers {
         return
       }
     },
-    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, view],
+    [confirming, cancelConfirm, quit, onQuit, onNumberKey, onEscape, onClearLog, onTakeoverFocused, view],
   )
 
-  return { onQuit, onNumberKey, onEscape, onToggleFocused, onClearLog, handle }
+  return { onQuit, onNumberKey, onEscape, onToggleFocused, onTakeoverFocused, onClearLog, handle }
 }

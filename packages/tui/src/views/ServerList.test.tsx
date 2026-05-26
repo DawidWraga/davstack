@@ -65,6 +65,7 @@ test("legend advertises the new hotkeys", () => {
   )
   const frame = active.lastFrame() ?? ""
   expect(frame).toContain("s start/stop")
+  expect(frame).toContain("k takeover")
   expect(frame).toContain("1-9 jump")
 })
 
