@@ -50,6 +50,16 @@ const serveSpec: CommandSpec = {
     },
   },
   run: async (ctx) => {
+    // Load .env BEFORE heavy imports so vitest.config and storybook
+    // probes that read process.env at module-eval time see the user's
+    // env. Opt out with DAVSTACK_NO_DOTENV=1.
+    const { loadDotenv } = await import('@davstack/cli-utils/dotenv');
+    const envResult = await loadDotenv({ cwd: ctx.flags.cwd as string });
+    if (envResult.loaded) {
+      console.log(
+        `[vitest-server] loaded .env from ${envResult.path} (${envResult.keys} keys)`,
+      );
+    }
     // Heavy imports deferred — non-serve verbs stay cold-start cheap.
     const { VitestSession } = await import('./session.js');
     const { startServer } = await import('./http.js');

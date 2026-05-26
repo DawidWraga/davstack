@@ -166,6 +166,16 @@ const cli = defineCli({
         },
       },
       run: async (ctx) => {
+        // Load .env before config so log-server.config.ts can read
+        // user env (DIAG_DB, DIAG_PORT, etc.) at module-eval. Opt out
+        // with DAVSTACK_NO_DOTENV=1.
+        const { loadDotenv } = await import('@davstack/cli-utils/dotenv');
+        const envResult = await loadDotenv();
+        if (envResult.loaded) {
+          process.stdout.write(
+            `[logs-server] loaded .env from ${envResult.path} (${envResult.keys} keys)\n`,
+          );
+        }
         const { openDb, prune } = await import('./db.js');
         const { dbPath, ensureParent } = await import('./paths.js');
         const { startServer } = await import('./server.js');
@@ -215,7 +225,7 @@ const cli = defineCli({
         json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
       },
       run: async (ctx) => {
-        const { runCheck } = await import('./check.ts');
+        const { runCheck } = await import('./check.js');
         return runCheck({
           cwd: ctx.flags.cwd as string,
           host: ctx.flags.host as string | undefined,

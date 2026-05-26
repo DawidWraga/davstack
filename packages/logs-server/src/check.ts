@@ -10,8 +10,8 @@
 
 import { existsSync, statSync } from 'node:fs';
 import { findRepoRoot, findToolConfig } from '@davstack/cli-utils/config';
-import { loadConfig } from './config.ts';
-import { dbPath as resolveDbPath } from './paths.ts';
+import { loadConfig } from './config.js';
+import { dbPath as resolveDbPath } from './paths.js';
 
 const REQUIRED_NODE_MAJOR = 20;
 

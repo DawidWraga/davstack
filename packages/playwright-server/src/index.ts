@@ -40,6 +40,16 @@ const serveSpec: CommandSpec = {
     },
   },
   run: async (ctx) => {
+    // Load .env BEFORE heavy imports so config files (which read
+    // process.env at module-eval time) see the user's env. Walk-up
+    // resolver in cli-utils; opt out with DAVSTACK_NO_DOTENV=1.
+    const { loadDotenv } = await import('@davstack/cli-utils/dotenv');
+    const envResult = await loadDotenv({ cwd: ctx.flags.cwd as string });
+    if (envResult.loaded) {
+      console.log(
+        `[playwright-server] loaded .env from ${envResult.path} (${envResult.keys} keys)`,
+      );
+    }
     // Heavy imports deferred so the non-serve verbs stay cheap.
     const { PlaywrightSession } = await import('./session.js');
     const { startServer } = await import('./http.js');
