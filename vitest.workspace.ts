@@ -59,4 +59,14 @@ export default defineWorkspace([
 			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
 		},
 	},
+	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
+			name: 'tui',
+			root: './packages/tui',
+			environment: 'node',
+			include: ['src/**/*.test.{ts,tsx}'],
+			exclude: ['**/node_modules/**'],
+		},
+	},
 ]);
