@@ -3,11 +3,37 @@
 // fallback path that reports "exists but uncountable" / "not yet created"
 // without crashing.
 
-import { test, expect, afterEach } from 'vitest';
+import { test, expect, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runCheck } from '../src/check.ts';
+
+const mockSqlite = vi.hoisted(() => ({ total: 0, recent: 0 }));
+
+vi.mock(
+  'bun:sqlite',
+  () => ({
+    Database: class {
+      constructor(_path: string, _opts?: { readonly?: boolean }) {}
+      query(sql: string) {
+        return {
+          get: () => {
+            if (sql.includes('recv_ts')) return { c: mockSqlite.recent };
+            return { c: mockSqlite.total };
+          },
+        };
+      }
+      close() {}
+    },
+  }),
+  { virtual: true },
+);
+
+import { runCheck, rowGlyph, suppressStaleRowsFix } from '../src/check.ts';
+
+function stripAnsi(s: string): string {
+  return s.replace(/\x1b\[[0-9;]*m/g, '');
+}
 
 const tmps: string[] = [];
 afterEach(() => {
@@ -113,4 +139,160 @@ test('runCheck human output contains the four section labels', async () => {
   expect(out).toMatch(/Config/);
   expect(out).toMatch(/DB/);
   expect(out).toMatch(/Daemon/);
+});
+
+test('rowGlyph: pass row uses ✓', () => {
+  expect(rowGlyph({ ok: true })).toBe('✓');
+});
+
+test('rowGlyph: advisory row uses ASCII tilde', () => {
+  const g = rowGlyph({ ok: true, fix: 'hint' });
+  expect(g).toContain('~');
+  expect(g).not.toContain('∼');
+});
+
+test('rowGlyph: hard-fail row uses ✗', () => {
+  expect(rowGlyph({ ok: false })).toBe('✗');
+});
+
+test('runCheck human output uses ~ for advisory daemon row', async () => {
+  const cwd = tmp();
+  const cap = captureStdout();
+  await runCheck({
+    cwd,
+    host: '127.0.0.1',
+    port: 1,
+    db: join(cwd, 'missing.sqlite'),
+  });
+  const out = stripAnsi(cap.restore());
+  expect(out).toMatch(/~ Daemon/);
+  expect(out).not.toMatch(/✓ Daemon/);
+});
+
+test('runCheck human output uses ✓ for pass config row', async () => {
+  const cwd = tmp();
+  const cap = captureStdout();
+  await runCheck({
+    cwd,
+    host: '127.0.0.1',
+    port: 65535,
+    db: join(cwd, 'missing.sqlite'),
+  });
+  const out = stripAnsi(cap.restore());
+  expect(out).toMatch(/✓ Config/);
+});
+
+test('runCheck human output uses ✗ for hard-fail node row', async () => {
+  const cwd = tmp();
+  const orig = process.versions.node;
+  Object.defineProperty(process.versions, 'node', { value: '18.0.0', configurable: true });
+  const cap = captureStdout();
+  const code = await runCheck({
+    cwd,
+    host: '127.0.0.1',
+    port: 65535,
+    db: join(cwd, 'missing.sqlite'),
+  });
+  const out = stripAnsi(cap.restore());
+  Object.defineProperty(process.versions, 'node', { value: orig, configurable: true });
+  expect(code).toBe(1);
+  expect(out).toMatch(/✗ Node/);
+});
+
+test('suppressStaleRowsFix drops hint when daemon up and lifetime rows > 0', () => {
+  const db = {
+    ok: true,
+    path: '/tmp/x.sqlite',
+    exists: true,
+    totalRows: 3,
+    recentRows: 0,
+    recentWindowMs: 300_000,
+    fix: 'no rows in last 300s — verify transmitter DSN points at the daemon',
+  };
+  const daemon = { ok: true, running: true, url: 'http://127.0.0.1:7077' };
+  suppressStaleRowsFix(db, daemon);
+  expect(db.fix).toBeUndefined();
+});
+
+test('suppressStaleRowsFix keeps hint when db has zero lifetime rows', () => {
+  const db = {
+    ok: true,
+    path: '/tmp/x.sqlite',
+    exists: true,
+    totalRows: 0,
+    recentRows: 0,
+    recentWindowMs: 300_000,
+    fix: 'no rows in last 300s — verify transmitter DSN points at the daemon',
+  };
+  const daemon = { ok: true, running: true, url: 'http://127.0.0.1:7077' };
+  suppressStaleRowsFix(db, daemon);
+  expect(db.fix).toMatch(/no rows in last/);
+});
+
+test('suppressStaleRowsFix drops stale hint when daemon is down', () => {
+  const db = {
+    ok: true,
+    path: '/tmp/x.sqlite',
+    exists: true,
+    totalRows: 0,
+    recentRows: 0,
+    recentWindowMs: 300_000,
+    fix: 'no rows in last 300s — verify transmitter DSN points at the daemon',
+  };
+  const daemon = {
+    ok: true,
+    running: false,
+    url: 'http://127.0.0.1:7077',
+    fix: 'not running — start with `logs-server serve`',
+  };
+  suppressStaleRowsFix(db, daemon);
+  expect(db.fix).toBeUndefined();
+});
+
+test('runCheck suppresses stale-rows fix when daemon up and lifetime rows > 0', async () => {
+  const cwd = tmp();
+  const dbFile = join(cwd, 'logs.sqlite');
+  writeFileSync(dbFile, '');
+  mockSqlite.total = 12;
+  mockSqlite.recent = 0;
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+  vi.stubGlobal('fetch', fetchMock);
+  const cap = captureStdout();
+  const code = await runCheck({
+    cwd,
+    json: true,
+    host: '127.0.0.1',
+    port: 7077,
+    db: dbFile,
+  });
+  const out = cap.restore();
+  vi.unstubAllGlobals();
+  expect(code).toBe(0);
+  const result = JSON.parse(out);
+  expect(result.daemon.running).toBe(true);
+  expect(result.db.totalRows).toBe(12);
+  expect(result.db.fix).toBeUndefined();
+});
+
+test('runCheck emits stale-rows fix when db has zero rows total', async () => {
+  const cwd = tmp();
+  const dbFile = join(cwd, 'logs.sqlite');
+  writeFileSync(dbFile, '');
+  mockSqlite.total = 0;
+  mockSqlite.recent = 0;
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+  vi.stubGlobal('fetch', fetchMock);
+  const cap = captureStdout();
+  const code = await runCheck({
+    cwd,
+    json: true,
+    host: '127.0.0.1',
+    port: 7077,
+    db: dbFile,
+  });
+  const out = cap.restore();
+  vi.unstubAllGlobals();
+  expect(code).toBe(0);
+  const result = JSON.parse(out);
+  expect(result.db.fix).toMatch(/no rows in last 300s/);
 });

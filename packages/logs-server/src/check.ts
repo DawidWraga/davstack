@@ -62,6 +62,24 @@ function checkConfig(cwd: string): CheckResult['config'] {
 // still shows non-zero, narrow enough that a stale DB shows zero.
 const RECENT_WINDOW_MS = 5 * 60 * 1000;
 
+const YELLOW = '\x1b[33m';
+const RESET = '\x1b[0m';
+
+/** Pretty glyph: ✗ hard-fail, ~ advisory (ok + fix), ✓ pass. */
+function rowGlyph(opts: { ok: boolean; fix?: string }): string {
+  if (!opts.ok) return '✗';
+  if (opts.fix) return `${YELLOW}~${RESET}`;
+  return '✓';
+}
+
+/** Idle sink (daemon up, lifetime rows > 0, recent = 0) is not broken — drop stale hint. */
+function suppressStaleRowsFix(db: CheckResult['db'], daemon: CheckResult['daemon']): void {
+  if (!db.fix?.includes('no rows in last')) return;
+  if (!daemon.running || (db.totalRows ?? 0) > 0) {
+    delete db.fix;
+  }
+}
+
 async function checkDb(file: string): Promise<CheckResult['db']> {
   if (!existsSync(file)) {
     return {
@@ -149,33 +167,33 @@ export async function runCheck(opts: {
   // Node is the only load-bearing gate. Daemon/db are info — agents inspect
   // and act accordingly.
   result.ok = result.node.ok;
+  suppressStaleRowsFix(result.db, result.daemon);
 
   if (opts.json) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     return result.ok ? 0 : 1;
   }
 
-  const tick = (ok: boolean) => (ok ? '✓' : '✗');
   const lines: string[] = [''];
-  lines.push(`  ${tick(result.node.ok)} Node                 ${result.node.version} (required: ${result.node.required})`);
+  lines.push(`  ${rowGlyph({ ok: result.node.ok })} Node                 ${result.node.version} (required: ${result.node.required})`);
   if (result.config.source) {
-    lines.push(`  ${tick(true)} Config               ${result.config.source}`);
+    lines.push(`  ${rowGlyph({ ok: true })} Config               ${result.config.source}`);
   } else {
-    lines.push(`  ${tick(true)} Config               (none — using built-in defaults; optional)`);
+    lines.push(`  ${rowGlyph({ ok: true })} Config               (none — using built-in defaults; optional)`);
   }
   const dbState = result.db.exists
     ? result.db.totalRows !== undefined
       ? `${result.db.path} (${result.db.totalRows} rows total, ${result.db.recentRows} in last ${Math.round(result.db.recentWindowMs / 1000)}s)`
       : `${result.db.path} (exists; row count unavailable)`
     : `${result.db.path} (not yet created)`;
-  lines.push(`  ${tick(true)} DB                   ${dbState}`);
+  lines.push(`  ${rowGlyph({ ok: result.db.ok, fix: result.db.fix })} DB                   ${dbState}`);
   if (result.db.fix) {
     lines.push(`                          ${result.db.fix}`);
   }
   const daemonState = result.daemon.running
     ? `running at ${result.daemon.url}`
     : `not running at ${result.daemon.url}`;
-  lines.push(`  ${tick(true)} Daemon               ${daemonState}`);
+  lines.push(`  ${rowGlyph({ ok: result.daemon.ok, fix: result.daemon.fix })} Daemon               ${daemonState}`);
   if (!result.daemon.running && result.daemon.fix) {
     lines.push(`                          ${result.daemon.fix}`);
   }
@@ -185,3 +203,4 @@ export async function runCheck(opts: {
 }
 
 export type { CheckResult };
+export { rowGlyph, suppressStaleRowsFix };
