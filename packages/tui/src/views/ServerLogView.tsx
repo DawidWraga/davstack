@@ -12,6 +12,7 @@ interface ServerLogViewProps {
   descriptor: DaemonDescriptor
   status: DaemonStatus
   lines: LogLine[]
+  exitCode?: number | null
   onBack: () => void
 }
 
@@ -19,6 +20,7 @@ export function ServerLogView({
   descriptor,
   status,
   lines,
+  exitCode,
   onBack,
 }: ServerLogViewProps): React.ReactElement {
   const { stdout } = useStdout()
@@ -41,6 +43,13 @@ export function ServerLogView({
         <Text bold>{descriptor.label}</Text>
         <Text dimColor> ({status}) — port {descriptor.port}</Text>
       </Box>
+      {status === "crashed" ? (
+        <Box marginTop={1}>
+          <Text color="red">
+            daemon exited with code {exitCode ?? "?"} — last logs preserved
+          </Text>
+        </Box>
+      ) : null}
       <Box flexDirection="column" marginTop={1}>
         {tail.length === 0 ? (
           <Text dimColor>(no output yet)</Text>

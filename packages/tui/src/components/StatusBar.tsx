@@ -5,7 +5,7 @@
 import React from "react"
 import { Box, Text } from "ink"
 
-export type DaemonStatus = "not-running" | "running" | "crashed"
+export type DaemonStatus = "not-running" | "running" | "crashed" | "blocked"
 
 export interface DaemonPill {
   key: string
@@ -17,6 +17,14 @@ const STATUS_GLYPH: Record<DaemonStatus, string> = {
   "not-running": "○",
   running: "●",
   crashed: "✗",
+  blocked: "⚠",
+}
+
+const STATUS_COLOR: Record<DaemonStatus, string | undefined> = {
+  "not-running": undefined,
+  running: "green",
+  crashed: "red",
+  blocked: "yellow",
 }
 
 interface StatusBarProps {
@@ -29,7 +37,8 @@ export function StatusBar({ daemons }: StatusBarProps): React.ReactElement {
       {daemons.map((d, i) => (
         <Box key={d.key} marginRight={i === daemons.length - 1 ? 0 : 2}>
           <Text>
-            {d.key} {d.label} {STATUS_GLYPH[d.status]}
+            {d.key} {d.label}{" "}
+            <Text color={STATUS_COLOR[d.status]}>{STATUS_GLYPH[d.status]}</Text>
           </Text>
         </Box>
       ))}

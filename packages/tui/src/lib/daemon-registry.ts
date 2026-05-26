@@ -15,6 +15,7 @@ export type DaemonDescriptor = {
   key: DaemonKey
   label: string
   port: number
+  host?: string
   readyRegex: RegExp
   spawn: () => ChildProcess
 }

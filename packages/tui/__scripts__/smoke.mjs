@@ -1,9 +1,12 @@
 // Smoke-test the TUI bin end-to-end. Spawn `davstack start`, wait for the
 // "listening on http" line in stdout (proving logs-server actually booted
-// under our supervision), then SIGINT the parent and assert clean exit.
+// under our supervision), then send `q` over stdin to trigger the
+// cascadeShutdown path and assert clean exit (no orphan bun.exe left).
 //
-// Note: piped stdin can't be a TTY, so Ink's useInput("q") path doesn't
-// fire and we use a signal instead. In a real terminal `q` works.
+// Why stdin-q instead of SIGINT: on Windows, `child.kill('SIGINT')` from
+// Node maps to TerminateProcess — the TUI dies hard, no handlers fire,
+// and bun grandchildren are orphaned. The TUI's non-TTY stdin handler
+// treats a bare `q` byte the same as Ink's `q` keypress.
 
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
@@ -13,10 +16,8 @@ import fs from "node:fs"
 const here = path.dirname(fileURLToPath(import.meta.url))
 const bin = path.join(here, "..", "bin", "davstack.mjs")
 
-// Inherit stdin so Ink's raw-mode setup succeeds. We can't send `q` over a
-// pipe anyway; we use SIGINT below to trigger shutdown.
 const child = spawn(process.execPath, [bin, "start"], {
-  stdio: ["inherit", "pipe", "pipe"],
+  stdio: ["pipe", "pipe", "pipe"],
   env: { ...process.env, FORCE_COLOR: "0" },
 })
 
@@ -29,7 +30,14 @@ child.stdout.on("data", (b) => {
   stdout += s
   if (!sawListening && /listening on http/i.test(stdout)) {
     sawListening = true
-    setTimeout(() => child.kill("SIGINT"), 200)
+    setTimeout(() => {
+      try {
+        child.stdin.write("q")
+        child.stdin.end()
+      } catch {
+        child.kill("SIGINT")
+      }
+    }, 200)
   }
 })
 child.stderr.on("data", (b) => {

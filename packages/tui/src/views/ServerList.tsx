@@ -12,6 +12,7 @@ export type DaemonRow = {
   descriptor: DaemonDescriptor
   status: DaemonStatus
   lines: LogLine[]
+  exitCode?: number | null
 }
 
 const STATUS_GLYPH: Record<DaemonStatus, string> = {
@@ -21,6 +22,7 @@ const STATUS_GLYPH: Record<DaemonStatus, string> = {
   exiting: "◐",
   exited: "○",
   crashed: "✗",
+  blocked: "⚠",
 }
 
 const STATUS_COLOR: Record<DaemonStatus, string> = {
@@ -30,6 +32,7 @@ const STATUS_COLOR: Record<DaemonStatus, string> = {
   exiting: "yellow",
   exited: "gray",
   crashed: "red",
+  blocked: "yellow",
 }
 
 interface ServerListProps {
@@ -69,20 +72,31 @@ export function ServerList({
         const focused = i === focusedIdx
         const last = row.lines[row.lines.length - 1]
         const lastText = last ? truncate(last.text, 60) : ""
+        const statusLabel =
+          row.status === "crashed" && typeof row.exitCode === "number"
+            ? `crashed (exit ${row.exitCode})`
+            : row.status === "blocked"
+              ? `blocked :${row.descriptor.port}`
+              : row.status
+        const rowColor = row.status === "crashed" ? "red" : undefined
         return (
           <Box key={row.descriptor.key}>
             <Text color={focused ? "cyan" : undefined}>
               {focused ? "› " : "  "}
             </Text>
             <Text color={STATUS_COLOR[row.status]}>{STATUS_GLYPH[row.status]}</Text>
-            <Text> {row.descriptor.label.padEnd(12)}</Text>
-            <Text dimColor>{row.status.padEnd(10)}</Text>
+            <Text color={rowColor}> {row.descriptor.label.padEnd(12)}</Text>
+            <Text color={rowColor} dimColor={!rowColor}>
+              {statusLabel.padEnd(22)}
+            </Text>
             <Text dimColor>{lastText}</Text>
           </Box>
         )
       })}
       <Box marginTop={1}>
-        <Text dimColor>↑/↓ focus  enter drill in  q quit</Text>
+        <Text dimColor>
+          ↑/↓ focus  enter drill in  q quit  ● running  ✗ crashed  ⚠ blocked
+        </Text>
       </Box>
     </Box>
   )

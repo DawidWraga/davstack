@@ -10,6 +10,7 @@ import { useDaemonProcess } from "./hooks/useDaemonProcess.ts"
 import { ServerList, type DaemonRow } from "./views/ServerList.tsx"
 import { ServerLogView } from "./views/ServerLogView.tsx"
 import { StatusBar, type DaemonPill, type DaemonStatus as PillStatus } from "./components/StatusBar.tsx"
+import { installGlobalTeardown } from "./lib/global-teardown.ts"
 
 type View = { kind: "list" } | { kind: "log"; key: DaemonKey }
 
@@ -42,10 +43,15 @@ function DaemonSupervisor({
 
   useEffect(() => {
     onUpdate(
-      { descriptor, status: proc.status, lines: proc.lines },
+      {
+        descriptor,
+        status: proc.status,
+        lines: proc.lines,
+        exitCode: proc.exitCode,
+      },
       proc.stop,
     )
-  }, [descriptor, proc.status, proc.lines, proc.stop, onUpdate])
+  }, [descriptor, proc.status, proc.lines, proc.exitCode, proc.stop, onUpdate])
 
   return null
 }
@@ -53,7 +59,14 @@ function DaemonSupervisor({
 function statusToPill(s: DaemonRow["status"]): PillStatus {
   if (s === "running") return "running"
   if (s === "crashed") return "crashed"
+  if (s === "blocked") return "blocked"
   return "not-running"
+}
+
+// Statuses where the daemon has fully released its process — quit can
+// safely consider them done.
+function isSettled(s: DaemonRow["status"]): boolean {
+  return s === "idle" || s === "exited" || s === "crashed" || s === "blocked"
 }
 
 export function App({ registry = daemonRegistry, autoStart = true }: AppProps): React.ReactElement {
@@ -61,12 +74,18 @@ export function App({ registry = daemonRegistry, autoStart = true }: AppProps): 
   const [view, setView] = useState<View>({ kind: "list" })
   const [focusedIdx, setFocusedIdx] = useState(0)
   const [rows, setRows] = useState<DaemonRow[]>(() =>
-    registry.map((d) => ({ descriptor: d, status: "idle" as const, lines: [] })),
+    registry.map((d) => ({ descriptor: d, status: "idle" as const, lines: [], exitCode: null })),
   )
   const stopFnsRef = useRef<Map<DaemonKey, () => void>>(new Map())
   const [quitting, setQuitting] = useState(false)
+  const quittingRef = useRef(false)
   const rowsRef = useRef(rows)
   rowsRef.current = rows
+
+  // Install the process-level emergency teardown once. Idempotent.
+  useEffect(() => {
+    installGlobalTeardown()
+  }, [])
 
   const updateRow = React.useCallback((row: DaemonRow, stop: () => void) => {
     stopFnsRef.current.set(row.descriptor.key, stop)
@@ -75,56 +94,78 @@ export function App({ registry = daemonRegistry, autoStart = true }: AppProps): 
       if (idx === -1) return prev
       // Avoid no-op re-renders.
       const cur = prev[idx]
-      if (cur.status === row.status && cur.lines === row.lines) return prev
+      if (
+        cur.status === row.status &&
+        cur.lines === row.lines &&
+        cur.exitCode === row.exitCode
+      ) {
+        return prev
+      }
       const next = prev.slice()
       next[idx] = row
       return next
     })
   }, [])
 
-  const triggerQuit = React.useCallback(() => {
-    if (quitting) return
+  // Single quit path — `q`, SIGINT, SIGTERM, and uncaughtException paths
+  // all converge here. Re-entry is a no-op.
+  const cascadeShutdown = React.useCallback(() => {
+    if (quittingRef.current) return
+    quittingRef.current = true
     setQuitting(true)
     for (const stop of stopFnsRef.current.values()) {
       stop()
     }
     // Hard cap: 2.5s. After that, exit regardless — useDaemonProcess will
-    // have escalated SIGTERM -> SIGKILL by 2.0s.
-    const allExited = () =>
-      rowsRef.current.every(
-        (r) => r.status === "idle" || r.status === "exited" || r.status === "crashed",
-      )
+    // have escalated SIGTERM -> SIGKILL by 2.0s, and global-teardown's
+    // `process.on('exit')` handler is the safety net.
     const start = Date.now()
     const poll = (): void => {
-      if (allExited() || Date.now() - start > 2_500) {
+      if (rowsRef.current.every((r) => isSettled(r.status)) || Date.now() - start > 2_500) {
         exit()
         return
       }
       setTimeout(poll, 100)
     }
     poll()
-  }, [quitting, exit])
+  }, [exit])
 
   // Gate useInput on raw-mode support — when stdin is piped (CI, smoke
   // tests) Ink throws on raw-mode setup. In that case the user can still
   // SIGINT to quit; ServerList's input hook will also no-op.
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
-    (input) => {
-      if (input === "q") triggerQuit()
+    (input, key) => {
+      if (input === "q") cascadeShutdown()
+      // ctrl-c in raw mode lands here too; Ink eats the default SIGINT.
+      if (key.ctrl && input === "c") cascadeShutdown()
     },
     { isActive: rawModeSupported },
   )
 
   useEffect(() => {
-    const onSig = (): void => triggerQuit()
+    const onSig = (): void => cascadeShutdown()
     process.on("SIGINT", onSig)
     process.on("SIGTERM", onSig)
     return () => {
       process.off("SIGINT", onSig)
       process.off("SIGTERM", onSig)
     }
-  }, [triggerQuit])
+  }, [cascadeShutdown])
+
+  // Non-TTY stdin fallback: in smoke tests and CI, ink's useInput is
+  // inactive (no raw mode). Listen for a bare `q` byte so external test
+  // drivers can trigger a clean shutdown without resorting to a hard kill.
+  useEffect(() => {
+    if (rawModeSupported) return
+    const onData = (chunk: Buffer): void => {
+      if (chunk.includes(0x71)) cascadeShutdown() // 'q'
+    }
+    process.stdin.on("data", onData)
+    return () => {
+      process.stdin.off("data", onData)
+    }
+  }, [rawModeSupported, cascadeShutdown])
 
   const pills: DaemonPill[] = rows.map((r, i) => ({
     key: String(i + 1),
@@ -162,6 +203,7 @@ export function App({ registry = daemonRegistry, autoStart = true }: AppProps): 
                 descriptor={row.descriptor}
                 status={row.status}
                 lines={row.lines}
+                exitCode={row.exitCode ?? null}
                 onBack={() => setView({ kind: "list" })}
               />
             )
