@@ -1,5 +1,39 @@
 # @davstack/playwright-server
 
+## 1.3.0
+
+### Minor Changes
+
+- c41a9c3: Registration-interception runner for normal Playwright specs
+
+  The daemon now loads a spec file as a real ES module and intercepts
+  `@playwright/test` registration calls (`test()`, `test.describe`,
+  `test.beforeEach` / `afterEach`, `test.beforeAll` / `afterAll`,
+  `test.use`) into an in-memory registry, then runs each captured test
+  sequentially against the warm browser. Replaces the regex source-
+  extractor that previously only handled single-block codegen-style
+  specs.
+
+  Now supported in user spec files:
+  - Full TypeScript (native `--experimental-strip-types`, Node >= 22.6)
+  - Module-level imports and helper functions
+  - Multiple `test()` blocks
+  - `test.describe` (flattened into the run order)
+  - `test.beforeEach` / `afterEach` lifecycle hooks
+  - `test.beforeAll` / `afterAll` lifecycle hooks
+  - `test.use({ storageState })` config capture
+
+  Not yet supported: custom `test.extend(...)` fixtures fail fast with a
+  clear error pointing at the limitation. Workarounds: use
+  `test.beforeEach` for shared setup, or module-level helper functions.
+
+  The legacy regex extractor stays available behind
+  `legacyExtract: true` in `playwright-server.config.ts` for codegen-
+  style single-block specs.
+
+  Node engine bumped to `>=22.6` (required for native TypeScript loading;
+  default in Node 24).
+
 ## 1.2.2
 
 ### Patch Changes
