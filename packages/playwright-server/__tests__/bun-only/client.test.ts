@@ -5,7 +5,7 @@
 
 import { test, expect, afterEach } from 'bun:test';
 import type { Server } from 'bun';
-import { runFile, gotoUrl, refreshAuth, health, shutdown, type ClientOpts } from '../src/client.js';
+import { runFile, gotoUrl, refreshAuth, health, shutdown, type ClientOpts } from '../../src/client.js';
 
 const servers: Server[] = [];
 afterEach(() => {
@@ -89,6 +89,19 @@ test('shutdown swallows connection-refused errors', async () => {
   // Point at a port we know is closed; shutdown is best-effort.
   const r = await shutdown({ host: '127.0.0.1', port: 1 });
   expect(r.ok).toBe(true);
+});
+
+test('runFile passes the routing db through to /run body when provided', async () => {
+  const { base, recorded } = fakeServer(() => ok({ ok: true }));
+  await runFile('foo.spec.ts', clientOpts(base), { db: 'reorder-bug' });
+  expect(recorded[0].body).toEqual({ file: 'foo.spec.ts', db: 'reorder-bug' });
+});
+
+test('runFile omits db when not provided (no key, not null)', async () => {
+  const { base, recorded } = fakeServer(() => ok({ ok: true }));
+  await runFile('foo.spec.ts', clientOpts(base));
+  expect(recorded[0].body).toEqual({ file: 'foo.spec.ts' });
+  expect(Object.keys(recorded[0].body as object)).not.toContain('db');
 });
 
 test('runFile surfaces non-2xx response body', async () => {

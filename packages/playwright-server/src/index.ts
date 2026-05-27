@@ -83,10 +83,20 @@ const cli = defineCli({
     run: {
       description: 'Execute a spec file against the running daemon',
       positionals: [{ name: 'file', required: true, description: 'Spec path' }],
-      flags: clientFlags(),
+      flags: {
+        ...clientFlags(),
+        db: {
+          type: 'string' as const,
+          description:
+            "Route this run's logs to .davstack/logs/<db>.db via the davstack-logs.db attribute (logs-server 2.0+)",
+        },
+      },
       run: async (ctx) => {
         const { runFile } = await import('./client.js');
-        const result = await runFile(ctx.positionals[0], clientOpts(ctx.flags));
+        const db = ctx.flags.db as string | undefined;
+        const result = await runFile(ctx.positionals[0], clientOpts(ctx.flags), {
+          db: db && db.length > 0 ? db : undefined,
+        });
         console.log(JSON.stringify(result, null, 2));
         return result.ok ? 0 : 1;
       },

@@ -62,7 +62,8 @@ export function startServer(opts: ServeOpts): Server {
       if (req.method === 'POST' && url.pathname === '/run') {
         const body = await readBody(req);
         if (!body.file) return send(res, 400, { ok: false, error: "missing 'file'" });
-        return send(res, 200, await session.runOnce(String(body.file)));
+        const db = typeof body.db === 'string' && body.db.length > 0 ? body.db : undefined;
+        return send(res, 200, await session.runOnce(String(body.file), { db }));
       }
       if (req.method === 'POST' && url.pathname === '/refresh-auth') {
         const r = await session.refreshAuth();

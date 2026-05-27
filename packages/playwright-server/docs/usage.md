@@ -16,6 +16,18 @@ Two layers:
 | `health` | Liveness check. Returns `{ ok, pid, url }`. |
 | `shutdown` | Gracefully close the browser and exit the daemon. |
 
+### Routing this run's logs to a session DB
+
+Pass `--db=<name>` to seed `window.__davstack_db` before the page boots:
+
+```bash
+playwright-server run --db=reorder-bug e2e/reorder-flow.spec.ts
+```
+
+When the consumer's `Sentry.init` stamps `davstack-logs.db` in its `beforeSendLog` (3-line addition — see `@davstack/logs-server` `docs/transmitter-wiring.md`), every log this spec emits lands in `.davstack/logs/reorder-bug.db` instead of `default.db`. Omit the flag and logs route to `default.db` as usual.
+
+The daemon installs a context-level `addInitScript` so the value survives mid-spec navigations and re-seeds itself on every new document load. The value persists for subsequent runs until you pass a different `--db` or restart the daemon.
+
 `run <file>` shape (from `RunResult`):
 
 ```json
