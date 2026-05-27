@@ -33,6 +33,16 @@ $ logs-server query filter --grep "clicked save"
 2026-05-21T13:51:32  debug  app  r-99  user clicked save  {"user_id":42}
 ```
 
+For non-trivial cuts, query sqlite directly via the `logs_v` view (flat `attrs` column strips the OTel `{value,type}` wrapper):
+
+```sql
+-- sqlite3 .davstack/logs.db
+SELECT ts, msg, json_extract(attrs, '$.user_id') AS user_id
+FROM logs_v
+WHERE json_extract(data, '$.body') LIKE '%clicked save%'
+ORDER BY ts;
+```
+
 ## Docs
 
 - [docs/setup.md](./docs/setup.md) — config file, env vars, runtime selection

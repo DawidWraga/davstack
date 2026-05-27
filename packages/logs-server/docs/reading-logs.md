@@ -29,6 +29,13 @@ logs(
 
 Indexed on `(project, run_id, trace_id, level, ts)`.
 
+### View: `logs_v`
+
+A read-side overlay over `logs` with two extra columns. Same `WHERE`/`ORDER BY`/index behaviour — query it like the base table.
+
+- `attrs` — flat key→value map, OTel `{value, type}` wrapper stripped. Reach in with `json_extract(attrs, '$.<key>')` instead of `data.attributes.<key>.value`.
+- `raw_attrs` — `json_extract(data, '$.attributes')`, the typed envelope one path-level shallower than `data.attributes`. Use when you need the OTel `type` discriminator.
+
 ## `data` shape
 
 `data` is the Sentry log record kept verbatim. Structured attributes are wrapped per-key by the OTel transmitter as `{value, type}`:
@@ -47,7 +54,7 @@ stored as:
   } }
 ```
 
-So probe payloads sit at `data.attributes.<key>.value`. The `{value, type}` wrapper is OTel-standard ergonomic tax — issue [#52](https://github.com/DawidWraga/davstack/issues/52) tracks flattening it.
+So probe payloads sit at `data.attributes.<key>.value`. The `{value, type}` wrapper is OTel-standard ergonomic tax — `logs_v` exposes the flat form via the `attrs` column (`json_extract(attrs, '$.<key>')`), with `raw_attrs` keeping the typed envelope one path-level shallower if you need it.
 
 ## Recipes
 
@@ -57,10 +64,10 @@ The killer recipe — pick exactly the projection you need from `data.attributes
 
 ```sql
 SELECT ts,
-       json_extract(data, '$.body')                       AS msg,
-       json_extract(data, '$.attributes.seam.value')      AS seam,
-       json_extract(data, '$.attributes.row_count.value') AS row_count
-FROM logs
+       msg,
+       json_extract(attrs, '$.seam')      AS seam,
+       json_extract(attrs, '$.row_count') AS row_count
+FROM logs_v
 WHERE ts > :baseline
   AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
 ORDER BY ts;
@@ -72,8 +79,8 @@ Capture `:baseline` with `SELECT MAX(ts) FROM logs` before kicking off the repro
 
 ```sql
 SELECT count(*) AS n,
-       json_extract(data, '$.attributes.seam.value') AS seam
-FROM logs
+       json_extract(attrs, '$.seam') AS seam
+FROM logs_v
 WHERE ts > :baseline
   AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
 GROUP BY seam

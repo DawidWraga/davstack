@@ -60,6 +60,21 @@ export function openDb(path: string): Database {
     `CREATE INDEX IF NOT EXISTS idx_logs_corr
        ON logs (project, run_id, trace_id, level, ts)`,
   );
+  // Read-side overlay (#52): expose `attrs` (OTel {value,type} wrapper
+  // stripped, flat key→value) and `raw_attrs` (the typed envelope, one path
+  // level shallower than `data.attributes`). View-only — base `logs` table
+  // unchanged, zero migration. Generated columns can't iterate JSON keys, so
+  // this is a view.
+  db.exec(
+    `CREATE VIEW IF NOT EXISTS logs_v AS
+     SELECT l.*,
+            json_extract(l.data, '$.attributes') AS raw_attrs,
+            CASE WHEN json_extract(l.data, '$.attributes') IS NULL THEN NULL
+                 ELSE (SELECT json_group_object(je.key, json_extract(je.value, '$.value'))
+                       FROM json_each(json_extract(l.data, '$.attributes')) AS je)
+            END AS attrs
+     FROM logs l`,
+  );
   return db;
 }
 

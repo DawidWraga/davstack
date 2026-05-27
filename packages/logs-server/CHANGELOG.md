@@ -1,5 +1,24 @@
 # @davstack/logs-server
 
+## 1.4.0
+
+### Minor Changes
+
+- Add `logs_v` view: a read-side overlay over `logs` that exposes two extra
+  columns derived from `data`:
+
+  - `attrs` — the flat attributes map with the OTel `{value, type}` wrapper
+    stripped, e.g. `{"seam": "after-fetch", "row_count": 42}`. Reach into it
+    with `json_extract(attrs, '$.<key>')` instead of the four-segment
+    `json_extract(data, '$.attributes.<key>.value')` dance.
+  - `raw_attrs` — `json_extract(data, '$.attributes')`, i.e. the full typed
+    envelope one path-level shallower than `data.attributes`. Use when you
+    actually need the OTel `type` discriminator.
+
+  Created idempotently at `openDb()` time. The base `logs` table is unchanged
+  — view-only schema overlay, zero data migration.
+  ([#52](https://github.com/DawidWraga/davstack/issues/52))
+
 ## 1.3.2
 
 ### Patch Changes
