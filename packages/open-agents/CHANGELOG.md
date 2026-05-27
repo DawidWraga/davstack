@@ -1,5 +1,15 @@
 # @davstack/open-agents
 
+## 1.2.1
+
+### Patch Changes
+
+- Emit a tail-stable `RESULT_PATH: <abs path>` sentinel on stdout (one per job) as the final write in `submit`, after `adapter.postExit` (Issue 48):
+
+  - When the parent runner captures only the last few KB of our stdout (e.g. Claude Code's backgrounded-subagent `.output` file tail-truncates around ~1.3KB), the existing `result → <path>` line at the top of the inline body gets sliced off.
+  - The new sentinel sits below `postExit` chatter so it is the very last line(s) of stdout — one grep recovers the deliverable pointer regardless of how aggressively the transport truncates.
+  - No change to the existing `result → <path>` header or the inlined `--- deliverable ---` body; this is additive.
+
 ## 1.2.0
 
 ### Minor Changes

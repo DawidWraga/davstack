@@ -276,6 +276,15 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
     );
   }
   adapter.postExit(repoPath, preToken);
+  // Tail-stable sentinel: when a parent runner captures only the last few KB
+  // of our stdout (e.g. Claude Code's backgrounded-subagent `.output` file
+  // tail-truncates around ~1.3KB), the `result → <path>` header line is far
+  // too high in the body to survive. Emit one `RESULT_PATH:` line per job as
+  // the very last thing on stdout so a single grep recovers the pointer
+  // regardless of how aggressively the transport truncates.
+  for (const p of paths) {
+    process.stdout.write(`RESULT_PATH: ${p}\n`);
+  }
   process.exit(worst);
 }
 
