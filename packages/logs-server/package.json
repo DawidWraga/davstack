@@ -1,9 +1,9 @@
 {
   "name": "@davstack/logs-server",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "MIT",
   "type": "module",
-  "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite, query by trace_id/run_id/level.",
+  "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite. Read with sqlite3 against the logs_v view.",
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "tsup",

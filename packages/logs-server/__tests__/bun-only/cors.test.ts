@@ -4,9 +4,8 @@
 // Access-Control-Allow-* or the actual POST is blocked.
 
 import { test, expect, afterEach } from 'bun:test';
-import { openDb } from '../../src/db.ts';
+import { openDb, type LogRow } from '../../src/db.ts';
 import { startServer } from '../../src/server.ts';
-import { filterLogs } from '../../src/query.ts';
 import type { ServerConfig } from '../../src/config.ts';
 
 const stops: Array<() => void> = [];
@@ -95,6 +94,8 @@ test('default policy: actual POST writes row AND carries Access-Control-Allow-Or
   });
   expect(res.status).toBe(200);
   expect(res.headers.get('access-control-allow-origin')).toBe('*');
-  const rows = filterLogs(db, { project: 'cors-test' });
+  const rows = db
+    .query('SELECT * FROM logs WHERE project = ? ORDER BY ts, id')
+    .all('cors-test') as LogRow[];
   expect(rows.map((r) => r.msg)).toEqual(['cors-post-test']);
 });

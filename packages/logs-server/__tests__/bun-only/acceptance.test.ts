@@ -3,15 +3,31 @@
 // discipline — exercise the wire, not a synthetic shortcut), with two
 // `diag.project`s sharing a `trace_id`, and proves: correlated retrieval is
 // exact and project-scoped even on the shared trace; the sink never 5xx's on
-// garbage; prune evicts by server clock; and the `diag` CLI runs end-to-end.
+// garbage; and prune evicts by server clock.
 
-import { test, expect, afterEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { openDb, prune } from '../src/db.js';
+import { test, expect } from 'bun:test';
+import { openDb, prune, selectByTrace, type LogRow } from '../src/db.js';
 import { startServer } from '../src/server.js';
-import { traceAssembly, errorContext } from '../src/query.js';
+
+// Local error-context helper — replaces removed src/query.ts. Centers a ±N
+// window on each error row and clamps at edges, scoped via selectByTrace.
+function errorContext(
+  db: ReturnType<typeof openDb>,
+  o: { project: string; trace_id: string; context?: number },
+): { error: LogRow; window: LogRow[] }[] {
+  const ctx = o.context ?? 3;
+  const rows = selectByTrace(db, o.project, o.trace_id);
+  const out: { error: LogRow; window: LogRow[] }[] = [];
+  rows.forEach((r, i) => {
+    if (r.level === 'error' || r.level === 'fatal') {
+      out.push({
+        error: r,
+        window: rows.slice(Math.max(0, i - ctx), Math.min(rows.length, i + ctx + 1)),
+      });
+    }
+  });
+  return out;
+}
 
 const SHARED = '0123456789abcdef0123456789abcdef';
 
@@ -36,11 +52,6 @@ function envelope(project: string, items: Record<string, unknown>[], sdk = 'sent
   ].join('\n');
 }
 
-const tmps: string[] = [];
-afterEach(() => {
-  while (tmps.length) rmSync(tmps.pop()!, { recursive: true, force: true });
-});
-
 test('end-to-end: real HTTP ingest, project-scoped on a shared trace, prune', async () => {
   const db = openDb(':memory:');
   const srv = startServer({ db, port: 0 });
@@ -61,9 +72,9 @@ test('end-to-end: real HTTP ingest, project-scoped on a shared trace, prune', as
     expect(rg.status).toBe(200);
 
     // correlated slice is exact and project-scoped despite the shared trace
-    const a = traceAssembly(db, { project: 'proj-a', trace_id: SHARED });
+    const a = selectByTrace(db, 'proj-a', SHARED);
     expect(a.map((r) => r.msg)).toEqual(['a-info', 'a-boom']);
-    const b = traceAssembly(db, { project: 'proj-b', trace_id: SHARED });
+    const b = selectByTrace(db, 'proj-b', SHARED);
     expect(b.map((r) => r.msg)).toEqual(['b-only']);
     expect(b[0].service).toBe('sentry.javascript.browser');
 
@@ -95,31 +106,10 @@ test('end-to-end: gzipped envelope with Content-Encoding (the real Python-SDK pa
       body: gz,
     });
     expect(res.status).toBe(200);
-    const rows = traceAssembly(db, { project: 'proj-gz', trace_id: SHARED });
+    const rows = selectByTrace(db, 'proj-gz', SHARED);
     expect(rows.map((r) => r.msg)).toEqual(['gzipped-line']);
   } finally {
     srv.stop();
   }
 });
 
-test('the log-server CLI runs end-to-end against a file DB', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'diag-acc-'));
-  tmps.push(dir);
-  const dbFile = join(dir, 'diag.sqlite');
-  // seed via the storage layer, then query through the CLI process
-  const db = openDb(dbFile);
-  db.exec(
-    `INSERT INTO logs (ts,recv_ts,project,service,run_id,trace_id,span_id,level,severity_number,logger,msg,data,tag)
-     VALUES (1,1,'p','sentry.python','run-9','tr','', 'error',17,'auto','cli-sees-this','{}',NULL)`,
-  );
-  db.close();
-
-  const proc = Bun.spawn(
-    ['bun', join(import.meta.dir, '..', 'index.ts'), 'query', 'run', '--project', 'p', '--run', 'run-9'],
-    { env: { ...process.env, DIAG_DB: dbFile }, stdout: 'pipe', stderr: 'pipe' },
-  );
-  const out = await new Response(proc.stdout).text();
-  await proc.exited;
-  expect(proc.exitCode).toBe(0);
-  expect(out).toContain('cli-sees-this');
-});
