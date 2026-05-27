@@ -1,5 +1,53 @@
 # @davstack/logs-server
 
+## 2.0.0
+
+### Major Changes
+
+- Multi-DB log routing via the `davstack-logs.db` Sentry log attribute.
+  Transmitters that stamp the attribute on a log envelope cause the daemon to
+  dispatch that row to `.davstack/logs/<value>.db`; un-tagged emissions land
+  in `.davstack/logs/default.db`. The DB file IS the session boundary —
+  cross-session noise disappears, eval runs can co-locate logs with their
+  artifacts, and each session DB hosts its own SQL views with cleanup via
+  `rm`. ([#51](https://github.com/DawidWraga/davstack/issues/51))
+
+  **Breaking change: default DB path moved.** Pre-2.0 used a single
+  `<repo-root>/.davstack/logs.db`; 2.0+ uses
+  `<repo-root>/.davstack/logs/default.db`. Migration is one command:
+
+  ```bash
+  mv .davstack/logs.db .davstack/logs/default.db
+  ```
+
+  `logs-server check` flags the legacy file's presence and prints the exact
+  `mv` invocation. Existing scripts that hardcode `.davstack/logs.db` need
+  the path updated. Pinning the daemon to a single file with `--db <path>`,
+  `DIAG_DB`, or `dbPath` in config still works and disables the dispatch
+  layer — useful for eval runs that co-locate logs outside the repo's
+  standard layout.
+
+  Internals:
+
+  - New `DbHandleCache`: per-path `Database` handles with a 30-min idle close.
+  - New `resolveRoutedDb`: validates the routing attribute (lowercase alnum
+    plus `-`/`_`/`.`/`..` per segment; rejects absolute paths and repo-root
+    escapes; warn-once-per-value on reject, falls back to `default.db` so
+    misconfigured transmitters never lose rows).
+  - `envelope.ts` strips the routing attribute from `data` before persistence
+    so nothing inside a row records which DB it landed in.
+  - `prune` walks every `.davstack/logs/*.db` by default (unchanged semantics
+    versus the pre-2.0 "prune the one DB" behaviour); `--db <path>` pins to a
+    single file.
+
+  New docs:
+
+  - [`docs/transmitter-wiring.md`](./docs/transmitter-wiring.md) — the
+    3-line consumer addition to your existing `Sentry.init` + the runner-flag
+    side (`playwright-server --db=<name>`).
+  - [`docs/session-views.md`](./docs/session-views.md) — per-DB SQL views,
+    `dbg_` prefix convention, and the cleanup-via-`rm` lifecycle.
+
 ## 1.4.0
 
 ### Minor Changes
