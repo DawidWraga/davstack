@@ -111,3 +111,39 @@ test('empty / whitespace body never throws and yields nothing', () => {
     expect(skipped).toBe(0);
   }
 });
+
+// Multi-DB routing: the `davstack-logs.db` attribute is the wire that tells the
+// daemon which file to drop the row into. It is consumed by the dispatch loop
+// and stripped before persistence — the DB file is the session indicator, and
+// nothing inside the row should record which bucket it landed in.
+
+test('surfaces the davstack-logs.db attribute as routeDb', () => {
+  const { rows } = parseEnvelope(
+    envelope([log({ attributes: { 'davstack-logs.db': a('reorder-bug') } })]),
+  );
+  expect(rows[0].routeDb).toBe('reorder-bug');
+});
+
+test('strips the davstack-logs.db attribute from persisted data', () => {
+  const { rows } = parseEnvelope(
+    envelope([
+      log({
+        body: 'p',
+        attributes: {
+          'davstack-logs.db': a('reorder-bug'),
+          'diag.project': a('proj'),
+          'diag.run_id': a('r-1'),
+        },
+      }),
+    ]),
+  );
+  const persisted = JSON.parse(rows[0].data) as { attributes: Record<string, unknown> };
+  expect(persisted.attributes['davstack-logs.db']).toBeUndefined();
+  expect(persisted.attributes['diag.project']).toEqual(a('proj'));
+  expect(persisted.attributes['diag.run_id']).toEqual(a('r-1'));
+});
+
+test('routeDb is undefined when no attribute is set (back-compat baseline)', () => {
+  const { rows } = parseEnvelope(envelope([log()]));
+  expect(rows[0].routeDb).toBeUndefined();
+});
