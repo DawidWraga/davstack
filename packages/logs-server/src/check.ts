@@ -11,7 +11,11 @@
 import { existsSync, statSync } from 'node:fs';
 import { findRepoRoot, findToolConfig } from '@davstack/cli-utils/config';
 import { loadConfig } from './config.js';
-import { dbPath as resolveDbPath } from './paths.js';
+import {
+  dbPath as resolveDbPath,
+  defaultDbPathForRepo,
+  legacyDbPathForRepo,
+} from './paths.js';
 
 const REQUIRED_NODE_MAJOR = 20;
 
@@ -21,6 +25,7 @@ type CheckResult = {
   daemon: { ok: boolean; running: boolean; url: string; fix?: string };
   config: { ok: boolean; source?: string; repoRoot?: string };
   db: { ok: boolean; path: string; exists: boolean; totalRows?: number; recentRows?: number; recentWindowMs: number; fix?: string };
+  legacy: { ok: boolean; present: boolean; path: string; fix?: string };
 };
 
 function checkNode(): CheckResult['node'] {
@@ -154,8 +159,14 @@ export async function runCheck(opts: {
   const host = opts.host ?? process.env.DIAG_HOST ?? cfg.host ?? '127.0.0.1';
   const envPort = process.env.DIAG_PORT ? Number(process.env.DIAG_PORT) : undefined;
   const port = opts.port ?? envPort ?? cfg.port ?? 7077;
+  const repoRoot = cfg._repoRoot ?? findRepoRoot(cwd);
   const configDbPath = cfg._dbPathResolved ?? cfg.dbPath;
-  const file = resolveDbPath(opts.db ?? configDbPath);
+  // No --db / config override → use the new default `<repo>/.davstack/logs/default.db`.
+  const file = opts.db
+    ? resolveDbPath(opts.db)
+    : configDbPath
+      ? resolveDbPath(configDbPath)
+      : defaultDbPathForRepo(repoRoot);
 
   const result: CheckResult = {
     ok: true,
@@ -163,6 +174,7 @@ export async function runCheck(opts: {
     daemon: await checkDaemon(host, port),
     config: checkConfig(cwd),
     db: await checkDb(file),
+    legacy: checkLegacy(repoRoot),
   };
   // Node is the only load-bearing gate. Daemon/db are info — agents inspect
   // and act accordingly.
@@ -197,9 +209,25 @@ export async function runCheck(opts: {
   if (!result.daemon.running && result.daemon.fix) {
     lines.push(`                          ${result.daemon.fix}`);
   }
+  if (result.legacy.present) {
+    lines.push(`  ${rowGlyph({ ok: true, fix: result.legacy.fix })} Legacy DB            ${result.legacy.path}`);
+    lines.push(`                          ${result.legacy.fix}`);
+  }
   lines.push('');
   process.stdout.write(lines.join('\n'));
   return result.ok ? 0 : 1;
+}
+
+function checkLegacy(repoRoot: string): CheckResult['legacy'] {
+  const legacy = legacyDbPathForRepo(repoRoot);
+  if (!existsSync(legacy)) return { ok: true, present: false, path: legacy };
+  const target = defaultDbPathForRepo(repoRoot);
+  return {
+    ok: true,
+    present: true,
+    path: legacy,
+    fix: `legacy single-DB file present — move it: \`mv ${legacy} ${target}\``,
+  };
 }
 
 export type { CheckResult };
