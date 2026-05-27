@@ -1,5 +1,13 @@
 # @davstack/tui
 
+## 0.3.2
+
+### Patch Changes
+
+- Re-publish of 0.3.1 — the previous publish went via `npm publish` and shipped `"@davstack/open-agents": "workspace:*"` literally in the manifest, which is unresolvable for end-users. This release is published via `pnpm publish`, which rewrites `workspace:*` to a pinned version. No code changes vs 0.3.1. 0.3.1 will be deprecated.
+- Updated dependencies
+  - @davstack/open-agents@1.2.2
+
 ## 0.3.1
 
 ### Patch Changes

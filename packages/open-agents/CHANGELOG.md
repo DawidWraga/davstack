@@ -1,5 +1,11 @@
 # @davstack/open-agents
 
+## 1.2.2
+
+### Patch Changes
+
+- Re-publish of 1.2.1 — the previous publish went via `npm publish` and shipped `"@davstack/cli-utils": "workspace:*"` literally in the manifest, which is unresolvable for end-users. This release is published via `pnpm publish`, which rewrites `workspace:*` to a pinned version. No code changes vs 1.2.1. 1.2.1 will be deprecated.
+
 ## 1.2.1
 
 ### Patch Changes
