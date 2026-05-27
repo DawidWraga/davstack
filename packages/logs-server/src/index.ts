@@ -10,7 +10,7 @@
 // Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`
 // — the canned-cuts CLI verb was removed in 2.1.0 because it couldn't reach
 // structured probe attributes and cost ~10× sqlite's cold-boot. Recipes and
-// the `logs_v` overlay (flat `attrs` column) live in
+// the flat `attrs` column (populated at insert time as of 2.2.0) live in
 // packages/logs-server/docs/reading-logs.md.
 
 import { defineCli } from '@davstack/cli-utils';

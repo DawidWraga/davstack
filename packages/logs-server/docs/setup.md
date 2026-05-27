@@ -98,7 +98,7 @@ Source + supported platforms: <https://github.com/getsentry/sentry-for-ai>
 
 ### C. Optional — cloud Sentry for prod triage
 
-Local-only works with **zero cloud auth, zero payments**. With cloud added, the loop becomes: prod issue → cloud UI → grab `trace_id` → reproduce locally → `sqlite3 .davstack/logs/default.db "SELECT * FROM logs_v WHERE trace_id = '<id>' ORDER BY ts"` for the full debug-level timeline.
+Local-only works with **zero cloud auth, zero payments**. With cloud added, the loop becomes: prod issue → cloud UI → grab `trace_id` → reproduce locally → `sqlite3 .davstack/logs/default.db "SELECT * FROM logs WHERE trace_id = '<id>' ORDER BY ts"` for the full debug-level timeline.
 
 ```bash
 npm i -g @sentry/cli && sentry-cli login

@@ -28,12 +28,12 @@ pnpm exec logs-server serve
 logger.debug("user clicked save", { user_id: 42, run_id: "r-99" })
 ```
 
-Read the store directly with `sqlite3` against the `logs_v` view (flat `attrs` column strips the OTel `{value,type}` wrapper):
+Read the store directly with `sqlite3`. The `attrs` column is a flat key→value JSON populated at insert time — the OTel `{value, type}` wrapper is stripped, so probe payloads are one `json_extract` away:
 
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT ts, msg, json_extract(attrs, '\$.user_id') AS user_id
-  FROM logs_v
+  FROM logs
   WHERE json_extract(data, '\$.body') LIKE '%clicked save%'
   ORDER BY ts;
 "
@@ -49,6 +49,6 @@ ts          msg                user_id
 
 - [docs/setup.md](./docs/setup.md) — config file, env vars, runtime selection
 - [docs/writing-logs.md](./docs/writing-logs.md) — transmitter setup per SDK
-- [docs/reading-logs.md](./docs/reading-logs.md) — sqlite schema, the `logs_v` view, and ready-to-paste recipes
+- [docs/reading-logs.md](./docs/reading-logs.md) — sqlite schema, the flat `attrs` column, and ready-to-paste recipes
 - [docs/transmitter-wiring.md](./docs/transmitter-wiring.md) — route a session's logs to its own DB via the `davstack-logs.db` attribute
 - [docs/session-views.md](./docs/session-views.md) — per-DB SQL views, the high-value follow-up to multi-DB routing

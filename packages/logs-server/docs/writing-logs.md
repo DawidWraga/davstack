@@ -62,7 +62,7 @@ When debugging, the receiver gives you a fast loop:
    ```bash
    sqlite3 -header -column .davstack/logs/default.db "
      SELECT ts, msg, json_extract(attrs, '\$.tags') AS tags
-     FROM logs_v
+     FROM logs
      WHERE run_id = '<id>'
        AND json_extract(attrs, '\$.tags') LIKE '%H3%'
      ORDER BY ts;
@@ -84,7 +84,7 @@ It's fine to log entire state trees, query ASTs, GraphQL responses, etc. Storage
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT ts, json_extract(data, '\$.next') AS next
-  FROM logs_v
+  FROM logs
   WHERE msg LIKE 'panel-ctx.update%'
   ORDER BY ts;
 "

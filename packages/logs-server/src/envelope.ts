@@ -37,6 +37,18 @@ function attrVal(attrs: Record<string, Attr> | undefined, key: string): unknown 
   return attrs && attrs[key] ? attrs[key].value : undefined;
 }
 
+// Flatten OTel-wrapped attributes into a plain key→value map. Returns null
+// when there's nothing to flatten — matches the old logs_v view's CASE
+// semantics (NULL for missing-or-empty, not "{}").
+function flattenAttrs(attrs: Record<string, Attr> | undefined): string | null {
+  if (!attrs) return null;
+  const keys = Object.keys(attrs);
+  if (keys.length === 0) return null;
+  const flat: Record<string, unknown> = {};
+  for (const k of keys) flat[k] = attrs[k]?.value;
+  return JSON.stringify(flat);
+}
+
 function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string): ParsedLog {
   const attrs = (rec.attributes as Record<string, Attr> | undefined) ?? undefined;
   const sev = rec.severity_number;
@@ -47,12 +59,14 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
   // copy of `attributes` so we don't mutate the caller's object.
   let routeDb: string | undefined;
   let recForPersist: Record<string, unknown> = rec;
+  let attrsForFlatten: Record<string, Attr> | undefined = attrs;
   if (attrs && ROUTE_DB_ATTR in attrs) {
     const v = attrs[ROUTE_DB_ATTR]?.value;
     if (typeof v === 'string' && v.length > 0) routeDb = v;
     const { [ROUTE_DB_ATTR]: _drop, ...rest } = attrs;
     void _drop;
     recForPersist = { ...rec, attributes: rest };
+    attrsForFlatten = rest;
   }
 
   return {
@@ -67,6 +81,7 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
     logger: strOr(attrVal(attrs, 'sentry.origin'), ''),
     msg: stripStyledLogPrefix(strOr(rec.body, '')),
     data: JSON.stringify(recForPersist), // verbatim — minus the routing key
+    attrs: flattenAttrs(attrsForFlatten),
     tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
     routeDb,
   };
