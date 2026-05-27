@@ -1,5 +1,34 @@
 # @davstack/logs-server
 
+## 2.1.0
+
+### Minor Changes
+
+- **BREAKING**: removed `logs-server query` CLI verb (subcommands `run`, `trace`,
+  `errors`, `filter`). Use `sqlite3 -header -column .davstack/logs/<db>` against
+  the `logs_v` view directly. The verb was already demoted in 1.3.2 docs as
+  "sanity / one-off greps only" — it grepped the `msg` body and could not reach
+  structured probe attributes (the whole point of the OTel envelope), and cost
+  ~10× sqlite's cold-boot. See [`docs/reading-logs.md`](./docs/reading-logs.md)
+  for ready-to-paste recipes against `logs_v`.
+
+  Migration:
+
+  ```bash
+  # before
+  logs-server query filter --grep "clicked save"
+
+  # after
+  sqlite3 -header -column .davstack/logs/default.db "
+    SELECT ts, msg, json_extract(attrs, '\$.user_id') AS user_id
+    FROM logs_v
+    WHERE msg LIKE '%clicked save%'
+    ORDER BY ts;
+  "
+  ```
+
+  `serve` / `check` / `prune` unchanged.
+
 ## 2.0.0
 
 ### Major Changes

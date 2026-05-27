@@ -60,7 +60,13 @@ When debugging, the receiver gives you a fast loop:
 3. **Reproduce, then slice:**
 
    ```bash
-   logs-server query filter --grep '"H3"' --run <id>
+   sqlite3 -header -column .davstack/logs/default.db "
+     SELECT ts, msg, json_extract(attrs, '\$.tags') AS tags
+     FROM logs_v
+     WHERE run_id = '<id>'
+       AND json_extract(attrs, '\$.tags') LIKE '%H3%'
+     ORDER BY ts;
+   "
    ```
 
    The timeline shows the actual ordering and payloads — not the assumed ones.
@@ -76,14 +82,19 @@ It's fine to log entire state trees, query ASTs, GraphQL responses, etc. Storage
 **The trade-off comes at query time**, not write time. When you later run:
 
 ```bash
-logs-server query filter --grep "panel-ctx.update" --json | jq '.[].data.next'
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT ts, json_extract(data, '\$.next') AS next
+  FROM logs_v
+  WHERE msg LIKE 'panel-ctx.update%'
+  ORDER BY ts;
+"
 ```
 
 …you'll be staring at a 2KB object per row. A few habits keep this manageable:
 
-- **Lead with `--grep` on the message name first**, then narrow on payload fields with `jq` / `json_extract`. Filtering on the indexed string first cuts the row set 10–100×.
+- **Filter on the indexed `msg` column first**, then project payload fields with `json_extract`. Narrowing on the indexed string first cuts the row set 10–100×.
 - **Prefer `json_extract(data, '$.next.entity')`** over dumping the whole `data` blob to terminal. The SQL recipes in [reading-logs.md](./reading-logs.md) show the shape.
-- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tags`, `hypothesis`, etc.) so `--grep '"H3"'` works without a `jq` pass.
+- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tags`, `hypothesis`, etc.) so the `WHERE json_extract(attrs, '$.tags') LIKE '%H3%'` cut works without a deep walk.
 
 ## What NOT to log
 

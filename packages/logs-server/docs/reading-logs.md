@@ -1,10 +1,14 @@
 # Reading logs
 
+`sqlite3` against `.davstack/logs/<db>` IS the read path. The standard incantation:
+
 ```bash
-sqlite3 .davstack/logs/default.db
+sqlite3 -header -column .davstack/logs/default.db "<SQL>"
 ```
 
-Structured probe attributes live inside `data` (a JSON blob), so any non-trivial cut needs `json_extract`. The CLI `query` verbs are pre-baked cuts for sanity checks; reach past them as soon as you want structured payloads, compound predicates, or aggregation.
+`-header` prints column names, `-column` aligns the output as a table. Structured probe attributes live inside `data` (a JSON blob), so any non-trivial cut needs `json_extract`. The `logs_v` view (below) gives you a pre-flattened `attrs` column so you don't have to walk the OTel `{value, type}` wrapper by hand.
+
+> The 1.x-era `logs-server query` CLI verb was removed in 2.1.0: it could only grep the `msg` body (couldn't reach structured probe attributes) and cost ~10× sqlite's cold-boot. Use sqlite3 directly.
 
 ## Choosing a DB
 
@@ -79,43 +83,51 @@ So probe payloads sit at `data.attributes.<key>.value`. The `{value, type}` wrap
 
 ## Recipes
 
+Each recipe is shown as the full one-shot `sqlite3 -header -column …` invocation; the SQL inside is the part you customize. Capture `BASELINE` once before the repro (`sqlite3 .davstack/logs/default.db "SELECT MAX(ts) FROM logs"`) and substitute it in.
+
 ### Probe-tag timeline with structured attributes
 
 The killer recipe — pick exactly the projection you need from `data.attributes`:
 
-```sql
-SELECT ts,
-       msg,
-       json_extract(attrs, '$.seam')      AS seam,
-       json_extract(attrs, '$.row_count') AS row_count
-FROM logs_v
-WHERE ts > :baseline
-  AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
-ORDER BY ts;
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT ts,
+         msg,
+         json_extract(attrs, '\$.seam')      AS seam,
+         json_extract(attrs, '\$.row_count') AS row_count
+  FROM logs_v
+  WHERE ts > $BASELINE
+    AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
+  ORDER BY ts;
+"
 ```
 
-Capture `:baseline` with `SELECT MAX(ts) FROM logs` before kicking off the repro, then query relative to it. ([#51](https://github.com/DawidWraga/davstack/issues/51) tracks first-class iteration scoping.)
+([#51](https://github.com/DawidWraga/davstack/issues/51) tracks first-class iteration scoping.)
 
 ### Seam histogram (runaway-loop sanity check)
 
-```sql
-SELECT count(*) AS n,
-       json_extract(attrs, '$.seam') AS seam
-FROM logs_v
-WHERE ts > :baseline
-  AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
-GROUP BY seam
-ORDER BY n DESC;
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT count(*) AS n,
+         json_extract(attrs, '\$.seam') AS seam
+  FROM logs_v
+  WHERE ts > $BASELINE
+    AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
+  GROUP BY seam
+  ORDER BY n DESC;
+"
 ```
 
-### Last N (`--limit` returns ascending; sqlite to the rescue)
+### Last N errors
 
-```sql
-SELECT ts, level, msg
-FROM logs
-WHERE level = 'error'
-ORDER BY ts DESC
-LIMIT 20;
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT ts, level, msg
+  FROM logs
+  WHERE level = 'error'
+  ORDER BY ts DESC
+  LIMIT 20;
+"
 ```
 
 ## Pruning

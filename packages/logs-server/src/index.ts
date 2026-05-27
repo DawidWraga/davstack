@@ -1,157 +1,27 @@
-// log-server — local Sentry log-ingest endpoint + correlation-keyed query CLI.
+// log-server — local Sentry log-ingest endpoint.
 // (Historic CLI names: `diag`, then `log-sink`. Env var prefixes stay
 // DIAG_* for back-compat with existing user/repo setups.)
 //
 // Verbs:
 //   serve         boot the ingest endpoint
-//   query run     timeline for one run_id
-//   query trace   assembly for one trace_id
-//   query errors  errors with surrounding context
-//   query filter  generic level/grep/run/trace filter
 //   prune         delete rows older than --days / --max-age-ms
 //   check         validate local install (node, config, db rows, daemon liveness)
 //
-// Output defaults to compact (one line per row, agent-consumable); --human
-// groups by service. The DB is the one shared store (notes 03).
-//
-// Raw sqlite escape hatch: DB path is $DIAG_DB (default ~/.davstack/diag.sqlite).
-// Schema: logs(id, ts, project, run_id, trace_id, level, msg, data_json, …).
-// Use sqlite directly for ad-hoc queries the CLI's pre-baked cuts don't cover.
+// Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`
+// — the canned-cuts CLI verb was removed in 2.1.0 because it couldn't reach
+// structured probe attributes and cost ~10× sqlite's cold-boot. Recipes and
+// the `logs_v` overlay (flat `attrs` column) live in
+// packages/logs-server/docs/reading-logs.md.
 
-import { defineCli, type CommandSpec } from '@davstack/cli-utils';
+import { defineCli } from '@davstack/cli-utils';
 
 function dbFlag() {
   return { type: 'string' as const, description: 'Path to the log-server sqlite db', env: 'DIAG_DB' };
 }
 
-function outputFlags() {
-  return {
-    json: { type: 'boolean' as const, default: false, description: 'JSON output' },
-    human: { type: 'boolean' as const, default: false, description: 'Group by service' },
-  };
-}
-
-// Resolve the DB path with full precedence: CLI flag > DIAG_DB env > config
-// file > built-in default. Used by every verb so query/prune/serve share the
-// same source of truth and don't accidentally hit different DBs.
-async function resolveDbPath(flagDb: string | undefined): Promise<string> {
-  const { dbPath } = await import('./paths.js');
-  if (flagDb && flagDb.trim()) return dbPath(flagDb);
-  if (process.env.DIAG_DB && process.env.DIAG_DB.trim()) return dbPath();
-  const { loadConfig } = await import('./config.js');
-  const cfg = await loadConfig(process.cwd());
-  if (cfg._dbPathResolved) return cfg._dbPathResolved;
-  if (cfg.dbPath) return dbPath(cfg.dbPath);
-  return dbPath();
-}
-
-const queryRun: CommandSpec = {
-  description: 'Timeline for one run_id',
-  flags: {
-    db: dbFlag(),
-    project: { type: 'string', required: true },
-    run: { type: 'string', required: true },
-    ...outputFlags(),
-  },
-  run: async (ctx) => {
-    const { openDb } = await import('./db.js');
-    const { runTimeline, format } = await import('./query.js');
-    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
-    const rows = runTimeline(db, {
-      project: ctx.flags.project as string,
-      run_id: ctx.flags.run as string,
-    });
-    emit(rows, ctx.flags, format);
-    return 0;
-  },
-};
-
-const queryTrace: CommandSpec = {
-  description: 'Assembly for one trace_id',
-  flags: {
-    db: dbFlag(),
-    project: { type: 'string', required: true },
-    trace: { type: 'string', required: true },
-    ...outputFlags(),
-  },
-  run: async (ctx) => {
-    const { openDb } = await import('./db.js');
-    const { traceAssembly, format } = await import('./query.js');
-    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
-    const rows = traceAssembly(db, {
-      project: ctx.flags.project as string,
-      trace_id: ctx.flags.trace as string,
-    });
-    emit(rows, ctx.flags, format);
-    return 0;
-  },
-};
-
-const queryErrors: CommandSpec = {
-  description: 'Errors with surrounding context',
-  flags: {
-    db: dbFlag(),
-    project: { type: 'string', required: true },
-    trace: { type: 'string' },
-    run: { type: 'string' },
-    context: { type: 'number' },
-    json: { type: 'boolean', default: false },
-    human: { type: 'boolean', default: false },
-  },
-  run: async (ctx) => {
-    const { openDb } = await import('./db.js');
-    const { errorContext, format } = await import('./query.js');
-    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
-    const groups = errorContext(db, {
-      project: ctx.flags.project as string,
-      trace_id: ctx.flags.trace as string | undefined,
-      run_id: ctx.flags.run as string | undefined,
-      context: ctx.flags.context as number | undefined,
-    });
-    if (ctx.flags.json) {
-      process.stdout.write(JSON.stringify(groups, null, 2) + '\n');
-    } else {
-      for (const g of groups) {
-        process.stdout.write(`\n══ error: ${g.error.msg} ══\n`);
-        process.stdout.write(format(g.window, { compact: !ctx.flags.human }));
-      }
-    }
-    return 0;
-  },
-};
-
-const queryFilter: CommandSpec = {
-  description: 'Generic level/grep/run/trace filter',
-  flags: {
-    db: dbFlag(),
-    project: { type: 'string' },
-    level: { type: 'string' },
-    grep: { type: 'string' },
-    run: { type: 'string' },
-    trace: { type: 'string' },
-    limit: { type: 'number' },
-    ...outputFlags(),
-  },
-  run: async (ctx) => {
-    const { openDb } = await import('./db.js');
-    const { filterLogs, format } = await import('./query.js');
-    const db = openDb(await resolveDbPath(ctx.flags.db as string | undefined));
-    const rows = filterLogs(db, {
-      project: ctx.flags.project as string | undefined,
-      level: ctx.flags.level as string | undefined,
-      grep: ctx.flags.grep as string | undefined,
-      run_id: ctx.flags.run as string | undefined,
-      trace_id: ctx.flags.trace as string | undefined,
-      limit: ctx.flags.limit as number | undefined,
-    });
-    emit(rows, ctx.flags, format);
-    return 0;
-  },
-};
-
 const cli = defineCli({
   name: 'logs-server',
-  description: 'Local Sentry-shaped log ingest + correlation-keyed query CLI.',
+  description: 'Local Sentry-shaped log ingest. Read the store with sqlite3 against .davstack/logs/<db> (see docs/reading-logs.md).',
   commands: {
     serve: {
       description: 'Boot the log-ingest HTTP endpoint',
@@ -239,16 +109,6 @@ const cli = defineCli({
         return new Promise<number>(() => {});
       },
     },
-    query: {
-      description:
-        'Pre-baked cuts of the log store (sanity / one-off greps). For anything non-trivial — structured probe attributes, compound predicates, aggregation — query .davstack/logs.db directly with sqlite. See packages/logs-server/docs/reading-logs.md.',
-      commands: {
-        run: queryRun,
-        trace: queryTrace,
-        errors: queryErrors,
-        filter: queryFilter,
-      },
-    },
     check: {
       description: 'Validate local install (node, config, db rows, daemon liveness)',
       flags: {
@@ -320,18 +180,6 @@ const cli = defineCli({
     },
   },
 });
-
-function emit(
-  rows: unknown[],
-  flags: Record<string, unknown>,
-  format: (rows: any, opts: { compact: boolean }) => string,
-): void {
-  if (flags.json) {
-    process.stdout.write(JSON.stringify(rows, null, 2) + '\n');
-  } else {
-    process.stdout.write(format(rows, { compact: !flags.human }));
-  }
-}
 
 const code = await cli.run(process.argv.slice(2));
 process.exit(code);

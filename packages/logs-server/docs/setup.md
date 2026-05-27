@@ -98,7 +98,7 @@ Source + supported platforms: <https://github.com/getsentry/sentry-for-ai>
 
 ### C. Optional — cloud Sentry for prod triage
 
-Local-only works with **zero cloud auth, zero payments**. With cloud added, the loop becomes: prod issue → cloud UI → grab `trace_id` → reproduce locally → `query trace` for the full debug-level timeline.
+Local-only works with **zero cloud auth, zero payments**. With cloud added, the loop becomes: prod issue → cloud UI → grab `trace_id` → reproduce locally → `sqlite3 .davstack/logs/default.db "SELECT * FROM logs_v WHERE trace_id = '<id>' ORDER BY ts"` for the full debug-level timeline.
 
 ```bash
 npm i -g @sentry/cli && sentry-cli login
@@ -113,7 +113,7 @@ Most of the value is the unmodified `console.*` / library calls you already wrot
 **General (enable everywhere):**
 
 - **`consoleLoggingIntegration` / stdlib `LoggingIntegration`** — every existing `console.log` / `logger.info` becomes queryable. Zero rewrites.
-- **`httpIntegration`** (Node/Python) / **`browserTracingIntegration`** (browser) — outbound HTTP gets a span + `trace_id`; backend reads Sentry's `sentry-trace` + `baggage` headers and logs under the same id, so `query trace` assembles the hop chain. (W3C `traceparent` is bridged via OTel only.)
+- **`httpIntegration`** (Node/Python) / **`browserTracingIntegration`** (browser) — outbound HTTP gets a span + `trace_id`; backend reads Sentry's `sentry-trace` + `baggage` headers and logs under the same id, so `WHERE trace_id = '…'` assembles the hop chain. (W3C `traceparent` is bridged via OTel only.)
 - **`replayIntegration`** (browser) — DOM replay on error envelopes. Cloud-side only.
 
 **Stack-specific (enable what you use):**
@@ -195,7 +195,7 @@ curl -s -X POST http://127.0.0.1:5181/envelope/ \
 {"items":[{"timestamp":"2026-05-21T00:00:00Z","level":"info","body":"ping"}]}
 EOF
 
-logs-server query filter --grep ping
+sqlite3 -header -column .davstack/logs/default.db "SELECT ts, level, msg FROM logs WHERE msg LIKE '%ping%' ORDER BY ts DESC LIMIT 5"
 ```
 
 If the row comes back, you're wired up.
