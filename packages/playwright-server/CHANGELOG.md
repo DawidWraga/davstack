@@ -1,5 +1,24 @@
 # @davstack/playwright-server
 
+## 1.4.0
+
+### Minor Changes
+
+- Add `--db=<name>` flag to `playwright-server run`. When set, the daemon
+  seeds `window.__davstack_db` on the warm browser context (via
+  `addInitScript` + a one-shot `page.evaluate`) before evaluating the
+  spec. Consumers who stamp the `davstack-logs.db` Sentry log attribute
+  in their `beforeSendLog` (see `@davstack/logs-server`
+  `docs/transmitter-wiring.md`) get the run's logs routed to
+  `.davstack/logs/<name>.db` instead of the shared `default.db`.
+
+  No flag → no global → no attribute → unchanged behavior. Safe with
+  `@davstack/logs-server` 1.x consumers who don't read the attribute
+  (it's just a string set on `window`).
+
+  Daemon-side: `session.runOnce(file, { db })` accepts the option;
+  client-side: `runFile(file, opts, { db })` carries it through `/run`.
+
 ## 1.3.0
 
 ### Minor Changes

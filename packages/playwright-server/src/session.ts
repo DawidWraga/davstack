@@ -223,7 +223,7 @@ export class PlaywrightSession {
 
   // ─── run ─────────────────────────────────────────────────────────────────
 
-  async runOnce(file: string): Promise<RunResult> {
+  async runOnce(file: string, opts: { db?: string } = {}): Promise<RunResult> {
     this.assertLive();
     // Serialise; concurrent runs would interleave on the single warm page.
     const release = this.runLock;
@@ -234,6 +234,14 @@ export class PlaywrightSession {
       const t0 = Date.now();
       const absFile = isAbsolute(file) ? file : resolve(this.cwd, file);
       const source = await readFile(absFile, 'utf8');
+
+      // Multi-DB log routing (logs-server 2.0+). Seed window.__davstack_db
+      // before navigation so the app's beforeSendLog reads it at init time.
+      // Two surfaces:
+      //   - page.evaluate sets it immediately on the current document
+      //   - context.addInitScript re-seeds on every subsequent navigation
+      // No-op if the spec didn't request a routing DB.
+      await this.applyDbRouting(opts.db);
 
       // Routing: the new registration-interception runner is the default.
       // It supports full TS, module-level imports/helpers, multiple
@@ -246,6 +254,40 @@ export class PlaywrightSession {
       return await this.runOnceModule(absFile, file, t0);
     } finally {
       releaseResolve();
+    }
+  }
+
+  private async applyDbRouting(db: string | undefined): Promise<void> {
+    if (!this.context || !this.page) return;
+    // Install a context-level init script every run; in steady-state usage
+    // these accumulate (Playwright has no removeInitScript), but the cost
+    // is a few hundred bytes per run and the LAST install wins on the
+    // window. Acceptable for a long-lived daemon during a debug session.
+    await this.context.addInitScript(
+      (value: string | null) => {
+        const w = window as unknown as { __davstack_db?: string };
+        if (value === null) {
+          delete w.__davstack_db;
+        } else {
+          w.__davstack_db = value;
+        }
+      },
+      db ?? null,
+    );
+    // Page.evaluate covers the case where the spec doesn't navigate (the
+    // init script wouldn't fire). Tolerate failure — pages without a real
+    // document can throw; the next navigation will re-seed via the script.
+    try {
+      await this.page.evaluate((value: string | null) => {
+        const w = window as unknown as { __davstack_db?: string };
+        if (value === null) {
+          delete w.__davstack_db;
+        } else {
+          w.__davstack_db = value;
+        }
+      }, db ?? null);
+    } catch {
+      // about:blank can't run scripts in some chromium builds — ignore
     }
   }
 

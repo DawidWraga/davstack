@@ -44,8 +44,23 @@ async function request<T>(
   return parsed as T;
 }
 
-export async function runFile(file: string, opts: ClientOpts): Promise<RunResponse> {
-  return request<RunResponse>('POST', '/run', opts, { file });
+export type RunFileOpts = {
+  /**
+   * Route this run's logs to `.davstack/logs/<db>.db`. Stamped onto every
+   * Sentry log envelope as the `davstack-logs.db` attribute via a context
+   * init script. See @davstack/logs-server docs/transmitter-wiring.md.
+   */
+  db?: string;
+};
+
+export async function runFile(
+  file: string,
+  opts: ClientOpts,
+  runOpts: RunFileOpts = {},
+): Promise<RunResponse> {
+  const body: Record<string, unknown> = { file };
+  if (runOpts.db) body.db = runOpts.db;
+  return request<RunResponse>('POST', '/run', opts, body);
 }
 
 export async function gotoUrl(url: string, opts: ClientOpts): Promise<{ url: string }> {
