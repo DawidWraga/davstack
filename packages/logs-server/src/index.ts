@@ -176,32 +176,65 @@ const cli = defineCli({
             `[logs-server] loaded .env from ${envResult.path} (${envResult.keys} keys)\n`,
           );
         }
-        const { openDb, prune } = await import('./db.js');
-        const { dbPath, ensureParent } = await import('./paths.js');
+        const { prune } = await import('./db.js');
+        const { DbHandleCache } = await import('./db-cache.js');
+        const { dbPath, defaultDbPathForRepo } = await import('./paths.js');
         const { startServer } = await import('./server.js');
         const { loadConfig } = await import('./config.js');
+        const { walkLogDbs } = await import('./db-walk.js');
         const config = await loadConfig(process.cwd());
-        // CLI flags already fold env vars (via `env:` spec) — so flag > config > built-in.
         const effectivePort = (ctx.flags.port as number | undefined) ?? config.port;
         const effectiveHost = (ctx.flags.host as string | undefined) ?? config.host;
-        const configDbPath = config._dbPathResolved ?? config.dbPath;
-        const file = ensureParent(
-          dbPath((ctx.flags.db as string | undefined) ?? configDbPath),
-        );
-        const db = openDb(file);
-        const srv = startServer({
-          db,
-          port: effectivePort,
-          host: effectiveHost,
-          cors: config.cors,
-        });
+        const repoRoot = config._repoRoot ?? process.cwd();
+
+        // CLI --db / DIAG_DB / config.dbPath all pin a single file, in which
+        // case dispatch is meaningless and we fall back to single-DB mode.
+        // Without them, dispatch routes every envelope via the cache.
+        const pinned =
+          (ctx.flags.db as string | undefined) ||
+          process.env.DIAG_DB ||
+          config._dbPathResolved ||
+          config.dbPath;
+
+        const cache = new DbHandleCache();
+        cache.startIdleSweeper();
+        const defaultDbPath = pinned ? dbPath(pinned) : defaultDbPathForRepo(repoRoot);
+
+        const srv = pinned
+          ? startServer({
+              db: cache.getOrOpen(defaultDbPath),
+              port: effectivePort,
+              host: effectiveHost,
+              cors: config.cors,
+            })
+          : startServer({
+              cache,
+              defaultDbPath,
+              repoRoot,
+              port: effectivePort,
+              host: effectiveHost,
+              cors: config.cors,
+            });
         process.stdout.write(
-          `log-server listening on http://${srv.host}:${srv.port}  db=${file}\n`,
+          `log-server listening on http://${srv.host}:${srv.port}  ` +
+            `${pinned ? `db=${defaultDbPath}` : `logs=${defaultDbPath}/..`}\n`,
         );
         const days =
           (ctx.flags['prune-days'] as number | undefined) || config.pruneDays || 0;
         if (days > 0) {
-          setInterval(() => prune(db, days * 86_400_000), 3_600_000).unref();
+          // Walk all DBs each tick. With one pinned DB the walk yields just
+          // that file via the cache; with dispatch it sweeps every session DB
+          // currently materialized under .davstack/logs/.
+          setInterval(() => {
+            const files = pinned ? [defaultDbPath] : walkLogDbs(repoRoot);
+            for (const f of files) {
+              try {
+                prune(cache.getOrOpen(f), days * 86_400_000);
+              } catch {
+                // a DB file may be gone (rm'd by the user) — skip
+              }
+            }
+          }, 3_600_000).unref();
         }
         return new Promise<number>(() => {});
       },
@@ -237,7 +270,8 @@ const cli = defineCli({
       },
     },
     prune: {
-      description: 'Delete rows older than --days / --max-age-ms',
+      description:
+        'Delete rows older than --days / --max-age-ms. Walks every .davstack/logs/*.db unless --db pins one file.',
       flags: {
         db: dbFlag(),
         days: { type: 'number', default: 14 },
@@ -245,19 +279,42 @@ const cli = defineCli({
       },
       run: async (ctx) => {
         const { openDb, prune } = await import('./db.js');
-        const { dbPath } = await import('./paths.js');
+        const { dbPath, defaultDbPathForRepo } = await import('./paths.js');
         const { loadConfig } = await import('./config.js');
+        const { walkLogDbs } = await import('./db-walk.js');
         const config = await loadConfig(process.cwd());
-        const configDbPath = config._dbPathResolved ?? config.dbPath;
-        const db = openDb(
-          dbPath((ctx.flags.db as string | undefined) ?? configDbPath),
-        );
+        const repoRoot = config._repoRoot ?? process.cwd();
+
         const ageMs =
           (ctx.flags['max-age-ms'] as number | undefined) ??
           (ctx.flags.days as number) * 86_400_000;
-        process.stdout.write(
-          `pruned ${prune(db, ageMs)} rows (older than ${ageMs}ms)\n`,
-        );
+
+        const pinned =
+          (ctx.flags.db as string | undefined) ||
+          process.env.DIAG_DB ||
+          config._dbPathResolved ||
+          config.dbPath;
+
+        const files = pinned
+          ? [dbPath(pinned)]
+          : (() => {
+              const walked = walkLogDbs(repoRoot);
+              return walked.length > 0 ? walked : [defaultDbPathForRepo(repoRoot)];
+            })();
+
+        let total = 0;
+        for (const f of files) {
+          try {
+            const db = openDb(f);
+            const n = prune(db, ageMs);
+            db.close();
+            total += n;
+            process.stdout.write(`pruned ${n} rows from ${f}\n`);
+          } catch (err) {
+            process.stderr.write(`[logs-server] prune failed for ${f}: ${(err as Error).message}\n`);
+          }
+        }
+        process.stdout.write(`pruned ${total} rows total (older than ${ageMs}ms)\n`);
         return 0;
       },
     },

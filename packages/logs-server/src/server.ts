@@ -4,6 +4,12 @@
 // a sink that 5xx's or hangs would induce SDK retry storms and block the very
 // app it observes (notes 03).
 //
+// Two construction modes:
+//   { db } ............... single-DB mode (tests / one-off scripts).
+//   { cache, defaultDbPath, repoRoot } ... multi-DB dispatch (the daemon
+//                                          surface; routes per the
+//                                          `davstack-logs.db` attribute).
+//
 // CORS: browser SDKs posting envelopes via DSN (Content-Type
 // application/x-sentry-envelope is non-simple) trigger a preflight. Default
 // policy is "*" — safe because the sink binds 127.0.0.1 only and never sets
@@ -12,7 +18,8 @@
 
 import type { Database } from 'bun:sqlite';
 import type { ServerConfig } from './config.js';
-import { handleIngest } from './ingest.js';
+import type { DbHandleCache } from './db-cache.js';
+import { handleIngest, dispatchIngest } from './ingest.js';
 import { decodeBody } from './decode.js';
 
 export function corsHeadersFor(
@@ -38,14 +45,30 @@ export function corsHeadersFor(
   return h;
 }
 
-export function startServer(opts: {
-  db: Database;
-  port?: number;
-  host?: string;
-  cors?: ServerConfig['cors'];
-}): { port: number; host: string; stop: () => void } {
+export type ServerOpts =
+  | {
+      db: Database;
+      cache?: undefined;
+      defaultDbPath?: undefined;
+      repoRoot?: undefined;
+      port?: number;
+      host?: string;
+      cors?: ServerConfig['cors'];
+    }
+  | {
+      cache: DbHandleCache;
+      defaultDbPath: string;
+      repoRoot: string;
+      db?: undefined;
+      port?: number;
+      host?: string;
+      cors?: ServerConfig['cors'];
+    };
+
+export function startServer(opts: ServerOpts): { port: number; host: string; stop: () => void } {
   const host = opts.host ?? process.env.DIAG_HOST ?? '127.0.0.1';
   const corsPolicy = opts.cors;
+  const ingest = makeIngest(opts);
   const server = Bun.serve({
     port: opts.port ?? (Number(process.env.DIAG_PORT) || 7077),
     hostname: host,
@@ -61,7 +84,7 @@ export function startServer(opts: {
         // Real SDKs gzip the envelope and set Content-Encoding; reading text()
         // on a gzip body silently produced zero rows. Decode by encoding.
         const bytes = new Uint8Array(await req.arrayBuffer());
-        handleIngest(opts.db, decodeBody(bytes, req.headers.get('content-encoding')));
+        ingest(decodeBody(bytes, req.headers.get('content-encoding')));
       } catch {
         // swallow — fire-and-forget; the app must never see a failure here
       }
@@ -74,4 +97,20 @@ export function startServer(opts: {
     },
   });
   return { port: server.port, host, stop: () => server.stop(true) };
+}
+
+function makeIngest(opts: ServerOpts): (raw: string) => void {
+  if ('db' in opts && opts.db) {
+    const db = opts.db;
+    return (raw) => {
+      handleIngest(db, raw);
+    };
+  }
+  if (!('cache' in opts) || !opts.cache || !opts.defaultDbPath || !opts.repoRoot) {
+    throw new Error('startServer: pass either { db } or { cache, defaultDbPath, repoRoot }');
+  }
+  const { cache, defaultDbPath, repoRoot } = opts;
+  return (raw) => {
+    dispatchIngest(raw, { cache, defaultDbPath, repoRoot });
+  };
 }

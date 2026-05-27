@@ -229,6 +229,44 @@ test('suppressStaleRowsFix keeps hint when db has zero lifetime rows', () => {
   expect(db.fix).toMatch(/no rows in last/);
 });
 
+test('runCheck flags a legacy .davstack/logs.db file with mv hint', async () => {
+  const cwd = tmp();
+  const { mkdirSync } = await import('node:fs');
+  mkdirSync(join(cwd, '.davstack'), { recursive: true });
+  writeFileSync(join(cwd, '.davstack', 'logs.db'), '');
+  // Make findRepoRoot stop here.
+  writeFileSync(join(cwd, 'package.json'), `{"name":"tmp"}`);
+
+  const cap = captureStdout();
+  const code = await runCheck({
+    cwd,
+    json: true,
+    host: '127.0.0.1',
+    port: 65535,
+    db: join(cwd, 'missing.sqlite'),
+  });
+  const out = cap.restore();
+  expect(code).toBe(0);
+  const result = JSON.parse(out);
+  expect(result.legacy.present).toBe(true);
+  expect(result.legacy.fix).toMatch(/mv /);
+  expect(result.legacy.fix).toMatch(/default\.db/);
+});
+
+test('runCheck does NOT add the legacy row when no logs.db exists', async () => {
+  const cwd = tmp();
+  writeFileSync(join(cwd, 'package.json'), `{"name":"tmp"}`);
+  const cap = captureStdout();
+  await runCheck({
+    cwd,
+    host: '127.0.0.1',
+    port: 65535,
+    db: join(cwd, 'missing.sqlite'),
+  });
+  const out = stripAnsi(cap.restore());
+  expect(out).not.toMatch(/Legacy DB/);
+});
+
 test('suppressStaleRowsFix drops stale hint when daemon is down', () => {
   const db = {
     ok: true,
