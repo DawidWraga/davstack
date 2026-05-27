@@ -37,4 +37,4 @@ $ logs-server query filter --grep "clicked save"
 
 - [docs/setup.md](./docs/setup.md) — config file, env vars, runtime selection
 - [docs/writing-logs.md](./docs/writing-logs.md) — transmitter setup per SDK
-- [docs/reading-logs.md](./docs/reading-logs.md) — every query verb + raw sqlite recipes
+- [docs/reading-logs.md](./docs/reading-logs.md) — sqlite schema, recipes, and CLI verb reference (sqlite is the recommended read path for any non-trivial diagnosis)

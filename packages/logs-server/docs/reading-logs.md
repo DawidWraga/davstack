@@ -1,79 +1,93 @@
 # Reading logs
 
-Three layers, increasing power:
-
-1. **CLI query verbs** — pre-baked cuts. 80% of cases.
-2. **`--json` on any verb** — pipe into `jq` / scripts.
-3. **Raw sqlite** on `.davstack/logs.db` — for cuts the CLI doesn't pre-bake.
-
-## CLI verbs
-
-```bash
-logs-server query run    --run r-99                  # timeline for one run_id
-logs-server query trace  --trace 7f3a…               # cross-service assembly for one trace_id
-logs-server query errors --context 20                # errors + N surrounding rows (scoped to --run/--trace too)
-logs-server query filter --level error --grep "timeout" --limit 100
-```
-
-Default output is **compact one-row-per-line** (terminal/agent-friendly):
-
-```
-2026-05-21T13:51:32  error  react  r-99  t-7f3a  request failed  {"status":500}
-```
-
-Flags on every verb: `--json` (full row shape) · `--human` (grouped by service, indented).
-
-## Raw sqlite
-
 ```bash
 sqlite3 .davstack/logs.db
 ```
 
-### Schema
+Structured probe attributes live inside `data` (a JSON blob), so any non-trivial cut needs `json_extract`. The CLI `query` verbs are pre-baked cuts for sanity checks; reach past them as soon as you want structured payloads, compound predicates, or aggregation.
+
+## Schema
 
 ```
 logs(
   id              INTEGER PRIMARY KEY,
-  ts              TEXT,        -- ISO 8601, from transmitter
-  recv_ts         TEXT,        -- ISO 8601, when daemon received
-  project         TEXT,
-  service         TEXT,
-  run_id          TEXT,
+  ts              REAL,     -- Sentry log timestamp, seconds since epoch (float)
+  recv_ts         REAL,     -- server receive time, ms epoch (prune key)
+  project         TEXT,     -- promoted from data.attributes['diag.project'].value
+  service         TEXT,     -- envelope sdk.name
+  run_id          TEXT,     -- promoted from data.attributes['diag.run_id'].value
   trace_id        TEXT,
   span_id         TEXT,
   level           TEXT,
   severity_number INTEGER,
-  logger          TEXT,
-  msg             TEXT,        -- ANSI prefix stripped
-  data            TEXT,        -- JSON blob; everything not promoted
-  tag             TEXT
+  logger          TEXT,     -- promoted from data.attributes['sentry.origin'].value
+  msg             TEXT,     -- Sentry log body, ANSI prefix stripped
+  data            TEXT,     -- raw Sentry log record JSON, verbatim
+  tag             TEXT      -- promoted from data.attributes['diag.tag'].value (nullable)
 )
 ```
 
-Indexed on `(project, run_id, trace_id, level, ts)`. Other predicates full-scan.
+Indexed on `(project, run_id, trace_id, level, ts)`.
 
-### Recipes
+## `data` shape
 
-```sql
--- top error messages this hour
-SELECT msg, count(*) AS n
-FROM logs
-WHERE level='error' AND ts > datetime('now','-1 hour')
-GROUP BY msg ORDER BY n DESC LIMIT 20;
+`data` is the Sentry log record kept verbatim. Structured attributes are wrapped per-key by the OTel transmitter as `{value, type}`:
+
+```ts
+logger.info("checkpoint", { seam: "after-fetch", row_count: 42 })
 ```
 
+stored as:
+
+```json
+{ "body": "checkpoint",
+  "attributes": {
+    "seam":      { "value": "after-fetch", "type": "string" },
+    "row_count": { "value": 42,             "type": "integer" }
+  } }
+```
+
+So probe payloads sit at `data.attributes.<key>.value`. The `{value, type}` wrapper is OTel-standard ergonomic tax — issue [#52](https://github.com/DawidWraga/davstack/issues/52) tracks flattening it.
+
+## Recipes
+
+### Probe-tag timeline with structured attributes
+
+The killer recipe — pick exactly the projection you need from `data.attributes`:
+
 ```sql
--- pull a field out of the data blob
-SELECT ts, msg, json_extract(data, '$.user_id') AS user_id
-FROM logs WHERE json_extract(data, '$.user_id') = 42
+SELECT ts,
+       json_extract(data, '$.body')                       AS msg,
+       json_extract(data, '$.attributes.seam.value')      AS seam,
+       json_extract(data, '$.attributes.row_count.value') AS row_count
+FROM logs
+WHERE ts > :baseline
+  AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
 ORDER BY ts;
 ```
 
+Capture `:baseline` with `SELECT MAX(ts) FROM logs` before kicking off the repro, then query relative to it. ([#51](https://github.com/DawidWraga/davstack/issues/51) tracks first-class iteration scoping.)
+
+### Seam histogram (runaway-loop sanity check)
+
 ```sql
--- distribution of services under one run
-SELECT service, count(*) AS n
-FROM logs WHERE run_id='r-99'
-GROUP BY service ORDER BY n DESC;
+SELECT count(*) AS n,
+       json_extract(data, '$.attributes.seam.value') AS seam
+FROM logs
+WHERE ts > :baseline
+  AND json_extract(data, '$.body') LIKE '%<probe-tag>%'
+GROUP BY seam
+ORDER BY n DESC;
+```
+
+### Last N (`--limit` returns ascending; sqlite to the rescue)
+
+```sql
+SELECT ts, level, msg
+FROM logs
+WHERE level = 'error'
+ORDER BY ts DESC
+LIMIT 20;
 ```
 
 ## Pruning

@@ -207,7 +207,8 @@ const cli = defineCli({
       },
     },
     query: {
-      description: 'Query the log store',
+      description:
+        'Pre-baked cuts of the log store (sanity / one-off greps). For anything non-trivial — structured probe attributes, compound predicates, aggregation — query .davstack/logs.db directly with sqlite. See packages/logs-server/docs/reading-logs.md.',
       commands: {
         run: queryRun,
         trace: queryTrace,

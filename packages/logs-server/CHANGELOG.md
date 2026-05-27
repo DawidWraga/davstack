@@ -1,5 +1,26 @@
 # @davstack/logs-server
 
+## 1.3.2
+
+### Patch Changes
+
+- docs: document sqlite as primary read path, ship recipes, soft-deprecate `query` verb
+  ([#49](https://github.com/DawidWraga/davstack/issues/49))
+
+  `docs/reading-logs.md` rewritten around sqlite. Corrects the prior
+  `ts` / `recv_ts TEXT` schema (they are `REAL`), documents the OTel
+  `{value, type}` envelope that puts probe payloads at
+  `data.attributes.<key>.value`, and ships three recipes that the CLI
+  verbs can't cover: probe-tag timeline with structured attributes,
+  seam histogram (runaway-loop sanity check), and last-N (`--limit`
+  returns ascending, sqlite can `ORDER BY DESC`).
+
+  CLI: parent `query` description now points at `reading-logs.md` and
+  describes the verbs as "pre-baked cuts for sanity / one-off greps."
+  Verbs unchanged.
+
+  No code changes to the daemon, ingest path, or DB schema.
+
 ## 1.3.1
 
 ### Patch Changes
