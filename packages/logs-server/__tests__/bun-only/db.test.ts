@@ -22,6 +22,7 @@ function row(over: Partial<LogRow>): LogRow {
     logger: 'auto.db',
     msg: 'hello',
     data: '{"raw":"item"}',
+    attrs: null,
     tag: null,
     ...over,
   };
@@ -40,6 +41,78 @@ test('openDb creates the logs table and the correlation index', () => {
   for (const c of ['project', 'run_id', 'trace_id', 'level', 'ts']) {
     expect(cols).toContain(c);
   }
+});
+
+test('openDb stores attrs as a real column (no logs_v view)', () => {
+  const db = openDb(':memory:');
+  const view = db
+    .query("SELECT name FROM sqlite_master WHERE type='view' AND name='logs_v'")
+    .get() as { name: string } | null;
+  expect(view).toBeNull();
+  const cols = db.query("PRAGMA table_info(logs)").all() as { name: string }[];
+  expect(cols.some((c) => c.name === 'attrs')).toBe(true);
+  insertLogs(db, [row({ msg: 'with-attrs', attrs: JSON.stringify({ seam: 'x', n: 42 }) })]);
+  const r = db
+    .query(
+      `SELECT json_extract(attrs, '$.seam') AS seam,
+              json_extract(attrs, '$.n')    AS n
+       FROM logs WHERE msg = 'with-attrs'`,
+    )
+    .get() as { seam: unknown; n: unknown };
+  expect(r.seam).toBe('x');
+  expect(r.n).toBe(42);
+});
+
+test('openDb migrates pre-2.2 schema: backfills attrs column, drops logs_v view', () => {
+  // Hand-construct the legacy schema (no attrs column, with logs_v view)
+  // to prove the migration path is idempotent and lossless.
+  const { Database } = require('bun:sqlite');
+  const legacy = new Database(':memory:');
+  legacy.exec(`CREATE TABLE logs (
+    id INTEGER PRIMARY KEY, ts REAL, recv_ts REAL, project TEXT, service TEXT,
+    run_id TEXT, trace_id TEXT, span_id TEXT, level TEXT, severity_number INTEGER,
+    logger TEXT, msg TEXT, data TEXT, tag TEXT
+  )`);
+  legacy.exec(`CREATE VIEW logs_v AS SELECT l.* FROM logs l`);
+  legacy.exec(
+    `INSERT INTO logs (ts, recv_ts, project, msg, data) VALUES
+       (1, 1, 'p', 'with', '{"attributes":{"seam":{"value":"after","type":"string"},"n":{"value":7,"type":"integer"}}}'),
+       (2, 2, 'p', 'without', '{"body":"x"}')`,
+  );
+  // Persist to a temp file so we can re-open it through openDb() and force
+  // the migration path to fire on a real file.
+  const tmp = `/tmp/migrate-unit-${process.pid}-${Date.now()}.db`;
+  legacy.exec(`VACUUM INTO '${tmp}'`);
+  legacy.close();
+
+  const db = openDb(tmp);
+  // View is gone
+  const view = db
+    .query("SELECT name FROM sqlite_master WHERE type='view' AND name='logs_v'")
+    .get();
+  expect(view).toBeNull();
+  // attrs column exists and is backfilled
+  const cols = db.query("PRAGMA table_info(logs)").all() as { name: string }[];
+  expect(cols.some((c) => c.name === 'attrs')).toBe(true);
+  const r1 = db
+    .query(`SELECT json_extract(attrs, '$.seam') AS seam, json_extract(attrs, '$.n') AS n FROM logs WHERE msg = 'with'`)
+    .get() as { seam: unknown; n: unknown };
+  expect(r1.seam).toBe('after');
+  expect(r1.n).toBe(7);
+  const r2 = db.query(`SELECT attrs FROM logs WHERE msg = 'without'`).get() as { attrs: unknown };
+  expect(r2.attrs).toBeNull();
+
+  // Idempotent — second open is a no-op (no throw, no schema drift).
+  db.close();
+  const db2 = openDb(tmp);
+  const r1b = db2
+    .query(`SELECT json_extract(attrs, '$.seam') AS seam FROM logs WHERE msg = 'with'`)
+    .get() as { seam: unknown };
+  expect(r1b.seam).toBe('after');
+  db2.close();
+  require('node:fs').rmSync(tmp, { force: true });
+  require('node:fs').rmSync(`${tmp}-wal`, { force: true });
+  require('node:fs').rmSync(`${tmp}-shm`, { force: true });
 });
 
 test('insertLogs batch-inserts and rows are retrievable with autoincrement id', () => {

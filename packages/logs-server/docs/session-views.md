@@ -20,7 +20,7 @@ SELECT id, ts, level,
        json_extract(attrs, '$.nextDims')    AS nextDims,
        json_extract(attrs, '$.prevDims')    AS prevDims,
        json_extract(attrs, '$.columnOrder') AS columnOrder
-FROM logs_v
+FROM logs
 WHERE json_extract(data, '$.body') LIKE '%[colorder-probe]%';
 ```
 
@@ -63,7 +63,7 @@ SELECT ts,
        json_extract(attrs, '$.seam')                                   AS seam,
        CAST(json_extract(attrs, '$.row_count') AS INTEGER)             AS row_count,
        json_extract(attrs, '$.ok')                                     AS ok
-FROM logs_v
+FROM logs
 WHERE json_extract(data, '$.body') LIKE '%[probe]%';
 ```
 
@@ -83,7 +83,7 @@ Prefix every session-scoped view with `dbg_`. Two benefits:
   ```sql
   SELECT name FROM sqlite_master WHERE type='view' AND name LIKE 'dbg_%';
   ```
-- Won't collide with the shipped `logs_v` view that exists in every DB.
+- Won't collide with any future shipped views.
 
 ## Anti-patterns
 

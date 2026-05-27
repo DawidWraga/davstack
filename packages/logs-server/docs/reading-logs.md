@@ -6,7 +6,7 @@
 sqlite3 -header -column .davstack/logs/default.db "<SQL>"
 ```
 
-`-header` prints column names, `-column` aligns the output as a table. Structured probe attributes live inside `data` (a JSON blob), so any non-trivial cut needs `json_extract`. The `logs_v` view (below) gives you a pre-flattened `attrs` column so you don't have to walk the OTel `{value, type}` wrapper by hand.
+`-header` prints column names, `-column` aligns the output as a table. The raw Sentry log record sits in `data` (a JSON blob), and a pre-flattened `attrs` column (OTel `{value, type}` wrapper stripped, populated at insert time as of 2.2.0) sits alongside it — reach in with `json_extract(attrs, '$.<key>')` instead of walking the four-segment `data.attributes.<key>.value` path.
 
 > The 1.x-era `logs-server query` CLI verb was removed in 2.1.0: it could only grep the `msg` body (couldn't reach structured probe attributes) and cost ~10× sqlite's cold-boot. Use sqlite3 directly.
 
@@ -48,18 +48,14 @@ logs(
   logger          TEXT,     -- promoted from data.attributes['sentry.origin'].value
   msg             TEXT,     -- Sentry log body, ANSI prefix stripped
   data            TEXT,     -- raw Sentry log record JSON, verbatim
+  attrs           TEXT,     -- flat {key: value} JSON, OTel {value,type} wrapper stripped (NULL when no attributes)
   tag             TEXT      -- promoted from data.attributes['diag.tag'].value (nullable)
 )
 ```
 
 Indexed on `(project, run_id, trace_id, level, ts)`.
 
-### View: `logs_v`
-
-A read-side overlay over `logs` with two extra columns. Same `WHERE`/`ORDER BY`/index behaviour — query it like the base table.
-
-- `attrs` — flat key→value map, OTel `{value, type}` wrapper stripped. Reach in with `json_extract(attrs, '$.<key>')` instead of `data.attributes.<key>.value`.
-- `raw_attrs` — `json_extract(data, '$.attributes')`, the typed envelope one path-level shallower than `data.attributes`. Use when you need the OTel `type` discriminator.
+`attrs` is the everyday read path — populated at insert time (2.2.0+) and freely indexable via expression indexes if a hot key emerges (`CREATE INDEX ... ON logs(json_extract(attrs, '$.seam'))`). Need the OTel `{value, type}` typing? Reach into `data` directly: `json_extract(data, '$.attributes.<key>')` returns the typed envelope. Rarely needed in practice.
 
 ## `data` shape
 
@@ -79,7 +75,7 @@ stored as:
   } }
 ```
 
-So probe payloads sit at `data.attributes.<key>.value`. The `{value, type}` wrapper is OTel-standard ergonomic tax — `logs_v` exposes the flat form via the `attrs` column (`json_extract(attrs, '$.<key>')`), with `raw_attrs` keeping the typed envelope one path-level shallower if you need it.
+So `data.attributes.<key>.value` is where each probe payload lives in the raw envelope. The `{value, type}` wrapper is OTel-standard ergonomic tax — `attrs` is the flattened-on-write companion column (`json_extract(attrs, '$.<key>')`), so you only walk the four-segment path when you actually need the type discriminator.
 
 ## Recipes
 
@@ -95,7 +91,7 @@ sqlite3 -header -column .davstack/logs/default.db "
          msg,
          json_extract(attrs, '\$.seam')      AS seam,
          json_extract(attrs, '\$.row_count') AS row_count
-  FROM logs_v
+  FROM logs
   WHERE ts > $BASELINE
     AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
   ORDER BY ts;
@@ -110,7 +106,7 @@ sqlite3 -header -column .davstack/logs/default.db "
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT count(*) AS n,
          json_extract(attrs, '\$.seam') AS seam
-  FROM logs_v
+  FROM logs
   WHERE ts > $BASELINE
     AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
   GROUP BY seam

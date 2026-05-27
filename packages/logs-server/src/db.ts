@@ -17,6 +17,7 @@ export type LogRow = {
   logger: string; // sentry.origin
   msg: string; // log `body`
   data: string; // raw log item JSON, verbatim
+  attrs: string | null; // flat key→value JSON, OTel {value,type} wrapper stripped (NULL when attributes missing/empty)
   tag: string | null; // diag.tag attribution (optional)
 };
 
@@ -33,8 +34,41 @@ const COLS: (keyof LogRow)[] = [
   'logger',
   'msg',
   'data',
+  'attrs',
   'tag',
 ];
+
+// Migrate pre-2.2 schemas: add the `attrs` column if missing, backfill from
+// `data.attributes` using the recipe the old logs_v view used, and drop the
+// view. Wrapped in BEGIN IMMEDIATE so partial state can't leak; idempotent
+// (safe to re-run — guarded by the table_info check).
+function migrateAttrsColumn(db: Database): void {
+  const cols = db.query("PRAGMA table_info(logs)").all() as { name: string }[];
+  const hasAttrs = cols.some((c) => c.name === 'attrs');
+  const viewExists =
+    (db
+      .query("SELECT name FROM sqlite_master WHERE type='view' AND name='logs_v'")
+      .get() as { name: string } | null) !== null;
+  if (hasAttrs && !viewExists) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!hasAttrs) {
+      db.exec('ALTER TABLE logs ADD COLUMN attrs TEXT');
+      db.exec(
+        `UPDATE logs SET attrs = CASE
+           WHEN json_extract(data, '$.attributes') IS NULL THEN NULL
+           ELSE (SELECT json_group_object(je.key, json_extract(je.value, '$.value'))
+                 FROM json_each(json_extract(data, '$.attributes')) AS je)
+         END`,
+      );
+    }
+    db.exec('DROP VIEW IF EXISTS logs_v');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
 
 export function openDb(path: string): Database {
   const db = new Database(path);
@@ -54,27 +88,14 @@ export function openDb(path: string): Database {
       logger          TEXT,
       msg             TEXT,
       data            TEXT,
+      attrs           TEXT,
       tag             TEXT
     )`);
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_logs_corr
        ON logs (project, run_id, trace_id, level, ts)`,
   );
-  // Read-side overlay (#52): expose `attrs` (OTel {value,type} wrapper
-  // stripped, flat key→value) and `raw_attrs` (the typed envelope, one path
-  // level shallower than `data.attributes`). View-only — base `logs` table
-  // unchanged, zero migration. Generated columns can't iterate JSON keys, so
-  // this is a view.
-  db.exec(
-    `CREATE VIEW IF NOT EXISTS logs_v AS
-     SELECT l.*,
-            json_extract(l.data, '$.attributes') AS raw_attrs,
-            CASE WHEN json_extract(l.data, '$.attributes') IS NULL THEN NULL
-                 ELSE (SELECT json_group_object(je.key, json_extract(je.value, '$.value'))
-                       FROM json_each(json_extract(l.data, '$.attributes')) AS je)
-            END AS attrs
-     FROM logs l`,
-  );
+  migrateAttrsColumn(db);
   return db;
 }
 

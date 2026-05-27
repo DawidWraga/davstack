@@ -147,3 +147,44 @@ test('routeDb is undefined when no attribute is set (back-compat baseline)', () 
   const { rows } = parseEnvelope(envelope([log()]));
   expect(rows[0].routeDb).toBeUndefined();
 });
+
+// attrs is computed at parse time (was a per-read view in 1.4.0–2.1.0).
+// Stored as JSON text: OTel {value,type} wrapper stripped, NULL when no
+// attributes are present — matching the old logs_v CASE semantics.
+
+test('attrs flattens the OTel {value,type} wrapper to plain key→value', () => {
+  const { rows } = parseEnvelope(envelope([log()]));
+  expect(rows[0].attrs).not.toBeNull();
+  const flat = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(flat['sentry.origin']).toBe('auto.http.server');
+  expect(flat['diag.project']).toBe('traffease_man');
+  expect(flat['diag.run_id']).toBe('eval-run-42');
+  expect(flat['diag.tag']).toBe('H3');
+});
+
+test('attrs is NULL when the record has no attributes block', () => {
+  const bare = { timestamp: 1.0, trace_id: 'c'.repeat(32), level: 'debug', body: 'x' };
+  const { rows } = parseEnvelope(envelope([bare]));
+  expect(rows[0].attrs).toBeNull();
+});
+
+test('attrs is NULL for an empty attributes object (matches old view CASE)', () => {
+  const { rows } = parseEnvelope(envelope([log({ attributes: {} })]));
+  expect(rows[0].attrs).toBeNull();
+});
+
+test('attrs excludes the davstack-logs.db routing key', () => {
+  const { rows } = parseEnvelope(
+    envelope([
+      log({
+        attributes: {
+          'davstack-logs.db': a('reorder-bug'),
+          seam: a('after-fetch'),
+        },
+      }),
+    ]),
+  );
+  const flat = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(flat['davstack-logs.db']).toBeUndefined();
+  expect(flat.seam).toBe('after-fetch');
+});

@@ -5,8 +5,8 @@
 // a long-running daemon with thousands of one-off session DBs.
 //
 // Schema-boot is delegated to openDb() — every new DB file gets the same
-// logs table + correlation index + logs_v view on first open, without any
-// caller having to remember.
+// logs table + correlation index on first open (and any pre-2.2 DB picks
+// up the attrs-column migration), without any caller having to remember.
 
 import type { Database } from 'bun:sqlite';
 import { openDb } from './db.js';

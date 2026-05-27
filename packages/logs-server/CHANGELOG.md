@@ -1,5 +1,37 @@
 # @davstack/logs-server
 
+## 2.2.0
+
+### Minor Changes
+
+- **BREAKING**: dropped the `logs_v` view. The flat `attrs` column is now a
+  real column on the `logs` table, populated at insert time inside
+  `envelope.ts toRow()`. Reads no longer pay a per-row correlated subquery,
+  and the column is freely indexable (`CREATE INDEX ... ON logs(json_extract(attrs, '$.<key>'))`).
+  `raw_attrs` is gone — reach into `data.attributes` directly on the rare
+  occasion you need the OTel `{value, type}` typing.
+
+  Migration: **automatic on first daemon open after upgrade.** The schema
+  boot checks `PRAGMA table_info(logs)`; if `attrs` is missing it runs
+  `ALTER TABLE logs ADD COLUMN attrs TEXT` + backfill (the same
+  `json_group_object` recipe the old view used) + `DROP VIEW logs_v`, all
+  inside a `BEGIN IMMEDIATE` transaction. Idempotent. On a ~30K-row DB the
+  backfill is sub-second.
+
+  Read-path change:
+
+  ```bash
+  # before (2.1.x)
+  sqlite3 -header -column .davstack/logs/default.db "
+    SELECT ts, json_extract(attrs, '\$.seam') AS seam FROM logs_v WHERE ...;
+  "
+
+  # after (2.2.0)
+  sqlite3 -header -column .davstack/logs/default.db "
+    SELECT ts, json_extract(attrs, '\$.seam') AS seam FROM logs WHERE ...;
+  "
+  ```
+
 ## 2.1.0
 
 ### Minor Changes

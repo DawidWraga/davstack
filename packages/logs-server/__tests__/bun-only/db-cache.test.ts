@@ -72,17 +72,19 @@ test('opens through ensureParent — nested dirs are created on demand', () => {
   cleanup(dir);
 });
 
-test('first open runs the schema (logs table + logs_v view both exist)', () => {
+test('first open runs the schema (logs table with attrs column, no view)', () => {
   const cache = new DbHandleCache();
   const db = cache.getOrOpen(join(dir, 'schema.db'));
   const tbl = db
     .query("SELECT name FROM sqlite_master WHERE type='table' AND name='logs'")
     .get() as { name: string } | null;
+  expect(tbl?.name).toBe('logs');
+  const cols = db.query("PRAGMA table_info(logs)").all() as { name: string }[];
+  expect(cols.some((c) => c.name === 'attrs')).toBe(true);
   const view = db
     .query("SELECT name FROM sqlite_master WHERE type='view' AND name='logs_v'")
-    .get() as { name: string } | null;
-  expect(tbl?.name).toBe('logs');
-  expect(view?.name).toBe('logs_v');
+    .get();
+  expect(view).toBeNull();
   cache.closeAll();
   cleanup(dir);
 });
