@@ -17,7 +17,7 @@ Where you already stamp `diag.run_id` and friends in `beforeSendLog`, add the ro
 
 ```ts
 // near the top, after diagRunId is captured
-const davstackDb = (window as { __davstack_db?: string }).__davstack_db ?? null
+const davstackDb = (window as Window & { __davstack_db?: string }).__davstack_db ?? null
 
 Sentry.init({
   // … your existing init …

@@ -265,7 +265,7 @@ export class PlaywrightSession {
     // window. Acceptable for a long-lived daemon during a debug session.
     await this.context.addInitScript(
       (value: string | null) => {
-        const w = window as unknown as { __davstack_db?: string };
+        const w = window as Window & { __davstack_db?: string };
         if (value === null) {
           delete w.__davstack_db;
         } else {
@@ -279,7 +279,7 @@ export class PlaywrightSession {
     // document can throw; the next navigation will re-seed via the script.
     try {
       await this.page.evaluate((value: string | null) => {
-        const w = window as unknown as { __davstack_db?: string };
+        const w = window as Window & { __davstack_db?: string };
         if (value === null) {
           delete w.__davstack_db;
         } else {
