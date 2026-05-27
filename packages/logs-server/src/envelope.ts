@@ -8,9 +8,14 @@
 
 import type { LogRow } from './db.js';
 
-export type ParsedLog = Omit<LogRow, 'recv_ts'>;
+// `routeDb` is a daemon-internal field — it drives multi-DB dispatch and is
+// stripped from the row's `data` before persistence (the file IS the session
+// indicator). Never written to the `logs` table.
+export type ParsedLog = Omit<LogRow, 'recv_ts'> & { routeDb?: string };
 
 type Attr = { value?: unknown; type?: string };
+
+const ROUTE_DB_ATTR = 'davstack-logs.db';
 
 function strOr(v: unknown, d: string): string {
   return v === undefined || v === null ? d : String(v);
@@ -36,6 +41,20 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
   const attrs = (rec.attributes as Record<string, Attr> | undefined) ?? undefined;
   const sev = rec.severity_number;
   const diagTag = attrVal(attrs, 'diag.tag');
+
+  // Pull the routing hint and remove it before serializing — the persisted
+  // record carries no trace of which DB it landed in. Operate on a shallow
+  // copy of `attributes` so we don't mutate the caller's object.
+  let routeDb: string | undefined;
+  let recForPersist: Record<string, unknown> = rec;
+  if (attrs && ROUTE_DB_ATTR in attrs) {
+    const v = attrs[ROUTE_DB_ATTR]?.value;
+    if (typeof v === 'string' && v.length > 0) routeDb = v;
+    const { [ROUTE_DB_ATTR]: _drop, ...rest } = attrs;
+    void _drop;
+    recForPersist = { ...rec, attributes: rest };
+  }
+
   return {
     ts: typeof rec.timestamp === 'number' ? rec.timestamp : Number(rec.timestamp) || 0,
     project: strOr(attrVal(attrs, 'diag.project'), ''),
@@ -47,8 +66,9 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
     severity_number: typeof sev === 'number' && Number.isFinite(sev) ? sev : 0,
     logger: strOr(attrVal(attrs, 'sentry.origin'), ''),
     msg: stripStyledLogPrefix(strOr(rec.body, '')),
-    data: JSON.stringify(rec), // verbatim — round-trips deep-equal
+    data: JSON.stringify(recForPersist), // verbatim — minus the routing key
     tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
+    routeDb,
   };
 }
 
