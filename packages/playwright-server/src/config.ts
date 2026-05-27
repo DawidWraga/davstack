@@ -32,6 +32,12 @@ export type ServerConfig = {
   // User-supplied login + capture. Called by `refresh-auth` to mint a
   // fresh storage state. Return null to skip the rewrite.
   refreshAuth?: () => Promise<StorageState | null>;
+  // Force the legacy regex-extraction runner instead of the new
+  // registration-interception runner. The new runner supports full TS,
+  // module-level helpers, multiple test() blocks, and test.use /
+  // beforeEach / afterEach. Set this true to opt back into the
+  // single-test source-extractor (codegen-style spec files).
+  legacyExtract?: boolean;
 };
 
 // Post-merge resolved shape used internally. Required fields here are
@@ -43,6 +49,7 @@ export type ResolvedConfig = {
   storageStatePath: string;
   profilePath: string;
   refreshAuth?: () => Promise<StorageState | null>;
+  legacyExtract?: boolean;
 };
 
 export const DEFAULT_CONFIG: ResolvedConfig = {
