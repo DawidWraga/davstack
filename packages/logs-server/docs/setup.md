@@ -8,8 +8,10 @@
 export default {
   port: 5181,
   host: "127.0.0.1",
-  dbPath: ".davstack/logs.db", // relative to repo root
-  pruneDays: 14,                // 0 disables background prune
+  // dbPath pins a SINGLE file (back-compat / external eval-runner co-location).
+  // Omit for the default per-session layout under .davstack/logs/.
+  // dbPath: ".davstack/logs/default.db",
+  pruneDays: 14,                // 0 disables background prune; walks every .davstack/logs/*.db
   // cors: "*",                 // browser CORS policy (see §7); default permissive
 }
 ```
@@ -17,6 +19,8 @@ export default {
 The daemon walks up from cwd to find the repo root (git root → workspace marker → `package.json` with workspaces).
 
 Per-key precedence: **CLI flag > env var (`DIAG_PORT` / `DIAG_DB` / `DIAG_HOST`) > config file > built-in default.**
+
+Default DB layout (since 2.0.0): `<repo-root>/.davstack/logs/default.db`, with per-session sibling files (`reorder-bug.db`, `hotfix-7c.db`, …) created on demand when a transmitter sets the `davstack-logs.db` attribute. Setting `dbPath` (or `DIAG_DB`, or `--db <file>`) pins the daemon to a single file and disables the dispatch layer — useful for eval runs that want a co-located log file outside the repo's standard layout.
 
 Skip the manual edit with `pnpm exec davstack-init --tools=logs-server` (scaffolds the config + appends `.davstack/*` / `!.davstack/config/` to `.gitignore`).
 

@@ -1,10 +1,31 @@
 # Reading logs
 
 ```bash
-sqlite3 .davstack/logs.db
+sqlite3 .davstack/logs/default.db
 ```
 
 Structured probe attributes live inside `data` (a JSON blob), so any non-trivial cut needs `json_extract`. The CLI `query` verbs are pre-baked cuts for sanity checks; reach past them as soon as you want structured payloads, compound predicates, or aggregation.
+
+## Choosing a DB
+
+The daemon writes one file per "session" under `.davstack/logs/`:
+
+```
+.davstack/logs/
+  default.db            ← un-tagged emissions
+  reorder-bug.db        ← runs started with --db=reorder-bug
+  hotfix-7c.db
+```
+
+`default.db` is the catch-all — everything lands here unless the transmitter stamps a `davstack-logs.db` attribute. Named sibling files appear when a runner (e.g. `playwright-server --db=reorder-bug`) routes its session. The file IS the session boundary; nothing inside the row records which bucket it landed in.
+
+Open the right one:
+
+```bash
+sqlite3 .davstack/logs/reorder-bug.db
+```
+
+Wiring the routing attribute end-to-end: see [transmitter-wiring.md](./transmitter-wiring.md). Per-session SQL views: see [session-views.md](./session-views.md).
 
 ## Schema
 
