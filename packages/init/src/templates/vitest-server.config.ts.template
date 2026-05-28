@@ -1,13 +1,12 @@
 // vitest-server config — warm vitest daemon.
-// `project` is the vitest project filter to keep warm; `primeFile` is
-// the file the storybook plugin pre-resolves on boot so the first
-// rerun is fast (auto-discovered if omitted).
+// `primeFile` is the file the storybook plugin pre-resolves on boot so
+// the first rerun is fast (auto-discovered if omitted).
+// Other options: `project` (filter to a single vitest project — rarely needed).
 
 import type { ServerConfig } from '@davstack/vitest-server/config';
 
 export default {
   port: 5179,
   host: '127.0.0.1',
-  project: 'storybook', // adjust to your vitest project name
   // primeFile: 'src/components/Button.stories.tsx',
 } satisfies ServerConfig;

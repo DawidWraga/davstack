@@ -8,14 +8,15 @@
 export default {
   port: 5179,
   host: "127.0.0.1",
-  project: "storybook",                                       // vitest project filter
   primeFile: "src/components/Button/Button.stories.tsx",      // see §2
 }
 ```
 
+Other options: `project` filters the daemon to a single vitest project (rarely needed — only when your repo has multiple vitest projects and one should stay warm).
+
 Per-key precedence: **CLI flag (`--project` / `--prime` / `--port` / `--host`) > env var (`VITEST_SERVER_PORT` / `VITEST_SERVER_HOST` / `VITEST_SERVER_PRIME_FILE`) > config file > built-in default.**
 
-Skip the manual edit with `pnpm exec davstack-init --tools=vitest-server`.
+Recommended: scaffold with `pnpx @davstack/init` (from your project root) — it installs the package and writes this config. To scaffold only the config without the full init flow: `pnpm exec davstack-init --tools=vitest-server`.
 
 For monorepos, pass `--cwd <path/to/workspace>` on `serve` so the daemon resolves `vitest/node` from the right `node_modules` and runs `findFirstStoryFile` under the right tree. The config is discovered by walking up from `cwd` to the repo root.
 

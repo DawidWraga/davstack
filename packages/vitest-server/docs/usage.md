@@ -45,10 +45,11 @@ Unknown routes return `404 { ok: false, error: "not found" }`. Handler exception
 ## Agent TDD loop
 
 ```bash
-# Once.
-pnpm exec vitest-server serve &
+# Boot once. Recommended: `davstack start` (TUI-supervised).
+# Standalone alternative: `pnpm exec vitest-server serve &`.
+davstack start
 
-# Per iteration: edit code, then rerun. Exit code drives the loop.
+# Per iteration: edit, rerun. Exit code drives the loop.
 pnpm exec vitest-server run src/foo/bar.test.tsx
 if [ $? -eq 0 ]; then echo "green"; else echo "red — read JSON errors"; fi
 ```
@@ -59,7 +60,7 @@ For programmatic use, hit the HTTP API directly — `client.ts` (`runFile`, `hea
 
 ## Lifecycle
 
-- **Boot from a script.** `pnpm exec vitest-server serve &`, then `pnpm exec vitest-server health` in a poll loop until `ok: true`.
+- **Boot.** Recommended: `davstack start`. Standalone: `pnpm exec vitest-server serve &`, then poll `health` until `ok: true`.
 - **Coexistence with `vitest watch`.** Don't run both against the same project — they'll both invalidate Vite caches and fight for the playwright workers. Pick one.
 - **Config edits.** Editing `vitest.config.ts` / `vite.config.ts` / `vitest-server.config.ts` while the daemon is running is not hot-reloaded. Restart `serve`.
 - **Shutdown.** `pnpm exec vitest-server shutdown`, or SIGINT the `serve` process. Both call `session.shutdown()` → `vitest.close()`.
