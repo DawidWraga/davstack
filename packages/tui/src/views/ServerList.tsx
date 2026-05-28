@@ -2,7 +2,7 @@
 // hotkeys (`↑/↓`, `enter`, `s`). Global hotkeys (`1..9`, `esc`, `q`) live
 // in <GlobalHotkeys>.
 
-import React, { useState } from "react"
+import React from "react"
 import { Box, Text, useInput } from "ink"
 
 import type { DaemonStatus } from "../hooks/useDaemonProcess.ts"
@@ -13,8 +13,7 @@ import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 import { ControlsHint } from "../components/ControlsHint.tsx"
 
 const DAEMONS_CONTROLS =
-  "↑/↓ focus  enter drill in  s start/stop  k takeover  1-9 jump  g agents  q quit  " +
-  "● running  ✗ crashed  ⚠ blocked"
+  "↑/↓ focus  enter drill in  s start/stop  k takeover  1-9 jump  g agents  q quit"
 
 const STATUS_GLYPH: Record<DaemonStatus, string> = {
   idle: "○",
@@ -41,7 +40,6 @@ const STATUS_COLOR: Record<DaemonStatus, string> = {
 export function ServerList(): React.ReactElement {
   const { rows } = useDaemons()
   const { focusedIdx, setFocusedIdx, showLog } = useView()
-  const [controlsOpen, setControlsOpen] = useState(false)
   // Hotkeys hook gives us the toggle; quit isn't called here so we pass
   // a noop — the global useInput owns the q routing.
   const { onToggleFocused } = useHotkeys(() => {})
@@ -49,10 +47,6 @@ export function ServerList(): React.ReactElement {
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
-      if (input === "c") {
-        setControlsOpen((v) => !v)
-        return
-      }
       if (rows.length === 0) return
       if (key.upArrow) {
         setFocusedIdx((focusedIdx - 1 + rows.length) % rows.length)
@@ -76,7 +70,7 @@ export function ServerList(): React.ReactElement {
       {rows.map((row, i) => (
         <DaemonListRow key={row.descriptor.key} row={row} focused={i === focusedIdx} />
       ))}
-      <ControlsHint expanded={controlsOpen} controls={DAEMONS_CONTROLS} />
+      <ControlsHint controls={DAEMONS_CONTROLS} />
     </Box>
   )
 }

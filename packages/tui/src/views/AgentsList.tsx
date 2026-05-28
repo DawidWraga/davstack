@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useMemo } from "react"
 import { Box, Text, useInput } from "ink"
 
 import type { JobRecord, JobStatus } from "@davstack/open-agents/core/jobs"
@@ -11,8 +11,7 @@ import { useNoColor, colorOrUndef } from "../hooks/useNoColor.ts"
 import { ControlsHint } from "../components/ControlsHint.tsx"
 
 const AGENTS_CONTROLS =
-  "↑/↓ j/k focus  enter drill in  esc back  g agents  q quit  " +
-  "● running  ✗ failed  ○ done"
+  "↑/↓ j/k focus  enter drill in  r refresh  esc back  g agents  q quit"
 
 const STATUS_LABEL: Record<JobStatus, string> = {
   running: "run",
@@ -30,15 +29,14 @@ const STATUS_COLOR: Record<JobStatus, string> = {
 
 export function AgentsList(): React.ReactElement {
   const repoPath = getRepoRootSafe()
-  const { jobs } = useAgentJobs(repoPath)
+  const { jobs, refresh } = useAgentJobs(repoPath)
   const { focusedIdx, setFocusedIdx, showAgent } = useView()
-  const [controlsOpen, setControlsOpen] = useState(false)
 
   const rawModeSupported = process.stdin.isTTY === true
   useInput(
     (input, key) => {
-      if (input === "c") {
-        setControlsOpen((v) => !v)
+      if (input === "r") {
+        refresh()
         return
       }
       if (jobs.length === 0) return
@@ -55,7 +53,7 @@ export function AgentsList(): React.ReactElement {
   )
 
   if (jobs.length === 0) {
-    return <AgentsEmptyState controlsOpen={controlsOpen} />
+    return <AgentsEmptyState />
   }
 
   const safeFocus = Math.min(focusedIdx, jobs.length - 1)
@@ -65,7 +63,7 @@ export function AgentsList(): React.ReactElement {
       {jobs.map((job, i) => (
         <AgentListRow key={job.id} job={job} focused={i === safeFocus} />
       ))}
-      <ControlsHint expanded={controlsOpen} controls={AGENTS_CONTROLS} />
+      <ControlsHint controls={AGENTS_CONTROLS} />
     </Box>
   )
 }
@@ -90,13 +88,13 @@ function AgentListRow({ job, focused }: { job: JobRecord; focused: boolean }): R
   )
 }
 
-function AgentsEmptyState({ controlsOpen }: { controlsOpen: boolean }): React.ReactElement {
+function AgentsEmptyState(): React.ReactElement {
   return (
     <Box flexDirection="column">
       <Text dimColor>
         No agents have run in this repo yet. Submit one with: explore &quot;&lt;prompt&gt;&quot;
       </Text>
-      <ControlsHint expanded={controlsOpen} controls={AGENTS_CONTROLS} />
+      <ControlsHint controls={AGENTS_CONTROLS} />
     </Box>
   )
 }

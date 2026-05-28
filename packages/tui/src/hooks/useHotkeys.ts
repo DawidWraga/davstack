@@ -16,6 +16,7 @@ export interface KeyEvent {
   rightArrow?: boolean
   tab?: boolean
   shift?: boolean
+  meta?: boolean
 }
 
 export interface HotkeyHandlers {
