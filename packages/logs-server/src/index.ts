@@ -6,10 +6,9 @@
 //   serve         boot the ingest endpoint
 //   check         validate local install (node, config, db rows, daemon liveness)
 //
-// Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`
-// — the canned-cuts CLI verb was removed in 2.1.0 because it couldn't reach
-// structured probe attributes and cost ~10× sqlite's cold-boot. Recipes and
-// the flat `attrs` column (populated at insert time as of 2.2.0) live in
+// Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`.
+// The flat `attrs` column is populated at insert time so probe attributes
+// are one `json_extract` away. Recipes live in
 // packages/logs-server/docs/reading-logs.md.
 //
 // Retention is file-based: each session writes its own `.davstack/logs/<name>.db`,

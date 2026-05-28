@@ -148,9 +148,8 @@ test('routeDb is undefined when no attribute is set (back-compat baseline)', () 
   expect(rows[0].routeDb).toBeUndefined();
 });
 
-// attrs is computed at parse time (was a per-read view in 1.4.0–2.1.0).
-// Stored as JSON text: OTel {value,type} wrapper stripped, NULL when no
-// attributes are present — matching the old logs_v CASE semantics.
+// attrs is computed at parse time. Stored as JSON text: OTel {value,type}
+// wrapper stripped, NULL when no attributes are present.
 
 test('attrs flattens the OTel {value,type} wrapper to plain key→value', () => {
   const { rows } = parseEnvelope(envelope([log()]));

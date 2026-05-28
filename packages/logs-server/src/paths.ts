@@ -1,9 +1,7 @@
-// Where the per-repo DB files live. As of 2.0.0 the default is
-// `<repoRoot>/.davstack/logs/default.db` — moved from the legacy single
-// `.davstack/logs.db` to make room for per-session siblings
-// (`.davstack/logs/<name>.db`). DIAG_DB still pins an explicit file (used by
-// tests and `--db`); DIAG_HOME / ~/.claude/diag is the global fallback when
-// no repo root is in play.
+// Where the per-repo DB files live. Default: `<repoRoot>/.davstack/logs/default.db`,
+// with per-session siblings (`.davstack/logs/<name>.db`) created on demand.
+// DIAG_DB pins an explicit file (used by tests and `--db`); DIAG_HOME /
+// ~/.claude/diag is the global fallback when no repo root is in play.
 
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';

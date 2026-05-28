@@ -46,7 +46,7 @@ Indexed on `(project, run_id, trace_id, level, ts)` — filter on those first.
 
 - **`msg`** — log body, ANSI prefix stripped. Indexed-string predicates are cheap here.
 - **`data`** — raw Sentry log record JSON, verbatim. Includes OTel-typed `attributes`.
-- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Populated at insert time (2.2.0+). Reach in with `json_extract(attrs, '$.<key>')` — much shorter than the four-segment `data.attributes.<key>.value` path.
+- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Populated at insert time. Reach in with `json_extract(attrs, '$.<key>')` — much shorter than the four-segment `data.attributes.<key>.value` path.
 - **`tag`** — promoted from `diag.tag` (nullable).
 
 Need the OTel type discriminator? `json_extract(data, '$.attributes.<key>.type')` — rarely needed.
