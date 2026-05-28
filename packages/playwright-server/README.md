@@ -2,32 +2,52 @@
 
 Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm.
 
-> **Recommended**: run this daemon via `pnpm dlx @davstack/tui start` —
-> the TUI supervises all configured davstack daemons together and cleans
-> them up on quit. The standalone CLI below still works if you want to
-> run this daemon in isolation.
-
 ## Why
 
 - **Warm chromium context.** Reuse warm browser across tabs for super fast agentic feedback loops.
 - **Agent-optimized CLI.** Structured JSON + exit codes; fast loops, lean on tokens.
 
-## Install
+## Install & setup (1 min)
+
+1. Recommended: scaffold with [davstack init](../init/README.md)
 
 ```bash
-pnpm add -D @davstack/playwright-server @playwright/test
-pnpm exec playwright install chromium
-
-# in a long-lived shell:
-pnpm exec playwright-server serve
+pnpx @davstack/init
 ```
+
+(cd to your project repo first - playwright-server is scoped to codebase)
+
+2. Install the chromium browser binary (one-time)
+
+```bash
+pnpm exec playwright install chromium
+```
+
+(more info: [setup.md](./docs/setup.md))
 
 ## Usage Example
 
+1. Start server
+
+```bash
+davstack start
+```
+
+(more info: [davstack tui](../tui/README.md))
+
+2. Run a spec against the warm daemon
+
 ```bash
 playwright-server run e2e/smoke.spec.ts
+```
+
+Result:
+
+```
 {"ok":true,"durationMs":842,"setupMs":120,"file":"e2e/smoke.spec.ts"}
 ```
+
+(more info: [usage.md](./docs/usage.md))
 
 ## Spec files
 

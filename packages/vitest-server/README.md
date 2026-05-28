@@ -2,33 +2,48 @@
 
 Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3-15s warm.
 
-> **Recommended**: run this daemon via `pnpm dlx @davstack/tui start` —
-> the TUI supervises all configured davstack daemons together and cleans
-> them up on quit. The standalone CLI below still works if you want to
-> run this daemon in isolation.
-
 ## Why
 
 - **Warm-boot speed.** Vite optimize + playwright launch + storybook preset only happen once; per-file reruns reuse the hot pool.
 - **Agent-optimized CLI.** Structured JSON + exit codes; fast loops, lean on tokens.
 
-## Install
+## Install & setup (1 min)
+
+Recommended: scaffold with [davstack init](../init/README.md)
 
 ```bash
-pnpm add -D @davstack/vitest-server
-pnpm exec vitest-server serve     # boots daemon on 127.0.0.1:5179
+pnpx @davstack/init
 ```
+
+(cd to your project repo first - vitest-server is scoped to codebase)
+
+(more info: [setup.md](./docs/setup.md))
 
 ## Usage Example
 
-```bash
-# Terminal A — boot once (heavy: ~50s cold).
-pnpm exec vitest-server serve
+1. Start server
 
-# Terminal B — rerun a file against the warm daemon (~3-15s).
-pnpm exec vitest-server run src/feat/chart-views/LineChart/LineChartView.stories.tsx
-# → JSON RunResult on stdout, exit 0 on pass / 1 on fail
+```bash
+davstack start
 ```
+
+(more info: [davstack tui](../tui/README.md))
+
+2. Rerun a file against the warm daemon
+
+```bash
+vitest-server run src/feat/chart-views/LineChart/LineChartView.stories.tsx
+```
+
+Result:
+
+```
+{"ok":false, "durationMs":3120, "file":"…/LineChartView.stories.tsx", "errors":[...]}
+```
+
+Exit 0 on pass / 1 on fail.
+
+(more info: [usage.md](./docs/usage.md))
 
 ## Docs
 
