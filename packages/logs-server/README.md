@@ -18,7 +18,7 @@ pnpx @davstack/init
 
 (cd to your project repo first - logs-server is scoped to codebase)
 
-1. Set up local sink — in dev, point your existing Sentry DSN at the daemon:
+2. Set up local sink — in dev, point your existing Sentry DSN at the daemon:
 
 ```ts
 Sentry.init({dsn: IS_DEV ? "http://public@127.0.0.1:5181/1" : import.meta.env.VITE_SENTRY_DSN })
@@ -36,7 +36,7 @@ davstack start
 
 (more info: [davstack tui](../tui/README.md))
 
-1. Add logs to app, or use autoinstumentation.
+2. Add logs to app, or use autoinstumentation.
 
 ```ts
 logger.debug("user clicked save", { user_id: 42, run_id: "r-99" })
@@ -44,13 +44,15 @@ logger.debug("user clicked save", { user_id: 42, run_id: "r-99" })
 
 (more info: [writing-logs.md](./docs/writing-logs.md))
 
-1. Run repo with --db (optional) — scopes this session's logs to its own DB
+3. Run repo with --db (optional) — scopes this session's logs to its own DB
 
 ```bash
 playwright-server run --db=reorder-bug e2e/reorder-flow.spec.ts   # → .davstack/logs/reorder-bug.db (default: default.db)
 ```
 
-note: [vitest-server](../vitest-server/README.md) and [playwright-server](../playwright-server/README.md) are recommended but optional, logs are still recorded in regular pnpm dev. 
+notes:
+- Davstack runner is recommended ([vitest-server](../vitest-server/README.md), [playwright-server](../playwright-server/README.md)), however regular `pnpm dev` still captures logs
+- `--db` usage is recommended, however without it logs still land in `default.db`.
 
 (more info: [transmitter-wiring.md](./docs/transmitter-wiring.md))
 
