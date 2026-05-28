@@ -56,7 +56,7 @@ notes:
 
 (more info: [transmitter-wiring.md](./docs/transmitter-wiring.md))
 
-1. Query logs with  `sqlite3`.
+4. Query logs with  `sqlite3`.
 
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
