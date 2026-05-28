@@ -1,5 +1,40 @@
 # @davstack/cli-utils
 
+## 1.3.0
+
+### Minor Changes
+
+- Add `refresh --hard` to all three daemons for opt-in shutdown + detached re-serve.
+
+  Soft `refresh` (the default, added in the previous release) re-inits in place
+  and preserves the daemon PID, which is what the TUI's `davstack start` watcher
+  needs. But it can't re-bind the listening socket or re-spawn the underlying
+  runtime — so when you change `port`/`host`/`cors`, upgrade a peer dep, or the
+  chromium/vitest internals get wedged, you need a real restart.
+
+  `refresh --hard` is that escape hatch:
+
+  1. Best-effort `POST /shutdown` (`/__shutdown` for logs-server) to the current
+     daemon.
+  2. Wait for the listening socket to release (Windows in particular can EADDRINUSE
+     on immediate re-bind).
+  3. Spawn a detached `<process.execPath> <argv[1]> serve …` so the runtime is
+     inherited (node for playwright-server/vitest-server, bun for logs-server).
+  4. Poll `/health` (`/__health` for logs-server) until the new daemon answers,
+     then exit with `{ ok: true, pid, startupMs }`.
+
+  The PID changes, so the TUI's watcher reattaches on its next health probe.
+
+  The shutdown + spawn + poll loop now lives in `@davstack/cli-utils/restart` as
+  `restartDaemon()` — three near-identical copies would have rotted out of sync.
+
+  logs-server also gains a `POST /__shutdown` route so the helper has something
+  to call; previously the only way to stop it was SIGINT/SIGTERM.
+
+  The soft `refresh` verb is unchanged and remains the default. Use `--hard` only
+  when soft is insufficient — you pay the full cold-boot cost of the daemon
+  (several seconds for playwright-server, slower for vitest-server).
+
 ## 1.2.0
 
 ### Minor Changes

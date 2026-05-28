@@ -104,6 +104,24 @@ export function startServer(opts: ServerOpts): { port: number; host: string; sto
           headers: jsonHeaders(cors),
         });
       }
+      if (req.method === 'POST' && path === '/__shutdown') {
+        // Reply first, then stop the server in the next tick so the
+        // socket flushes the 200 before Bun.serve tears it down.
+        queueMicrotask(() => {
+          try {
+            server.stop(true);
+          } finally {
+            // Exit the process so a parent supervisor (or `refresh --hard`
+            // respawn) can take over. SIGTERM handlers in index.ts would
+            // also fire, but exit(0) is the explicit, deterministic path.
+            process.exit(0);
+          }
+        });
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: jsonHeaders(cors),
+        });
+      }
       if (req.method === 'POST' && path === '/__refresh') {
         const refreshedAt = new Date().toISOString();
         let result: RefreshResult = {

@@ -113,9 +113,48 @@ const cli = defineCli({
     },
     refresh: {
       description:
-        'Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive)',
-      flags: clientFlags(),
+        'Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive). Pass --hard for a full shutdown + detached re-serve when soft refresh is insufficient.',
+      flags: {
+        ...clientFlags(),
+        hard: {
+          type: 'boolean' as const,
+          default: false,
+          description: 'Full shutdown + detached re-serve (loses daemon PID).',
+        },
+        cwd: {
+          type: 'string' as const,
+          default: process.cwd(),
+          description: 'Consumer project root passed to the re-spawned serve (--hard only).',
+        },
+        project: {
+          type: 'string' as const,
+          description: 'Vitest project filter, passed to the re-spawned serve (--hard only).',
+        },
+        prime: {
+          type: 'string' as const,
+          env: 'VITEST_SERVER_PRIME_FILE',
+          description: 'Prime file passed to the re-spawned serve (--hard only).',
+        },
+      },
       run: async (ctx) => {
+        if (ctx.flags.hard) {
+          const { restart } = await import('./client.js');
+          const serveArgs = [
+            '--port', String(ctx.flags.port),
+            '--host', String(ctx.flags.host),
+            '--cwd', String(ctx.flags.cwd),
+          ];
+          if (ctx.flags.project) serveArgs.push('--project', String(ctx.flags.project));
+          if (ctx.flags.prime) serveArgs.push('--prime', String(ctx.flags.prime));
+          const result = await restart({
+            ...clientOpts(ctx.flags),
+            entry: process.argv[1],
+            serveArgs,
+            startupTimeoutMs: 60_000, // vitest boot is slower than playwright
+          });
+          console.log(JSON.stringify(result, null, 2));
+          return result.ok ? 0 : 1;
+        }
         const { refresh } = await import('./client.js');
         const result = await refresh(clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));

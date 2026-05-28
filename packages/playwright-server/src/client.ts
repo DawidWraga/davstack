@@ -108,3 +108,6 @@ export async function shutdown(opts: ClientOpts): Promise<{ ok: true }> {
   }
   return { ok: true };
 }
+
+export { restartDaemon as restart } from '@davstack/cli-utils/restart';
+export type { RestartResult } from '@davstack/cli-utils/restart';

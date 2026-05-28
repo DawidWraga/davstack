@@ -124,17 +124,37 @@ const cli = defineCli({
     },
     refresh: {
       description:
-        'Evict the daemon\'s cached DB handles and re-read config without restarting (keeps the daemon PID alive)',
+        'Evict the daemon\'s cached DB handles and re-read config without restarting (keeps the daemon PID alive). Pass --hard for a full shutdown + detached re-serve (loses PID; needed for port/host/cors changes).',
       flags: {
         port: { type: 'number', env: 'DIAG_PORT' },
         host: { type: 'string', env: 'DIAG_HOST' },
+        hard: {
+          type: 'boolean' as const,
+          default: false,
+          description: 'Full shutdown + detached re-serve (loses daemon PID).',
+        },
+        db: dbFlag(),
       },
       run: async (ctx) => {
+        const host = (ctx.flags.host as string | undefined) ?? '127.0.0.1';
+        const port = (ctx.flags.port as number | undefined) ?? 7077;
+        if (ctx.flags.hard) {
+          const { restartDaemon } = await import('@davstack/cli-utils/restart');
+          const serveArgs = ['--port', String(port), '--host', String(host)];
+          if (ctx.flags.db) serveArgs.push('--db', String(ctx.flags.db));
+          const result = await restartDaemon({
+            host,
+            port,
+            entry: process.argv[1],
+            serveArgs,
+            healthPath: '/__health',
+            shutdownPath: '/__shutdown',
+          });
+          process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+          return result.ok ? 0 : 1;
+        }
         const { refresh } = await import('./client.js');
-        const result = await refresh({
-          host: (ctx.flags.host as string | undefined) ?? '127.0.0.1',
-          port: (ctx.flags.port as number | undefined) ?? 7077,
-        });
+        const result = await refresh({ host, port });
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
         return result.ok ? 0 : 1;
       },

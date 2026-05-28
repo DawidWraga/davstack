@@ -1,6 +1,6 @@
 {
   "name": "@davstack/cli-utils",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "license": "MIT",
   "type": "module",
   "description": "Tiny CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
@@ -20,6 +20,10 @@
     "./dotenv": {
       "types": "./dist/dotenv.d.ts",
       "default": "./dist/dotenv.js"
+    },
+    "./restart": {
+      "types": "./dist/restart.d.ts",
+      "default": "./dist/restart.js"
     }
   },
   "scripts": {

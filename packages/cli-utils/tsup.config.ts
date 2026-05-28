@@ -6,6 +6,7 @@ export default defineConfig({
 		"cli-help": "src/cli-help.ts",
 		config: "src/config.ts",
 		dotenv: "src/dotenv.ts",
+		restart: "src/restart.ts",
 	},
 	format: ["esm"],
 	target: "node20",
