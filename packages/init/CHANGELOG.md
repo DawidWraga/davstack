@@ -1,5 +1,17 @@
 # @davstack/init
 
+## 1.2.3
+
+### Patch Changes
+
+- Update `diagnose` skill: add no-echo rule (don't restate log card details
+  in chat — one-line gist is fine), terseness directive (fragments over
+  prose, sacrifice grammar), and explicit "goal is the fix, not the
+  document" framing. Targets a failure mode where the orchestrator wrote a
+  card to the log then re-explained it in chat, doubling tokens and slowing
+  the loop. Also syncs the daemon-prereq paragraph that the bundled copy
+  was missing.
+
 ## 1.2.2
 
 ### Patch Changes

@@ -32,9 +32,26 @@ summarizes the conversation, so log narration is pure duplication and is the
 largest avoidable token sink. Format/cadence provisional; iterate via
 `~/.davstack/diagnose-feedback/`.
 
+**No-echo rule.** After writing a card to the log, don't restate the
+details in chat — a one-line gist is fine (`H3 added: stale cache`), but no
+re-pasting, no re-explaining what's already on disk. Chat is for the next
+decision, not for mirroring the file.
+
+**Write terse.** Cards and verdicts are notes-to-self, not prose. Fragments
+over sentences, sacrifice grammar/articles — the goal is recall, not
+readability. A 30-word card beats a 200-word one.
+
+**Goal is the fix, not the document.** Documentation serves diagnosis;
+diagnosis does not serve documentation. If you're polishing the log instead
+of dispatching the next experiment, you're in the wrong loop.
+
 **Large artifacts.** Eval `REPORT.md`, big test/prompt/log files: scoped grep
 or a delegated `explore` slice — never a full re-read
 (`feedback_delegate_big_file_recon`). Compounds with the note rule above.
+
+**Daemon prereq.** This loop leans on `logs-server`, `vitest-server`, and
+`playwright-server`. First run `davstack check` to confirm the required
+daemons are running — it prints the start instructions if anything's missing.
 
 ## 0 — Frame
 
