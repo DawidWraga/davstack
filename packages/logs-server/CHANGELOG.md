@@ -1,8 +1,8 @@
 # @davstack/logs-server
 
-## Unreleased
+## 2.3.0
 
-### Patch Changes
+### Minor Changes
 
 - Removed time-based prune (`prune` verb, `--prune-days` flag, `pruneDays`
   config, background tick, `db.ts` `prune()` export, `src/db-walk.ts`).

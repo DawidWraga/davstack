@@ -1,5 +1,11 @@
 # @davstack/vitest-server
 
+## 1.2.3
+
+### Patch Changes
+
+- Docs: README aligned with the `logs-server` pattern.
+
 ## 1.2.2
 
 ### Patch Changes

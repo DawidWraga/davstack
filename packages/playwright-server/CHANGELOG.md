@@ -1,5 +1,14 @@
 # @davstack/playwright-server
 
+## 1.4.1
+
+### Patch Changes
+
+- Internal: tighten `window.__davstack_db` typing to a
+  `Window & { __davstack_db?: string }` intersection cast (no behavior
+  change).
+- Docs: README aligned with the `logs-server` pattern.
+
 ## 1.4.0
 
 ### Minor Changes
