@@ -8,9 +8,9 @@ sqlite3 -header -column .davstack/logs/default.db "<SQL>"
 
 `-header` prints column names, `-column` aligns the output as a table.
 
-## Choosing a DB
+## Sessions
 
-The daemon writes one file per "session" under `.davstack/logs/`:
+The daemon writes one file per "session" under `.davstack/logs/` based on --db tag:
 
 ```
 .davstack/logs/
@@ -19,7 +19,9 @@ The daemon writes one file per "session" under `.davstack/logs/`:
   hotfix-7c.db
 ```
 
-If logs get filled with noise, can clean up or achive by simply moving file eg to `.davstack/logs/archive/`.
+If logs get noisy, archive by moving the file — e.g. to `.davstack/logs/archive/`.
+
+See [transmitter-wiring.md](./transmitter-wiring.md) for how `--db=<name>` flows end-to-end.
 
 ## Schema
 
@@ -27,7 +29,7 @@ If logs get filled with noise, can clean up or achive by simply moving file eg t
 logs(
   id              INTEGER PRIMARY KEY,
   ts              REAL,     -- Sentry log timestamp, seconds since epoch (float)
-  recv_ts         REAL,     -- server receive time, ms epoch (prune key)
+  recv_ts         REAL,     -- server receive time, ms epoch
   project         TEXT,     -- promoted from data.attributes['diag.project'].value
   service         TEXT,     -- envelope sdk.name
   run_id          TEXT,     -- promoted from data.attributes['diag.run_id'].value
@@ -122,6 +124,18 @@ sqlite3 -header -column .davstack/logs/default.db "
   WHERE level = 'error'
   ORDER BY ts DESC
   LIMIT 20;
+"
+```
+
+### Errors from the last 60s (no BASELINE needed)
+
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT ts, level, msg
+  FROM logs
+  WHERE level = 'error'
+    AND ts > unixepoch() - 60
+  ORDER BY ts;
 "
 ```
 
