@@ -155,7 +155,7 @@ export async function runCheck(opts: {
 }): Promise<number> {
   const cwd = opts.cwd ?? process.cwd();
   const cfg = await loadConfig(cwd);
-  // Resolution order mirrors serve/prune: CLI flag > DIAG_* env > config > built-in.
+  // Resolution order mirrors serve: CLI flag > DIAG_* env > config > built-in.
   const host = opts.host ?? process.env.DIAG_HOST ?? cfg.host ?? '127.0.0.1';
   const envPort = process.env.DIAG_PORT ? Number(process.env.DIAG_PORT) : undefined;
   const port = opts.port ?? envPort ?? cfg.port ?? 7077;

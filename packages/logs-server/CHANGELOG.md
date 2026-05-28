@@ -1,5 +1,15 @@
 # @davstack/logs-server
 
+## Unreleased
+
+### Patch Changes
+
+- Removed time-based prune (`prune` verb, `--prune-days` flag, `pruneDays`
+  config, background tick, `db.ts` `prune()` export, `src/db-walk.ts`).
+  Retention is file-based now — archive a session DB out of `.davstack/logs/`
+  (e.g. into `.davstack/logs/archive/`) when it goes quiet; past timelines
+  stay queryable. If your config sets `pruneDays` it's silently ignored.
+
 ## 2.2.0
 
 ### Minor Changes

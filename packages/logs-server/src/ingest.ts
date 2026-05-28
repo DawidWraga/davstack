@@ -1,5 +1,6 @@
 // The ingest seam. Parse a raw Sentry envelope, stamp the SERVER recv_ts on
-// every row (clock-skew safety — prune keys on this, not client ts), persist.
+// every row (clock-skew safety — recv_ts is the server clock vs the client's
+// `ts`), persist.
 // Wrapped so it can never throw to the HTTP layer: a sink that 500s or hangs
 // would block the app it is meant to observe (notes 03).
 //

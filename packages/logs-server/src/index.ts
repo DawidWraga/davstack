@@ -4,7 +4,6 @@
 //
 // Verbs:
 //   serve         boot the ingest endpoint
-//   prune         delete rows older than --days / --max-age-ms
 //   check         validate local install (node, config, db rows, daemon liveness)
 //
 // Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`
@@ -12,6 +11,9 @@
 // structured probe attributes and cost ~10× sqlite's cold-boot. Recipes and
 // the flat `attrs` column (populated at insert time as of 2.2.0) live in
 // packages/logs-server/docs/reading-logs.md.
+//
+// Retention is file-based: each session writes its own `.davstack/logs/<name>.db`,
+// so cleanup is `mv` into an archive dir. See docs/reading-logs.md#sessions.
 
 import { defineCli } from '@davstack/cli-utils';
 
@@ -29,11 +31,6 @@ const cli = defineCli({
         db: dbFlag(),
         port: { type: 'number', env: 'DIAG_PORT' },
         host: { type: 'string', env: 'DIAG_HOST' },
-        'prune-days': {
-          type: 'number',
-          default: 0,
-          description: 'Hourly background prune; 0 disables',
-        },
       },
       run: async (ctx) => {
         // Load .env before config so log-server.config.ts can read
@@ -46,12 +43,10 @@ const cli = defineCli({
             `[logs-server] loaded .env from ${envResult.path} (${envResult.keys} keys)\n`,
           );
         }
-        const { prune } = await import('./db.js');
         const { DbHandleCache } = await import('./db-cache.js');
         const { dbPath, defaultDbPathForRepo } = await import('./paths.js');
         const { startServer } = await import('./server.js');
         const { loadConfig } = await import('./config.js');
-        const { walkLogDbs } = await import('./db-walk.js');
         const config = await loadConfig(process.cwd());
         const effectivePort = (ctx.flags.port as number | undefined) ?? config.port;
         const effectiveHost = (ctx.flags.host as string | undefined) ?? config.host;
@@ -89,23 +84,6 @@ const cli = defineCli({
           `log-server listening on http://${srv.host}:${srv.port}  ` +
             `${pinned ? `db=${defaultDbPath}` : `logs=${defaultDbPath}/..`}\n`,
         );
-        const days =
-          (ctx.flags['prune-days'] as number | undefined) || config.pruneDays || 0;
-        if (days > 0) {
-          // Walk all DBs each tick. With one pinned DB the walk yields just
-          // that file via the cache; with dispatch it sweeps every session DB
-          // currently materialized under .davstack/logs/.
-          setInterval(() => {
-            const files = pinned ? [defaultDbPath] : walkLogDbs(repoRoot);
-            for (const f of files) {
-              try {
-                prune(cache.getOrOpen(f), days * 86_400_000);
-              } catch {
-                // a DB file may be gone (rm'd by the user) — skip
-              }
-            }
-          }, 3_600_000).unref();
-        }
         return new Promise<number>(() => {});
       },
     },
@@ -127,55 +105,6 @@ const cli = defineCli({
           db: ctx.flags.db as string | undefined,
           json: ctx.flags.json as boolean,
         });
-      },
-    },
-    prune: {
-      description:
-        'Delete rows older than --days / --max-age-ms. Walks every .davstack/logs/*.db unless --db pins one file.',
-      flags: {
-        db: dbFlag(),
-        days: { type: 'number', default: 14 },
-        'max-age-ms': { type: 'number' },
-      },
-      run: async (ctx) => {
-        const { openDb, prune } = await import('./db.js');
-        const { dbPath, defaultDbPathForRepo } = await import('./paths.js');
-        const { loadConfig } = await import('./config.js');
-        const { walkLogDbs } = await import('./db-walk.js');
-        const config = await loadConfig(process.cwd());
-        const repoRoot = config._repoRoot ?? process.cwd();
-
-        const ageMs =
-          (ctx.flags['max-age-ms'] as number | undefined) ??
-          (ctx.flags.days as number) * 86_400_000;
-
-        const pinned =
-          (ctx.flags.db as string | undefined) ||
-          process.env.DIAG_DB ||
-          config._dbPathResolved ||
-          config.dbPath;
-
-        const files = pinned
-          ? [dbPath(pinned)]
-          : (() => {
-              const walked = walkLogDbs(repoRoot);
-              return walked.length > 0 ? walked : [defaultDbPathForRepo(repoRoot)];
-            })();
-
-        let total = 0;
-        for (const f of files) {
-          try {
-            const db = openDb(f);
-            const n = prune(db, ageMs);
-            db.close();
-            total += n;
-            process.stdout.write(`pruned ${n} rows from ${f}\n`);
-          } catch (err) {
-            process.stderr.write(`[logs-server] prune failed for ${f}: ${(err as Error).message}\n`);
-          }
-        }
-        process.stdout.write(`pruned ${total} rows total (older than ${ageMs}ms)\n`);
-        return 0;
       },
     },
   },

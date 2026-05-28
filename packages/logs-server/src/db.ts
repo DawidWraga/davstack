@@ -1,12 +1,13 @@
 // Storage layer for the diag sink. Sentry-native columns (notes 03 binding):
 // correlation fields indexed, full log item kept verbatim in `data`. One DB
-// serves every repo (the `project` column scopes), pruned by server `recv_ts`.
+// serves every repo (the `project` column scopes); retention is per-file —
+// drop a session DB under `.davstack/logs/` to discard its rows.
 
 import { Database } from 'bun:sqlite';
 
 export type LogRow = {
   ts: number; // client timestamp (Sentry log `timestamp`, seconds float)
-  recv_ts: number; // server receive time, ms epoch — the prune key
+  recv_ts: number; // server receive time, ms epoch (clock-skew-safe vs client `ts`)
   project: string; // diag.project attribute (cwd/repo key)
   service: string; // envelope sdk.name
   run_id: string; // diag.run_id attribute
@@ -117,7 +118,3 @@ export function selectByTrace(db: Database, project: string, traceId: string): L
     .all(project, traceId) as LogRow[];
 }
 
-export function prune(db: Database, maxAgeMs: number, now: number = Date.now()): number {
-  const cutoff = now - maxAgeMs;
-  return db.query('DELETE FROM logs WHERE recv_ts < ?').run(cutoff).changes;
-}

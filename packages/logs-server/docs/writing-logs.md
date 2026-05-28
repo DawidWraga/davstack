@@ -21,7 +21,7 @@ Cheap to write, fast to query later (`json_extract(data, '$.url')` in [reading-l
 
 ## Routing a session's logs to its own DB
 
-Default: every emission lands in `.davstack/logs/default.db`. If you want a particular debug session, eval run, or repro to live in its own file (cleanup-via-`rm`, isolated views, no cross-session noise), the transmitter just stamps one attribute on each log. The daemon dispatches.
+Default: every emission lands in `.davstack/logs/default.db`. If you want a particular debug session, eval run, or repro to live in its own file (archivable-via-`mv`, isolated views, no cross-session noise), the transmitter just stamps one attribute on each log. The daemon dispatches.
 
 See [transmitter-wiring.md](./transmitter-wiring.md) for the 3-line `sentry.ts` snippet and the runner-flag side (`playwright-server --db=<name>`). Once routed, [session-views.md](./session-views.md) shows the high-value follow-up: per-DB SQL views tailored to the bug you're hunting.
 
@@ -71,7 +71,7 @@ When debugging, the receiver gives you a fast loop:
 
    The timeline shows the actual ordering and payloads — not the assumed ones.
 
-4. **Strip the probes** once the root cause is known. (Or leave them at `debug` and rely on prune.)
+4. **Strip the probes** once the root cause is known. (Or leave them at `debug` and archive the session DB out of `.davstack/logs/` when you're done with it.)
 
 The skill's value is forcing step 1 before step 2 — without a written hypothesis, you tend to dump logs everywhere and re-read noise.
 

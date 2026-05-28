@@ -2,11 +2,11 @@
 // a REAL-shaped Sentry log envelope over HTTP (the anti-shallow-seam
 // discipline — exercise the wire, not a synthetic shortcut), with two
 // `diag.project`s sharing a `trace_id`, and proves: correlated retrieval is
-// exact and project-scoped even on the shared trace; the sink never 5xx's on
-// garbage; and prune evicts by server clock.
+// exact and project-scoped even on the shared trace, and the sink never 5xx's
+// on garbage.
 
 import { test, expect } from 'bun:test';
-import { openDb, prune, selectByTrace, type LogRow } from '../src/db.js';
+import { openDb, selectByTrace, type LogRow } from '../src/db.js';
 import { startServer } from '../src/server.js';
 
 // Local error-context helper — replaces removed src/query.ts. Centers a ±N
@@ -52,7 +52,7 @@ function envelope(project: string, items: Record<string, unknown>[], sdk = 'sent
   ].join('\n');
 }
 
-test('end-to-end: real HTTP ingest, project-scoped on a shared trace, prune', async () => {
+test('end-to-end: real HTTP ingest, project-scoped on a shared trace', async () => {
   const db = openDb(':memory:');
   const srv = startServer({ db, port: 0 });
   try {
@@ -82,10 +82,6 @@ test('end-to-end: real HTTP ingest, project-scoped on a shared trace, prune', as
     expect(errs).toHaveLength(1);
     expect(errs[0].error.msg).toBe('a-boom');
     expect(errs[0].window.map((r) => r.msg)).toEqual(['a-info', 'a-boom']);
-
-    // prune by server recv_ts: nothing old yet, then evict everything
-    expect(prune(db, 60_000)).toBe(0);
-    expect(prune(db, 0, Date.now() + 1)).toBe(3);
   } finally {
     srv.stop();
   }

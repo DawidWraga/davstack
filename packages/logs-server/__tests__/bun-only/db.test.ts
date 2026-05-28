@@ -1,12 +1,10 @@
-// RED first. Storage layer for the diag sink. Two design decisions are
-// asserted here before any implementation exists:
-//   (a) project-scoping must hold even when trace_id COLLIDES across projects
-//       (one DB serves all repos — see notes 03 "one DB, prune by age");
-//   (b) prune keys on server recv_ts, NOT client ts — a client with a skewed
-//       clock must not strand or instantly evict its rows (notes 03 schema).
+// RED first. Storage layer for the diag sink. The design decision asserted
+// here before any implementation exists: project-scoping must hold even when
+// trace_id COLLIDES across projects (one DB can serve multiple repos — the
+// `project` column scopes).
 
 import { test, expect } from 'bun:test';
-import { openDb, insertLogs, selectByTrace, prune, type LogRow } from '../src/db.js';
+import { openDb, insertLogs, selectByTrace, type LogRow } from '../src/db.js';
 
 function row(over: Partial<LogRow>): LogRow {
   return {
@@ -138,20 +136,3 @@ test('project-scoping holds even when trace_id collides across projects', () => 
   expect(b.map((r) => r.msg)).toEqual(['b-only']);
 });
 
-test('prune keys on server recv_ts, not client ts (clock-skew safety)', () => {
-  const db = openDb(':memory:');
-  const now = 1_000_000_000_000; // fixed server "now" (ms)
-  const maxAgeMs = 60_000; // keep last 60s by server clock
-  insertLogs(db, [
-    // skewed-future client ts but OLD server recv_ts -> must be PRUNED
-    row({ msg: 'old-by-server', ts: 9_999_999_999.0, recv_ts: now - 120_000 }),
-    // ancient client ts but RECENT server recv_ts -> must be KEPT
-    row({ msg: 'fresh-by-server', ts: 1.0, recv_ts: now - 1_000 }),
-  ]);
-  const deleted = prune(db, maxAgeMs, now);
-  expect(deleted).toBe(1);
-  const remaining = (db.query('select msg from logs').all() as { msg: string }[]).map(
-    (r) => r.msg,
-  );
-  expect(remaining).toEqual(['fresh-by-server']);
-});

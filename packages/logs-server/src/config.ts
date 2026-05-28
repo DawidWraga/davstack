@@ -16,7 +16,6 @@ export type ServerConfig = {
   port?: number;
   host?: string;
   dbPath?: string;
-  pruneDays?: number;
   /**
    * CORS policy for browser-origin requests. Sink binds to 127.0.0.1
    * so default-permissive is safe.
@@ -64,7 +63,6 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<LoadedCon
     port: typeof raw.port === 'number' ? raw.port : undefined,
     host: typeof raw.host === 'string' ? raw.host : undefined,
     dbPath: typeof raw.dbPath === 'string' ? raw.dbPath : undefined,
-    pruneDays: typeof raw.pruneDays === 'number' ? raw.pruneDays : undefined,
     cors: normalizeCors(raw.cors),
     _source: configPath,
     _repoRoot: repoRoot,

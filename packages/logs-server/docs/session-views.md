@@ -1,6 +1,6 @@
 # Per-session SQL views
 
-When a debugging session has its own DB file (see [transmitter-wiring.md](./transmitter-wiring.md)), you can persist SQL views inside that file — tailored to the bug you're hunting, isolated from the rest of the project's logs, and cleaned up by `rm`-ing the file when you're done.
+When a debugging session has its own DB file (see [transmitter-wiring.md](./transmitter-wiring.md)), you can persist SQL views inside that file — tailored to the bug you're hunting, isolated from the rest of the project's logs, and archived alongside the rows by moving the file out of `.davstack/logs/` when you're done.
 
 This is the high-value reason multi-DB ships at all. With a single global DB, every `CREATE VIEW` would pollute every future query; per-session DBs make views safe to create freely.
 
@@ -73,7 +73,7 @@ Then `WHERE row_count > 100` works without an inline `json_extract` in every que
 
 - Views persist across `sqlite3` invocations within the same DB file — write them once at the start of a session.
 - Drop just one view in a live session: `DROP VIEW dbg_probe;`.
-- Clean up everything: `rm .davstack/logs/<name>.db`. The DB file goes; the views go with it.
+- Archive everything: `mv .davstack/logs/<name>.db .davstack/logs/archive/`. The views move with the file and stay queryable from the archived path.
 
 ## Naming convention: `dbg_` prefix
 

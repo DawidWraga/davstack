@@ -11,16 +11,17 @@ export default {
   // dbPath pins a SINGLE file (back-compat / external eval-runner co-location).
   // Omit for the default per-session layout under .davstack/logs/.
   // dbPath: ".davstack/logs/default.db",
-  pruneDays: 14,                // 0 disables background prune; walks every .davstack/logs/*.db
   // cors: "*",                 // browser CORS policy (see §7); default permissive
 }
 ```
+
+Retention is file-based — each session writes its own `.davstack/logs/<name>.db`. When a session goes quiet, archive by moving the file (e.g. to `.davstack/logs/archive/`); past timelines stay queryable and often resurface when a regression reappears. See [reading-logs.md](./reading-logs.md#sessions).
 
 The daemon walks up from cwd to find the repo root (git root → workspace marker → `package.json` with workspaces).
 
 Per-key precedence: **CLI flag > env var (`DIAG_PORT` / `DIAG_DB` / `DIAG_HOST`) > config file > built-in default.**
 
-Default DB layout (since 2.0.0): `<repo-root>/.davstack/logs/default.db`, with per-session sibling files (`reorder-bug.db`, `hotfix-7c.db`, …) created on demand when a transmitter sets the `davstack-logs.db` attribute. Setting `dbPath` (or `DIAG_DB`, or `--db <file>`) pins the daemon to a single file and disables the dispatch layer — useful for eval runs that want a co-located log file outside the repo's standard layout.
+Default DB layout: `<repo-root>/.davstack/logs/default.db`, with per-session sibling files (`reorder-bug.db`, `hotfix-7c.db`, …) created on demand when a transmitter sets the `davstack-logs.db` attribute. Setting `dbPath` (or `DIAG_DB`, or `--db <file>`) pins the daemon to a single file and disables the dispatch layer — useful for eval runs that want a co-located log file outside the repo's standard layout.
 
 Skip the manual edit with `pnpm exec davstack-init --tools=logs-server` (scaffolds the config + appends `.davstack/*` / `!.davstack/config/` to `.gitignore`).
 
@@ -138,7 +139,7 @@ integrations: IS_DEV
     ]
 ```
 
-**Rule of thumb:** in dev, capture inputs/outputs/params for everything. Storage is local, prune handles drift.
+**Rule of thumb:** in dev, capture inputs/outputs/params for everything. Storage is local and per-session; archive old DBs out of `.davstack/logs/` rather than discarding them.
 
 ## 4. Recommended attributes
 
