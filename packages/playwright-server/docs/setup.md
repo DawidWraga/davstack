@@ -1,6 +1,24 @@
 # Setup
 
-## 1. Peer dep
+## 1. Install
+
+Recommended: scaffold with [davstack init](../../init/README.md) (from your project root):
+
+```bash
+pnpx @davstack/init
+```
+
+This installs `@davstack/playwright-server` + `@playwright/test` and writes the config in §2.
+
+Then, regardless of how you installed, fetch chromium once per machine:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+If chromium isn't installed the daemon throws on `chromium.launch`.
+
+### Manual install (fallback)
 
 `@playwright/test >=1.50` is a peer dep — the daemon resolves it from the consumer project's `node_modules` (not its own), so the consumer must install it:
 
@@ -8,8 +26,6 @@
 pnpm add -D @davstack/playwright-server @playwright/test
 pnpm exec playwright install chromium
 ```
-
-If chromium isn't installed the daemon throws on `chromium.launch`; run `playwright install chromium` once per machine.
 
 ## 2. Config file
 
@@ -28,7 +44,7 @@ const config: ServerConfig = {
 export default config
 ```
 
-Skip the manual edit with `pnpm exec davstack-init --tools=playwright-server` (scaffolds config + appends `.davstack/*` / `!.davstack/config/` + `.playwright-profile` + `e2e/.auth` to `.gitignore`).
+If you used `pnpx @davstack/init` in §1 the config + `.gitignore` entries (`.davstack/*` / `!.davstack/config/` + `.playwright-profile` + `e2e/.auth`) are already in place. To scaffold only the config without the full init flow: `pnpm exec davstack-init --tools=playwright-server`.
 
 The daemon resolves the config via `findToolConfig` (walks up from `--cwd` looking for `.davstack/config/playwright-server.config.ts` or a project-root `playwright-server.config.ts`). When no config is found, the built-in `DEFAULT_CONFIG` is used.
 

@@ -90,19 +90,11 @@ test.describe("smoke", () => {
   beyond a page reset (separate storage state, separate context) are
   best run via vanilla `playwright test`.
 - **Requires Node >= 22.6** for native TypeScript loading
-  (`--experimental-strip-types`, default in Node 24). On older Node,
-  set `legacyExtract: true` in `playwright-server.config.ts` to use the
-  single-test source-extractor (codegen-style specs).
-
-### Legacy mode
-
-The original regex-based extractor is still available — set
-`legacyExtract: true` in `playwright-server.config.ts`. Useful for
-codegen-style specs where you want minimal evaluation overhead.
+  (`--experimental-strip-types`, default in Node 24).
 
 ## Docs
 
 - [docs/setup.md](./docs/setup.md) — config file, defaults, peer-dep, sanity check
 - [docs/usage.md](./docs/usage.md) — CLI verbs, HTTP API, agent-loop pattern
 - [docs/auth.md](./docs/auth.md) — `refreshAuth` seam + `storageStatePath` lifecycle
-- [docs/troubleshooting.md](./docs/troubleshooting.md) — port conflicts, missing chromium, stale auth, extractor restrictions
+- [docs/troubleshooting.md](./docs/troubleshooting.md) — port conflicts, missing chromium, stale auth, `test.extend` gap

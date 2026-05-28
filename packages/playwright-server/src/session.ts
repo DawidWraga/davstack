@@ -9,7 +9,6 @@
 // throw if called after shutdown.
 
 import { resolve, isAbsolute } from 'node:path';
-import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
@@ -21,7 +20,6 @@ import {
   type AuthSeed,
   type ResolvedConfig,
 } from './auth.js';
-import { extractTestBody } from './extract.js';
 import { dismissDialog, resetState } from './reset.js';
 import { beginCapture, endCapture, ensureLoaderRegistered, runBucket } from './spec-runner.js';
 
@@ -233,24 +231,14 @@ export class PlaywrightSession {
       await release;
       const t0 = Date.now();
       const absFile = isAbsolute(file) ? file : resolve(this.cwd, file);
-      const source = await readFile(absFile, 'utf8');
 
-      // Multi-DB log routing (logs-server 2.0+). Seed window.__davstack_db
-      // before navigation so the app's beforeSendLog reads it at init time.
-      // Two surfaces:
+      // Multi-DB log routing. Seed window.__davstack_db before navigation
+      // so the app's beforeSendLog reads it at init time. Two surfaces:
       //   - page.evaluate sets it immediately on the current document
       //   - context.addInitScript re-seeds on every subsequent navigation
       // No-op if the spec didn't request a routing DB.
       await this.applyDbRouting(opts.db);
 
-      // Routing: the new registration-interception runner is the default.
-      // It supports full TS, module-level imports/helpers, multiple
-      // test() blocks, beforeEach/afterEach, and test.use. Set
-      // legacyExtract: true in playwright-server.config.ts to opt back
-      // into the single-test source-extractor (codegen-style flows).
-      if (this.config.legacyExtract === true) {
-        return await this.runOnceLegacy(absFile, file, source, t0);
-      }
       return await this.runOnceModule(absFile, file, t0);
     } finally {
       releaseResolve();
@@ -291,63 +279,9 @@ export class PlaywrightSession {
     }
   }
 
-  // Legacy path: regex-extract the first test() body and eval against
-  // the warm page. Kept for codegen-style single-block specs and as a
-  // safety hatch.
-  private async runOnceLegacy(
-    absFile: string,
-    displayFile: string,
-    source: string,
-    t0: number,
-  ): Promise<RunResult> {
-    const extracted = extractTestBody(source);
-    if (!extracted) {
-      return {
-        ok: false,
-        durationMs: Date.now() - t0,
-        file: displayFile,
-        error: { name: 'ParseError', message: 'no test() block found', stack: null },
-      };
-    }
-    const tSetup0 = Date.now();
-    this.page = await resetState({
-      context: this.context!,
-      page: this.page!,
-      authOrigin: this.authSeed?.origin ?? null,
-      authKeys: this.authSeed?.entries.map((e) => e.name) ?? [],
-    });
-    const setupMs = Date.now() - tSetup0;
-
-    const fixtureMap: Record<string, unknown> = {
-      page: this.page,
-      context: this.context,
-      browser: this.context!.browser?.() ?? null,
-      request: this.context!.request,
-    };
-    const args = extracted.fixtures;
-    const AsyncFn = Object.getPrototypeOf(async function () {})
-      .constructor as new (...names: string[]) => (...callArgs: unknown[]) => Promise<unknown>;
-    const fn = new AsyncFn(...args, 'expect', extracted.body);
-    const callArgs = args.map((a) => fixtureMap[a]);
-
-    let error: RunResult['error'] | undefined;
-    try {
-      await fn(...callArgs, this.pw.expect);
-    } catch (e) {
-      const err = e as Error;
-      error = {
-        name: err?.name ?? 'Error',
-        message: String(err?.message ?? e),
-        stack: err?.stack ?? null,
-      };
-    }
-    void absFile;
-    return { ok: !error, durationMs: Date.now() - t0, setupMs, file: displayFile, error };
-  }
-
-  // New path: install a loader hook that redirects @playwright/test
-  // imports to an in-memory stub, dynamic-import the spec, then run
-  // each captured test() block sequentially against the warm context.
+  // Install a loader hook that redirects @playwright/test imports to an
+  // in-memory stub, dynamic-import the spec, then run each captured
+  // test() block sequentially against the warm context.
   private async runOnceModule(
     absFile: string,
     displayFile: string,
@@ -357,8 +291,7 @@ export class PlaywrightSession {
       ensureLoaderRegistered();
     } catch (e) {
       // Loader registration is one-shot per process; failures here are
-      // permanent. Surface a clear error so the user can pin Node >=22.6
-      // or opt into legacyExtract.
+      // permanent. Surface a clear error so the user can pin Node >=22.6.
       const err = e as Error;
       return {
         ok: false,
@@ -368,7 +301,7 @@ export class PlaywrightSession {
           name: 'LoaderInitError',
           message:
             `failed to register module loader for spec interception: ${err?.message ?? e}. ` +
-            `Pin Node >= 22.6 (for --experimental-strip-types) or set legacyExtract: true in your config.`,
+            `Pin Node >= 22.6 (for --experimental-strip-types).`,
           stack: err?.stack ?? null,
         },
       };

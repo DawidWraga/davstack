@@ -21,10 +21,11 @@ playwright-server in isolation.
     playwright-server goto <url>             # navigate live page (returns { url })
     playwright-server refresh-auth           # mint a fresh session, reseed context
 
-Exit `0` = pass, `1` = fail. Spec extractor runs **only the first top-level
-`test('...', async ({ page, ... }) => { ... })`** — no `describe`, no
-hooks, no custom fixtures. Wrap codegen output in that exact shape;
-otherwise see [`usage.md`](../../packages/playwright-server/docs/usage.md).
+Exit `0` = pass, `1` = fail. Specs are loaded as real ES modules — full
+TypeScript, multiple `test()` blocks, `test.describe`, `beforeEach` /
+`afterEach`, and `test.use({ storageState })` all work. Custom
+`test.extend(...)` fixtures are the one current gap. See
+[`usage.md`](../../packages/playwright-server/docs/usage.md) for details.
 
 If results look wrong (blank window, cold-boot crash, `no test() block found`, 401 redirects, daemon exit 1), the failure is usually in the daemon, not your code — check `troubleshooting.md` before iterating, or fall back to `playwright test`.
 

@@ -24,9 +24,9 @@ Symptoms: logged out mid-run, 401 responses, redirect to login page.
 
 Fix: `playwright-server refresh-auth`. If `refreshAuth` is unset in config, see [auth.md](./auth.md).
 
-## `no test() block found` from `run`
+## `test.extend(...)` not supported
 
-The extractor requires a top-level `test('...', async ({ ... }) => { ... })`. Wrap codegen output in that exact shape. `test.describe(...)`, `beforeEach`, custom fixtures, and bare top-level code are not supported — only the first top-level `test()` runs.
+The runner loads specs as real ES modules and intercepts `@playwright/test` registrations, so full TypeScript, multiple `test()` blocks, `test.describe`, `beforeEach` / `afterEach`, and `test.use({ storageState })` all work. Custom `test.extend(...)` fixtures are the one current gap — the daemon fails fast with a pointer to this limitation. Workarounds: use `test.beforeEach` for shared setup, or call module-level helper functions.
 
 ## Daemon exits with code 1 after closing the chromium window
 

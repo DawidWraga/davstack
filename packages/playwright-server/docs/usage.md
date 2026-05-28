@@ -40,7 +40,7 @@ The daemon installs a context-level `addInitScript` so the value survives mid-sp
 }
 ```
 
-On failure, `error` is `{ name, message, stack }`. The spec is parsed with a small AST-free extractor: only the **first** top-level `test('...', async ({ page, ... }) => { ... })` block runs, and it executes inside an `AsyncFunction` against the warm page — Playwright's worker pool, global setup, and fixture machinery are bypassed. Tradeoff: codegen-style single-test specs work; describe blocks, beforeEach hooks, and custom fixtures don't.
+On failure, `error` is `{ name, message, stack }`. Specs are loaded as real ES modules — the daemon installs a loader hook that redirects `@playwright/test` imports to an in-memory stub, captures every `test()` and `test.describe()` registration, and runs the captured blocks sequentially against the warm page. Full TypeScript, module-level imports/helpers, multiple `test()` blocks, `test.describe`, `test.beforeEach` / `afterEach`, and `test.use({ storageState })` all work. Custom `test.extend(...)` fixtures are the one current gap (the daemon fails fast and points at this limitation). Playwright's worker pool, global setup, and projects config are bypassed by design — runs share the single warm context.
 
 ## HTTP API
 
@@ -58,7 +58,7 @@ Use the CLI verbs unless you need to embed the daemon into a custom agent runner
 
 ## Lifecycle
 
-- **Boot once** with `serve`. Heavy: ~5–15s to launch chromium, load config, seed auth, open the page.
+- **Boot once.** Recommended: `davstack start`. Standalone: `pnpm exec playwright-server serve`. Heavy: ~5–15s to launch chromium, load config, seed auth, open the page.
 - **Drive cheaply** thereafter from the CLI or HTTP. Run lock in `session.ts` serialises concurrent `/run` calls — they queue, never interleave.
 - **Shutdown** via `playwright-server shutdown`, `SIGINT`, or `SIGTERM`. All three close the context + browser cleanly; closing the chromium window directly is treated as a crash and exits the daemon with code 1.
 
@@ -75,4 +75,4 @@ For raw click-iteration (no spec file), drive the daemon directly via `goto` and
 
 ## Troubleshooting
 
-See [troubleshooting.md](./troubleshooting.md) — port conflicts, missing chromium, profile corruption, stale auth, extractor restrictions.
+See [troubleshooting.md](./troubleshooting.md) — port conflicts, missing chromium, profile corruption, stale auth, `test.extend` gap.
