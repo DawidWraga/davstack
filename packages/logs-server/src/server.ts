@@ -54,6 +54,7 @@ export type ServerOpts =
       port?: number;
       host?: string;
       cors?: ServerConfig['cors'];
+      onRefresh?: () => Promise<RefreshResult> | RefreshResult;
     }
   | {
       cache: DbHandleCache;
@@ -63,12 +64,27 @@ export type ServerOpts =
       port?: number;
       host?: string;
       cors?: ServerConfig['cors'];
+      onRefresh?: () => Promise<RefreshResult> | RefreshResult;
     };
+
+export type RefreshResult = {
+  ok: boolean;
+  refreshedAt: string;
+  closedHandles: number;
+  configReloaded: boolean;
+};
 
 export function startServer(opts: ServerOpts): { port: number; host: string; stop: () => void } {
   const host = opts.host ?? process.env.DIAG_HOST ?? '127.0.0.1';
   const corsPolicy = opts.cors;
   const ingest = makeIngest(opts);
+  // Refreshed-at tracker for the daemon. Surfaced on GET /__health for
+  // the TUI's "last refreshed" panel. The path is double-underscore to
+  // avoid colliding with Sentry SDK envelope URLs (which are
+  // `/api/<id>/envelope/`). Any non-control POST falls through to
+  // envelope ingest as before.
+  let refreshedAtIso: string | null = null;
+  const onRefresh = opts.onRefresh;
   const server = Bun.serve({
     port: opts.port ?? (Number(process.env.DIAG_PORT) || 7077),
     hostname: host,
@@ -76,6 +92,48 @@ export function startServer(opts: ServerOpts): { port: number; host: string; sto
       const cors = corsHeadersFor(req.headers.get('origin'), corsPolicy);
       if (req.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: cors });
+      }
+      // Control plane routes — explicit `__`-prefixed paths so they
+      // can't collide with envelope URLs. Anything else still falls
+      // through to the envelope sink for back-compat.
+      const path = new URL(req.url).pathname;
+      if (req.method === 'GET' && path === '/__health') {
+        const body = { ok: true, pid: process.pid, refreshedAt: refreshedAtIso };
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: jsonHeaders(cors),
+        });
+      }
+      if (req.method === 'POST' && path === '/__refresh') {
+        const refreshedAt = new Date().toISOString();
+        let result: RefreshResult = {
+          ok: true,
+          refreshedAt,
+          closedHandles: 0,
+          configReloaded: false,
+        };
+        if (onRefresh) {
+          try {
+            const r = await onRefresh();
+            result = { ...r, refreshedAt };
+          } catch (e) {
+            result = {
+              ok: false,
+              refreshedAt,
+              closedHandles: 0,
+              configReloaded: false,
+            };
+            // attach error for the client
+            (result as RefreshResult & { error?: string }).error = String(
+              (e as Error)?.message ?? e,
+            );
+          }
+        }
+        refreshedAtIso = refreshedAt;
+        return new Response(JSON.stringify(result), {
+          status: result.ok ? 200 : 500,
+          headers: jsonHeaders(cors),
+        });
       }
       if (req.method !== 'POST') {
         return new Response('diag sink ok\n', { status: 200, headers: cors });
@@ -97,6 +155,12 @@ export function startServer(opts: ServerOpts): { port: number; host: string; sto
     },
   });
   return { port: server.port, host, stop: () => server.stop(true) };
+}
+
+function jsonHeaders(cors: Headers): Headers {
+  const h = new Headers(cors);
+  h.set('content-type', 'application/json');
+  return h;
 }
 
 function makeIngest(opts: ServerOpts): (raw: string) => void {

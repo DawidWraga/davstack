@@ -4,6 +4,7 @@
 // Verbs:
 //   serve            boot the daemon (heavy — vite + playwright + storybook addon)
 //   run <file>       rerun a file against the running daemon
+//   refresh          flush vitest's transform cache + vite-node module cache; re-read config; keep PID
 //   health           liveness check
 //   shutdown         stop the daemon
 //
@@ -106,6 +107,17 @@ const cli = defineCli({
         const result = await runFile(ctx.positionals[0], clientOpts(ctx.flags), {
           testNamePattern: ctx.flags.grep as string | undefined,
         });
+        console.log(JSON.stringify(result, null, 2));
+        return result.ok ? 0 : 1;
+      },
+    },
+    refresh: {
+      description:
+        'Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive)',
+      flags: clientFlags(),
+      run: async (ctx) => {
+        const { refresh } = await import('./client.js');
+        const result = await refresh(clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return result.ok ? 0 : 1;
       },

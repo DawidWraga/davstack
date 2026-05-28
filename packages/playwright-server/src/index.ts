@@ -6,6 +6,7 @@
 //   serve          boot the daemon (this is the heavy one)
 //   run <file>     execute a spec against the running daemon
 //   goto <url>     navigate the live page
+//   refresh        flush spec-module ESM cache; re-read config; keep PID
 //   refresh-auth   mint a fresh session and reseed the live context
 //   health         daemon liveness check
 //   shutdown       gracefully stop the daemon
@@ -110,6 +111,17 @@ const cli = defineCli({
         const result = await gotoUrl(ctx.positionals[0], clientOpts(ctx.flags));
         console.log(JSON.stringify(result, null, 2));
         return 0;
+      },
+    },
+    refresh: {
+      description:
+        'Flush spec-module ESM cache and re-read config without restarting (keeps the warm browser + daemon PID alive)',
+      flags: clientFlags(),
+      run: async (ctx) => {
+        const { refresh } = await import('./client.js');
+        const result = await refresh(clientOpts(ctx.flags));
+        console.log(JSON.stringify(result, null, 2));
+        return result.ok ? 0 : 1;
       },
     },
     'refresh-auth': {

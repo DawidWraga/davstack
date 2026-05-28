@@ -50,8 +50,23 @@ export async function runFile(
   return request<RunResponse>('POST', '/run', opts, body);
 }
 
-export async function health(opts: ClientOpts): Promise<{ ok: boolean; pid: number }> {
+export async function health(
+  opts: ClientOpts,
+): Promise<{ ok: boolean; pid: number; refreshedAt?: string | null }> {
   return request('GET', '/health', opts);
+}
+
+export type RefreshResponse = {
+  ok: boolean;
+  refreshedAt: string;
+  cacheRev: number;
+  invalidatedFiles: number;
+  moduleGraphCleared: boolean;
+  configReloaded: boolean;
+};
+
+export async function refresh(opts: ClientOpts): Promise<RefreshResponse> {
+  return request<RefreshResponse>('POST', '/refresh', opts);
 }
 
 // Best-effort: server may close the socket mid-response.

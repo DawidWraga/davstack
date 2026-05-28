@@ -70,6 +70,15 @@ export type RefreshResult = {
   keys?: string[];
 };
 
+export type RefreshModulesResult = {
+  ok: boolean;
+  refreshedAt: string;
+  cacheRev: number;
+  configReloaded: boolean;
+  storageStateChanged: boolean;
+  baseUrlChanged: boolean;
+};
+
 type Logger = (...args: unknown[]) => void;
 
 export type CreateOpts = {
@@ -86,6 +95,12 @@ export class PlaywrightSession {
   private runLock: Promise<void> = Promise.resolve();
   private disposed = false;
   private pw!: PlaywrightApi;
+  // Bumped on every /refresh; appended to spec import URLs as
+  // `?_pwsRev=<n>` so Node's ESM loader treats the spec — and every
+  // transitive file:// import (see spec-loader.mjs) — as a fresh URL,
+  // re-evaluating the module subgraph against any on-disk edits.
+  private cacheRev = 1;
+  private refreshedAtIso: string | null = null;
 
   private constructor(
     private readonly cwd: string,
@@ -102,6 +117,10 @@ export class PlaywrightSession {
 
   get pageUrl(): string | null {
     return this.page?.url() ?? null;
+  }
+
+  get refreshedAt(): string | null {
+    return this.refreshedAtIso;
   }
 
   // ─── boot ────────────────────────────────────────────────────────────────
@@ -319,8 +338,12 @@ export class PlaywrightSession {
     const bucket = beginCapture(this.pw.expect);
     let loadError: Error | null = null;
     try {
-      // Cache-bust so a re-run picks up edits to the spec file.
-      const url = `${pathToFileURL(absFile).href}?t=${Date.now()}`;
+      // Cache-bust so a re-run picks up edits. `_pwsRev` is bumped only by
+      // /refresh; stable across consecutive runs so the spec's import
+      // subgraph stays warm. The loader hook (spec-loader.mjs) propagates
+      // this query down to every transitively-imported file:// module so
+      // edits to UI models / fixtures pick up too — not just the spec.
+      const url = `${pathToFileURL(absFile).href}?_pwsRev=${this.cacheRev}`;
       await import(url);
     } catch (e) {
       loadError = e as Error;
@@ -414,6 +437,64 @@ export class PlaywrightSession {
     this.assertLive();
     await this.page!.goto(url);
     return { url: this.page!.url() };
+  }
+
+  // In-place re-init without re-taking ownership of the daemon PID. The
+  // motivating case: an agent edits a `*.ui.ts` helper that a spec imports;
+  // without /refresh, the only way to evict the stale module from Node's
+  // ESM cache is shutdown + serve, which silently steals the daemon out of
+  // a TUI session (the user has to re-claim). /refresh bumps cacheRev so
+  // the next spec import (and its transitive subgraph, via the loader
+  // hook) re-evaluates, while the browser, context, page, and HTTP socket
+  // stay alive.
+  //
+  // Also re-reads playwright-server.config.ts. baseUrl / storageStatePath
+  // changes are surfaced as flags in the response but NOT auto-applied —
+  // reseating the context to a different storage state mid-session is
+  // risky (mid-flight runs, attached page event listeners, persistent
+  // profile mismatch). Caller decides whether to follow up with a
+  // shutdown+serve.
+  async refresh(): Promise<RefreshModulesResult> {
+    this.assertLive();
+    // Serialise against in-flight runs — bumping cacheRev mid-import
+    // would yield a half-cached module graph on the next run.
+    const release = this.runLock;
+    let releaseResolve!: () => void;
+    this.runLock = new Promise<void>((r) => (releaseResolve = r));
+    try {
+      await release;
+      const previousStorage = this.config.storageStatePath;
+      const previousBase = this.config.baseUrl;
+      let configReloaded = false;
+      try {
+        this.config = await loadConfig(this.cwd);
+        configReloaded = true;
+      } catch (e) {
+        this.log(`refresh: config reload failed (${(e as Error)?.message ?? e}); keeping prior config`);
+      }
+      this.cacheRev += 1;
+      const refreshedAt = new Date().toISOString();
+      this.refreshedAtIso = refreshedAt;
+      const storageStateChanged = configReloaded && this.config.storageStatePath !== previousStorage;
+      const baseUrlChanged = configReloaded && this.config.baseUrl !== previousBase;
+      if (storageStateChanged || baseUrlChanged) {
+        this.log(
+          `refresh: config drift detected (storageStatePath=${storageStateChanged}, baseUrl=${baseUrlChanged}); ` +
+            `not reseating warm context — run shutdown + serve if you need the new value live`,
+        );
+      }
+      this.log(`refresh: cacheRev=${this.cacheRev} refreshedAt=${refreshedAt}`);
+      return {
+        ok: true,
+        refreshedAt,
+        cacheRev: this.cacheRev,
+        configReloaded,
+        storageStateChanged,
+        baseUrlChanged,
+      };
+    } finally {
+      releaseResolve();
+    }
   }
 
   async shutdown(): Promise<void> {

@@ -1,5 +1,65 @@
 # @davstack/logs-server
 
+## 2.4.0
+
+### Minor Changes
+
+- Add `refresh` verb to all three daemons (#59). Flushes cached state in
+  place without exiting the process, so an agent's cache-busting no longer
+  steals the daemon PID out of a TUI session.
+
+  **playwright-server**
+
+  - New `POST /refresh` endpoint and `playwright-server refresh` CLI verb.
+  - The spec-import URL now uses a per-session `?_pwsRev=<n>` cache-bust
+    bumped only by `/refresh` (instead of `?t=<Date.now()>` on every run).
+  - The Node loader hook (`spec-loader.mjs`) propagates that query string
+    down to every transitively-imported `file://` module so edits to UI
+    models, fixtures, and other non-spec helpers actually pick up after a
+    refresh. Previously only the spec file itself was cache-busted; any
+    module it imported was pinned in Node's ESM cache forever.
+  - `node_modules`, `node:` builtins, and the `@playwright/test` stub
+    redirect are excluded from rev propagation.
+  - `GET /health` and `health` CLI verb now include `refreshedAt` (ISO
+    timestamp of the last successful refresh, or `null`).
+  - The browser, context, page, persistent profile, and HTTP socket all
+    stay alive across a refresh — the same PID, no chromium flash.
+  - Config drift (`baseUrl`, `storageStatePath`) is surfaced as flags on
+    the response but NOT auto-applied; follow up with shutdown + serve if
+    you need those reseated.
+
+  **vitest-server**
+
+  - New `POST /refresh` endpoint and `vitest-server refresh` CLI verb.
+  - Invalidates every plausible Vite module-graph + vite-node module-cache
+    surface so an edit to a non-test source file picks up on the next
+    `run`. Tolerates Vitest's version drift across 1.x / 2.x / 3.x / 4.x
+    by walking every shape rather than version-detecting.
+  - `GET /health` now includes `refreshedAt`.
+
+  **logs-server**
+
+  - New `POST /__refresh` endpoint and `logs-server refresh` CLI verb. The
+    `/__` prefix avoids colliding with Sentry SDK envelope URLs
+    (`/api/<id>/envelope/`).
+  - New `GET /__health` endpoint and `logs-server health` CLI verb,
+    returning `pid` and `refreshedAt`.
+  - In multi-DB dispatch mode, `/__refresh` closes every cached SQLite
+    handle so the next ingest reopens against the current on-disk schema —
+    covers manual schema edits, sqlite file replacement, and per-session
+    DB rotation. In single-DB pinned mode, the daemon holds a permanent
+    `Database` reference so handles are not evicted (the refresh only
+    re-reads config).
+  - Both endpoints are deliberately exempted from the "any POST = envelope"
+    fall-through so adding them is back-compat: ordinary envelope POSTs to
+    `/api/.../envelope/` still ingest as before.
+
+  Why this matters: agentic edit-rerun loops over a playwright spec used
+  to need `shutdown + serve` to evict stale modules — which silently
+  re-parents the daemon from the user's `davstack start` TUI to the
+  agent's shell, breaking the TUI's stdout panel and PID adoption. The
+  refresh verb closes that gap.
+
 ## 2.3.0
 
 ### Minor Changes

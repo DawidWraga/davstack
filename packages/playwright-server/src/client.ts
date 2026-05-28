@@ -76,10 +76,24 @@ export async function refreshAuth(opts: ClientOpts): Promise<{
   return request('POST', '/refresh-auth', opts);
 }
 
+export type RefreshResponse = {
+  ok: boolean;
+  refreshedAt: string;
+  cacheRev: number;
+  configReloaded: boolean;
+  storageStateChanged: boolean;
+  baseUrlChanged: boolean;
+};
+
+export async function refresh(opts: ClientOpts): Promise<RefreshResponse> {
+  return request<RefreshResponse>('POST', '/refresh', opts);
+}
+
 export async function health(opts: ClientOpts): Promise<{
   ok: boolean;
   pid: number;
   url: string | null;
+  refreshedAt?: string | null;
 }> {
   return request('GET', '/health', opts);
 }

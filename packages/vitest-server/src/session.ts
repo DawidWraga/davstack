@@ -126,6 +126,18 @@ export type CreateOpts = {
 };
 
 // Vitest's public-but-not-typed surface that we touch.
+type ViteModuleGraph = {
+  invalidateAll?: () => void;
+  urlToModuleMap?: Map<string, unknown>;
+  fileToModulesMap?: Map<string, Set<unknown>>;
+};
+type ViteServer = {
+  moduleGraph?: ViteModuleGraph;
+  environments?: Record<string, { moduleGraph?: ViteModuleGraph }>;
+};
+type ViteNode = {
+  moduleCache?: { clear: () => void };
+};
 type VitestInstance = {
   state: {
     clearErrors: () => void;
@@ -141,6 +153,19 @@ type VitestInstance = {
   setGlobalTestNamePattern: (p: string) => void;
   resetGlobalTestNamePattern: () => void;
   close: () => Promise<void>;
+  server?: ViteServer;
+  vite?: ViteServer;
+  vitenode?: ViteNode;
+  projects?: Array<{ server?: ViteServer; vite?: ViteServer; vitenode?: ViteNode }>;
+};
+
+export type RefreshResult = {
+  ok: boolean;
+  refreshedAt: string;
+  cacheRev: number;
+  invalidatedFiles: number;
+  moduleGraphCleared: boolean;
+  configReloaded: boolean;
 };
 
 export class VitestSession {
@@ -149,6 +174,8 @@ export class VitestSession {
   private runLock: Promise<void> = Promise.resolve();
   private disposed = false;
   private vitestApi!: VitestApi;
+  private cacheRev = 1;
+  private refreshedAtIso: string | null = null;
 
   private constructor(
     private readonly cwd: string,
@@ -293,6 +320,122 @@ export class VitestSession {
     } finally {
       releaseResolve();
     }
+  }
+
+  get refreshedAt(): string | null {
+    return this.refreshedAtIso;
+  }
+
+  // In-place re-init that flushes Vite's module graph + vite-node's
+  // module cache without restarting the vitest watcher. The motivating
+  // case: an agent edits a non-test source file the daemon's transform
+  // cache already evaluated; vitest's HMR watcher SHOULD pick it up but
+  // empirically misses changes for files outside the watched glob (e.g.
+  // a fixture imported by a story but located in a sibling package).
+  // /refresh is the explicit signal "everything is stale, re-read from
+  // disk on the next run."
+  //
+  // Re-reads vitest-server.config.ts but does NOT re-apply it — the
+  // vitest instance was booted with the prior config and project filter
+  // baked in. Surfaced as a flag so the caller can decide whether to
+  // follow up with shutdown + serve.
+  async refresh(): Promise<RefreshResult> {
+    this.assertLive();
+    const release = this.runLock;
+    let releaseResolve!: () => void;
+    this.runLock = new Promise<void>((r) => (releaseResolve = r));
+    try {
+      await release;
+      let configReloaded = false;
+      try {
+        await loadConfig(this.cwd);
+        configReloaded = true;
+      } catch (e) {
+        this.log(`refresh: config reload failed (${(e as Error)?.message ?? e}); ignoring`);
+      }
+      const { invalidatedFiles, moduleGraphCleared } = this.invalidateModuleGraph();
+      this.cacheRev += 1;
+      const refreshedAt = new Date().toISOString();
+      this.refreshedAtIso = refreshedAt;
+      this.log(
+        `refresh: cacheRev=${this.cacheRev} invalidatedFiles=${invalidatedFiles} ` +
+          `moduleGraphCleared=${moduleGraphCleared} refreshedAt=${refreshedAt}`,
+      );
+      return {
+        ok: true,
+        refreshedAt,
+        cacheRev: this.cacheRev,
+        invalidatedFiles,
+        moduleGraphCleared,
+        configReloaded,
+      };
+    } finally {
+      releaseResolve();
+    }
+  }
+
+  // Walk every plausible Vite/vite-node cache surface and invalidate it.
+  // Vitest 1.x / 2.x / 3.x / 4.x reshuffle which property holds the
+  // moduleGraph (server.moduleGraph vs server.environments.ssr.moduleGraph
+  // vs vite.environments.client.moduleGraph). Rather than version-detect,
+  // try every shape and count what actually fired. Tolerate missing
+  // properties — a partial clear still helps and is better than
+  // throwing.
+  private invalidateModuleGraph(): { invalidatedFiles: number; moduleGraphCleared: boolean } {
+    let invalidatedFiles = 0;
+    let moduleGraphCleared = false;
+    const v = this.vitest!;
+    const invalidate = (abs: string) => {
+      if (typeof v.invalidateFile !== 'function') return;
+      try {
+        v.invalidateFile(abs);
+        invalidatedFiles++;
+      } catch {
+        // ignore — some Vitest versions throw on unknown ids
+      }
+    };
+    // Every file currently in the test-file id map.
+    for (const [_id, task] of v.state.idMap ?? new Map()) {
+      const fp = (task?.filepath as string | undefined) ?? undefined;
+      if (fp) invalidate(fp);
+    }
+    const candidates: Array<ViteServer | undefined> = [
+      v.server,
+      v.vite,
+      ...(v.projects?.flatMap((p) => [p.server, p.vite]) ?? []),
+    ];
+    for (const c of candidates) {
+      if (!c) continue;
+      const graphs: Array<ViteModuleGraph | undefined> = [
+        c.moduleGraph,
+        ...Object.values(c.environments ?? {}).map((env) => env.moduleGraph),
+      ];
+      for (const g of graphs) {
+        if (!g) continue;
+        try {
+          if (typeof g.invalidateAll === 'function') {
+            g.invalidateAll();
+            moduleGraphCleared = true;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    const nodeCaches: Array<ViteNode | undefined> = [
+      v.vitenode,
+      ...(v.projects?.map((p) => p.vitenode) ?? []),
+    ];
+    for (const n of nodeCaches) {
+      if (!n?.moduleCache) continue;
+      try {
+        n.moduleCache.clear();
+        moduleGraphCleared = true;
+      } catch {
+        // ignore
+      }
+    }
+    return { invalidatedFiles, moduleGraphCleared };
   }
 
   async shutdown(): Promise<void> {

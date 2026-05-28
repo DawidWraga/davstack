@@ -2,6 +2,7 @@
 //   GET  /health
 //   POST /run            { file: string }
 //   POST /goto           { url: string }
+//   POST /refresh
 //   POST /refresh-auth
 //   POST /shutdown
 //
@@ -57,7 +58,16 @@ export function startServer(opts: ServeOpts): Server {
       const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
 
       if (req.method === 'GET' && url.pathname === '/health') {
-        return send(res, 200, { ok: true, pid: process.pid, url: session.pageUrl });
+        return send(res, 200, {
+          ok: true,
+          pid: process.pid,
+          url: session.pageUrl,
+          refreshedAt: session.refreshedAt,
+        });
+      }
+      if (req.method === 'POST' && url.pathname === '/refresh') {
+        const r = await session.refresh();
+        return send(res, 200, r);
       }
       if (req.method === 'POST' && url.pathname === '/run') {
         const body = await readBody(req);

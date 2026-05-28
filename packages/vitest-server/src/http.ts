@@ -46,7 +46,10 @@ export function startServer(opts: ServeOpts): Server {
     try {
       const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
       if (req.method === 'GET' && url.pathname === '/health') {
-        return send(res, 200, { ok: true, pid: process.pid });
+        return send(res, 200, { ok: true, pid: process.pid, refreshedAt: session.refreshedAt });
+      }
+      if (req.method === 'POST' && url.pathname === '/refresh') {
+        return send(res, 200, await session.refresh());
       }
       if (req.method === 'POST' && url.pathname === '/run') {
         const body = await readBody(req);

@@ -4,6 +4,8 @@
 //
 // Verbs:
 //   serve         boot the ingest endpoint
+//   refresh       evict cached DB handles + re-read config; keep PID
+//   health        liveness check
 //   check         validate local install (node, config, db rows, daemon liveness)
 //
 // Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`.
@@ -64,12 +66,45 @@ const cli = defineCli({
         cache.startIdleSweeper();
         const defaultDbPath = pinned ? dbPath(pinned) : defaultDbPathForRepo(repoRoot);
 
+        // /refresh handler: in multi-DB mode, close every cached DB
+        // handle so the next ingest reopens against current schema
+        // (covers manual schema edits and sqlite file replacement). In
+        // single-DB pinned mode, startServer captured a live Database
+        // reference at boot; closing it would dangle that pointer, so we
+        // skip handle eviction and just re-read config.
+        //
+        // port / host / cors are baked into Bun.serve() at boot — those
+        // genuinely need a shutdown+serve. Surfaced via the
+        // `configReloaded` flag so the caller can decide.
+        const handleRefresh = async () => {
+          let closedHandles = 0;
+          if (!pinned) {
+            closedHandles = cache._sizeForTests();
+            cache.closeAll();
+            cache.startIdleSweeper();
+          }
+          let configReloaded = false;
+          try {
+            await loadConfig(process.cwd());
+            configReloaded = true;
+          } catch {
+            // ignore — keep prior in-memory config
+          }
+          return {
+            ok: true,
+            refreshedAt: '', // overwritten by server.ts
+            closedHandles,
+            configReloaded,
+          };
+        };
+
         const srv = pinned
           ? startServer({
               db: cache.getOrOpen(defaultDbPath),
               port: effectivePort,
               host: effectiveHost,
               cors: config.cors,
+              onRefresh: handleRefresh,
             })
           : startServer({
               cache,
@@ -78,12 +113,46 @@ const cli = defineCli({
               port: effectivePort,
               host: effectiveHost,
               cors: config.cors,
+              onRefresh: handleRefresh,
             });
         process.stdout.write(
           `log-server listening on http://${srv.host}:${srv.port}  ` +
             `${pinned ? `db=${defaultDbPath}` : `logs=${defaultDbPath}/..`}\n`,
         );
         return new Promise<number>(() => {});
+      },
+    },
+    refresh: {
+      description:
+        'Evict the daemon\'s cached DB handles and re-read config without restarting (keeps the daemon PID alive)',
+      flags: {
+        port: { type: 'number', env: 'DIAG_PORT' },
+        host: { type: 'string', env: 'DIAG_HOST' },
+      },
+      run: async (ctx) => {
+        const { refresh } = await import('./client.js');
+        const result = await refresh({
+          host: (ctx.flags.host as string | undefined) ?? '127.0.0.1',
+          port: (ctx.flags.port as number | undefined) ?? 7077,
+        });
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        return result.ok ? 0 : 1;
+      },
+    },
+    health: {
+      description: 'Daemon liveness check',
+      flags: {
+        port: { type: 'number', env: 'DIAG_PORT' },
+        host: { type: 'string', env: 'DIAG_HOST' },
+      },
+      run: async (ctx) => {
+        const { health } = await import('./client.js');
+        const result = await health({
+          host: (ctx.flags.host as string | undefined) ?? '127.0.0.1',
+          port: (ctx.flags.port as number | undefined) ?? 7077,
+        });
+        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+        return result.ok ? 0 : 1;
       },
     },
     check: {
