@@ -53,7 +53,7 @@ afterEach(() => {
   active = null
 })
 
-test("controls hint is collapsed by default", () => {
+test("controls hint is visible by default", () => {
   const descriptors = [makeDescriptor("logs")]
   active = render(
     <ViewProvider>
@@ -67,8 +67,8 @@ test("controls hint is collapsed by default", () => {
     </ViewProvider>,
   )
   const frame = active.lastFrame() ?? ""
-  expect(frame).toContain("c for controls")
-  expect(frame).not.toContain("s start/stop")
+  expect(frame).toContain("s start/stop")
+  expect(frame).toContain("q quit")
 })
 
 test("renders a row per descriptor with the focus marker on idx 0", () => {

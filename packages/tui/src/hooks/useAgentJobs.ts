@@ -1,11 +1,12 @@
 import fs from "node:fs"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { listJobs, type JobRecord } from "@davstack/open-agents/core/jobs"
 import { jobsDir } from "@davstack/open-agents/core/paths"
 
 export interface UseAgentJobsResult {
   jobs: JobRecord[]
+  refresh: () => void
 }
 
 function jobStableKey(j: JobRecord): string {
@@ -41,9 +42,17 @@ export function useAgentJobs(repoPath: string): UseAgentJobsResult {
     setJobs(next)
   }, [repoPath, tick])
 
+  const refresh = useCallback(() => {
+    // Force a re-read: invalidate the mtime + keys caches so the next
+    // listJobs always runs even if the directory mtime is stale.
+    lastMtimeRef.current = 0
+    lastKeysRef.current = ""
+    setTick((t) => t + 1)
+  }, [])
+
   const sorted = useMemo(() => sortAgentJobs(jobs), [jobs])
 
-  return { jobs: sorted }
+  return { jobs: sorted, refresh }
 }
 
 function sortAgentJobs(jobs: JobRecord[]): JobRecord[] {
