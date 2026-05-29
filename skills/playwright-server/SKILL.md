@@ -11,12 +11,12 @@ description: >-
 ---
 
 Boot once per session, then drive cheaply. First run `davstack check` to
-confirm the daemon is running — if it isn't, the command prints the start
-instructions. Fall back to the per-daemon CLI below to run
-playwright-server in isolation.
+confirm the daemon is running.
 
-    playwright-server check                  # daemon liveness + chromium + auth
-    playwright-server serve &                # boot if check fails (~5-15s)
+> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
+
+Once the daemon is up, drive it with the per-daemon CLI:
+
     playwright-server run <file>             # warm rerun (~1-3s); JSON RunResult
     playwright-server goto <url>             # navigate live page (returns { url })
     playwright-server refresh-auth           # mint a fresh session, reseed context
