@@ -7,6 +7,7 @@
 //   refresh          flush vitest's transform cache + vite-node module cache; re-read config; keep PID
 //   health           liveness check
 //   shutdown         stop the daemon
+//   doctor           validate local install (formerly `check`; `check` kept as a deprecated alias)
 //
 // Runtime: recommended `node --experimental-transform-types ./index.ts
 // serve` (Node 24+). Bun works on Linux/macOS but fails on Windows
@@ -87,6 +88,24 @@ const serveSpec: CommandSpec = {
     process.on('SIGINT', () => sig('SIGINT'));
     process.on('SIGTERM', () => sig('SIGTERM'));
     return new Promise<number>(() => {});
+  },
+};
+
+const doctorSpec: CommandSpec = {
+  description: 'Validate local install (node, peer dep, config, daemon liveness)',
+  flags: {
+    ...clientFlags(),
+    cwd: { type: 'string', default: process.cwd() },
+    json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
+  },
+  run: async (ctx) => {
+    const { runCheck } = await import('./check.js');
+    return runCheck({
+      cwd: ctx.flags.cwd as string,
+      host: ctx.flags.host as string,
+      port: ctx.flags.port as number,
+      json: ctx.flags.json as boolean,
+    });
   },
 };
 
@@ -179,22 +198,10 @@ const cli = defineCli({
         return 0;
       },
     },
+    doctor: doctorSpec,
     check: {
-      description: 'Validate local install (node, peer dep, config, daemon liveness)',
-      flags: {
-        ...clientFlags(),
-        cwd: { type: 'string', default: process.cwd() },
-        json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
-      },
-      run: async (ctx) => {
-        const { runCheck } = await import('./check.js');
-        return runCheck({
-          cwd: ctx.flags.cwd as string,
-          host: ctx.flags.host as string,
-          port: ctx.flags.port as number,
-          json: ctx.flags.json as boolean,
-        });
-      },
+      ...doctorSpec,
+      description: "Validate local install (deprecated alias for 'doctor')",
     },
   },
 });
