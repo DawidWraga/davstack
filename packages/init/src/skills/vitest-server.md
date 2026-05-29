@@ -16,8 +16,6 @@ description: >-
 Boot once per session, then rerun cheaply. First run `davstack check` to
 confirm the daemon is running.
 
-> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
-
 Once the daemon is up, drive it with the per-daemon CLI:
 
     vitest-server run <file>           # warm rerun (~3-15s); JSON RunResult on stdout
@@ -43,14 +41,13 @@ If results look wrong (`(0 test)`, suite errors, post-config-edit weirdness), th
 
 `vitest-server` — Long-lived Vitest daemon + CLI client for fast story/unit reruns.
 
-| Command | Description | Positionals & flags |
-| --- | --- | --- |
-| `vitest-server serve` | Boot the long-lived Vitest daemon | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`) — Consumer project root<br>`--project <string>` — Vitest project filter (overrides vitest-server.config.ts)<br>`--prime <string>` (env: `VITEST_SERVER_PRIME_FILE`) — File to prime the storybook plugin on boot (overrides config) |
-| `vitest-server run` | Rerun a file against the running daemon | `<file>` — Spec/story path<br>`--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--grep <string>` — Vitest testNamePattern filter |
-| `vitest-server refresh` | Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive). Pass --hard for a full shutdown + detached re-serve when soft refresh is insufficient. | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--hard <boolean>` (default: `false`) — Full shutdown + detached re-serve (loses daemon PID).<br>`--cwd <string>` (default: `(current directory)`) — Consumer project root passed to the re-spawned serve (--hard only).<br>`--project <string>` — Vitest project filter, passed to the re-spawned serve (--hard only).<br>`--prime <string>` (env: `VITEST_SERVER_PRIME_FILE`) — Prime file passed to the re-spawned serve (--hard only). |
-| `vitest-server health` | Daemon liveness check | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`) |
-| `vitest-server shutdown` | Stop the running daemon | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`) |
-| `vitest-server doctor` | Validate local install (node, peer dep, config, daemon liveness) | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
-| `vitest-server check` | Validate local install (deprecated alias for 'doctor') | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+- `vitest-server serve` — Boot the long-lived Vitest daemon
+- `vitest-server run <file>` — Rerun a file against the running daemon
+- `vitest-server refresh` — Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive). Pass --hard for a full shutdown + detached re-serve when soft refresh is insufficient.
+- `vitest-server health` — Daemon liveness check
+- `vitest-server shutdown` — Stop the running daemon
+- `vitest-server doctor` — Validate local install (node, peer dep, config, daemon liveness)
+
+Run `vitest-server <command> --help` for the full flags and options of any command.
 
 <!-- END cli-reference -->

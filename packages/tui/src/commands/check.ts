@@ -65,12 +65,15 @@ function red(s: string, useColor: boolean): string {
 }
 
 const START_HINT = [
-  "To start the missing daemons, run this in a separate terminal:",
+  "Ask the user to run this in a SEPARATE, long-lived terminal — Claude can't",
+  "run it (a daemon in an agent's shell dies with the session), and a user-owned",
+  "terminal is reused across sessions, which makes the whole session faster.",
+  "Don't run `serve` yourself.",
   "",
   "  davstack start",
   "",
-  "The TUI supervises every configured daemon together; closing it",
-  "cleans them up. Re-run `davstack check` to confirm.",
+  "The TUI supervises every configured daemon together; closing it cleans them",
+  "up. Re-run `davstack check` to confirm.",
 ].join("\n")
 
 export function formatResult(result: CheckResult, useColor: boolean): string {
