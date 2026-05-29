@@ -1,5 +1,28 @@
 # @davstack/cli-utils
 
+## 1.3.1
+
+### Patch Changes
+
+- Fix `restartDaemon` false-positive when the prior daemon doesn't actually
+  shut down (#60). The poll-for-health loop now snapshots the pre-shutdown
+  PID via `GET <healthPath>` and only accepts a 200 whose `pid` differs.
+  If the same PID keeps answering, the helper returns
+  `{ ok: false, error: "daemon shutdown did not take: pid N still answering …" }`
+  instead of silently reporting success against the surviving original.
+
+  Also hardens the spawn detach for bun-hosted daemons on Windows
+  (logs-server). `detached: true` + `stdio: 'ignore'` is unreliable when
+  `process.execPath` is `bun.exe` — the child stayed tethered to the
+  parent's console session and died once the CLI returned. The Windows-bun
+  path now wraps the spawn in `cmd /c start "" /B` to force a clean detach
+  via the shell's `start` verb. `child.pid` becomes the throwaway cmd.exe
+  on that path, so `restartDaemon` now surfaces the daemon-reported pid
+  from `/health` instead.
+
+  No behavior change for node-hosted daemons (playwright-server,
+  vitest-server) — they keep the original `detached: true` spawn.
+
 ## 1.3.0
 
 ### Minor Changes
