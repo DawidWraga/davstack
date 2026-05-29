@@ -138,27 +138,49 @@ export interface InstalledSkills {
   removedGlobal: string[]
 }
 
-// Marker that scripts/sync-init-skills.ts stamps into every generated skill.
-// We only ever delete a global SKILL.md that carries this marker, so a user's
-// hand-authored skill of the same name is never touched.
-const GENERATED_MARKER = "GENERATED from skills/"
+// Per-skill marker that scripts/sync-init-skills.ts stamps into the generated
+// skill. We only ever delete a global SKILL.md that carries the EXACT marker
+// for that skill name, so a user's hand-authored skill — or any unrelated
+// file — is never touched.
+const generatedMarker = (skill: string) =>
+  `GENERATED from skills/${skill}/SKILL.md by scripts/sync-init-skills.ts`
+
+// Two filesystem paths point at the same location. Case-insensitive on
+// Windows/macOS (where the FS folds case), so e.g. `c:\…` vs `C:\…` — which
+// node returns inconsistently for cwd vs os.homedir() — compare equal.
+function samePath(a: string, b: string): boolean {
+  const ra = path.resolve(a)
+  const rb = path.resolve(b)
+  if (process.platform === "win32" || process.platform === "darwin") {
+    return ra.toLowerCase() === rb.toLowerCase()
+  }
+  return ra === rb
+}
 
 // Earlier init versions installed daemon skills GLOBALLY. Now they're
 // project-local, so a stale global copy would shadow/duplicate the project
 // one. Clean it up — but VERY conservatively, since this deletes from the
 // user's home dir:
 //   1. only the three known daemon-skill names (callers pass those),
-//   2. only when ~/.claude/skills/<skill>/SKILL.md actually exists,
-//   3. only when that file carries our generated marker (never a hand-edited
-//      or unrelated skill), and
-//   4. we delete only that one SKILL.md file — then remove the dir solely if
+//   2. never when the global path is the project path we just wrote to
+//      (case-insensitive) — defense-in-depth against deleting our own file,
+//   3. only when ~/.claude/skills/<skill>/SKILL.md actually exists,
+//   4. only when that file carries the EXACT generated marker for this skill
+//      (never a hand-edited or unrelated skill), and
+//   5. we delete only that one SKILL.md file — then remove the dir solely if
 //      it is now empty, so any extra files the user dropped there survive.
-async function removeStaleGlobalSkill(skill: string): Promise<string | null> {
+// `justWrote` is the project-local SKILL.md we just installed; we refuse to
+// touch any global path that resolves to it.
+async function removeStaleGlobalSkill(
+  skill: string,
+  justWrote: string,
+): Promise<string | null> {
   const dir = path.join(homedir(), ".claude", "skills", skill)
   const file = path.join(dir, "SKILL.md")
+  if (samePath(file, justWrote)) return null
   if (!existsSync(file)) return null
   const content = await readFile(file, "utf8")
-  if (!content.includes(GENERATED_MARKER)) return null
+  if (!content.includes(generatedMarker(skill))) return null
 
   await rm(file, { force: true })
   // Drop the now-orphaned dir only if empty; leave it (and report nothing
@@ -197,8 +219,9 @@ export async function installSkills(
   const projectRoot = path.join(root, ".claude", "skills")
   // If the project root is the home dir, project-local and global resolve to
   // the same path — skip the stale-copy cleanup so we never delete the skill
-  // we just wrote there.
-  const projectIsGlobal = path.resolve(projectRoot) === path.resolve(globalRoot)
+  // we just wrote there. (samePath folds case so a `c:\…` vs `C:\…` drive
+  // letter, which node returns inconsistently on Windows, still matches.)
+  const projectIsGlobal = samePath(projectRoot, globalRoot)
 
   const globalSkills: string[] = []
   const projectSkills: string[] = []
@@ -216,7 +239,7 @@ export async function installSkills(
     // For each daemon skill we just placed project-local, sweep away the
     // stale global copy an older init may have left behind.
     if (isProjectLocal && !projectIsGlobal) {
-      const removed = await removeStaleGlobalSkill(skill)
+      const removed = await removeStaleGlobalSkill(skill, target)
       if (removed) removedGlobal.push(removed)
     }
   }
