@@ -1,5 +1,3 @@
-<!-- GENERATED from skills/vitest-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
-
 ---
 name: vitest-server
 description: >-
@@ -10,6 +8,10 @@ description: >-
   cold one-off CI checks (`vitest run` is fine) or when configuring vitest
   itself (daemon caches go stale).
 ---
+
+<!-- GENERATED from skills/vitest-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
+> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file.
 
 Boot once per session, then rerun cheaply. First run `davstack check` to
 confirm the daemon is running.

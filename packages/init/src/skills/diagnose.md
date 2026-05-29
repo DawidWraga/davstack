@@ -1,9 +1,9 @@
-<!-- GENERATED from skills/diagnose/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
-
 ---
 name: diagnose
 description: Disciplined diagnosis loop for hard bugs and performance regressions. Frame → reproduce the USER's failure → hypothesis tree → pre-registered experiment → instrument (delegated) → interpret with a confound gate → root cause → fix-as-hypothesis. Backed by a local Sentry log-ingest sink + `diag` query CLI, a warm Playwright host for live-app replays, and a Vitest daemon for fast unit/storybook reruns. Use when the user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 ---
+
+<!-- GENERATED from skills/diagnose/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
 # Diagnose
 

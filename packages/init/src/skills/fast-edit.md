@@ -1,5 +1,3 @@
-<!-- GENERATED from skills/fast-edit/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
-
 ---
 name: fast-edit
 description: >-
@@ -10,6 +8,8 @@ description: >-
   or conveying it correctly would need exhaustive line-by-line detail right. Never use
   critical, complex edits that require careful judgement.
 ---
+
+<!-- GENERATED from skills/fast-edit/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
 Run (backgrounded — the harness notifies you):
 

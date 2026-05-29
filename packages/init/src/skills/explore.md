@@ -1,5 +1,3 @@
-<!-- GENERATED from skills/explore/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
-
 ---
 name: explore
 description: >-
@@ -9,6 +7,8 @@ description: >-
   design/synthesis. Self-check ONLY the most imporant load-bearing files/lines; delegate breadth
   you wouldn't otherwise open.
 ---
+
+<!-- GENERATED from skills/explore/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
 Scope tightly, then run (backgrounded — the harness notifies you):
 

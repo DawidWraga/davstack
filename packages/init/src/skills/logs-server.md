@@ -1,5 +1,3 @@
-<!-- GENERATED from skills/logs-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
-
 ---
 name: logs-server
 description: >-
@@ -11,6 +9,10 @@ description: >-
   probes during a `diagnose` loop. Skip for tail-following live stdout
   (use the dev server directly) or for prod logs (this is local-only).
 ---
+
+<!-- GENERATED from skills/logs-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
+> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file.
 
 First run `davstack check` to confirm the daemon is running.
 
