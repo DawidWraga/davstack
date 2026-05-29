@@ -1,3 +1,5 @@
+<!-- GENERATED from skills/logs-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
 ---
 name: logs-server
 description: >-
@@ -46,15 +48,16 @@ logs(id, ts, recv_ts, project, service, run_id, trace_id, span_id,
 
 Indexed on `(project, run_id, trace_id, level, ts)` — filter on those first.
 
-- **`msg`** — log body, ANSI prefix stripped.
+- **`msg`** — log body, ANSI prefix stripped. Indexed-string predicates are cheap here.
 - **`data`** — raw Sentry log record JSON, verbatim. Includes OTel-typed `attributes`.
-- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Reach in with `json_extract(attrs, '$.<key>')`.
+- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Populated at insert time. Reach in with `json_extract(attrs, '$.<key>')` — much shorter than the four-segment `data.attributes.<key>.value` path.
 - **`tag`** — promoted from `diag.tag` (nullable).
+
+Need the OTel type discriminator? `json_extract(data, '$.attributes.<key>.type')` — rarely needed.
 
 ## Investigation pattern
 
-1. Get a `trace_id` or `run_id` from the user (the chat message, the
-   error stamp, or the URL hash that holds `__diagRunId`).
+1. Get a `trace_id` or `run_id` from the user (the chat message, the error stamp, or the URL hash that holds `__diagRunId`).
 
 2. Timeline for one run / trace:
 
@@ -67,7 +70,7 @@ Indexed on `(project, run_id, trace_id, level, ts)` — filter on those first.
    "
    ```
 
-3. Narrow to errors:
+3. Narrow to errors + surrounding context:
 
    ```bash
    sqlite3 -header -column .davstack/logs/default.db "
@@ -78,15 +81,31 @@ Indexed on `(project, run_id, trace_id, level, ts)` — filter on those first.
    "
    ```
 
-4. For fat data payloads, project specific fields with `json_extract(data, '$.<path>')` rather than dumping the whole `data` blob.
+4. Slice by structured probe attribute (the killer recipe):
 
-For hypothesis-driven probe-then-slice debugging, see `writing-logs.md`.
+   ```bash
+   sqlite3 -header -column .davstack/logs/default.db "
+     SELECT ts, msg,
+            json_extract(attrs, '\$.seam')      AS seam,
+            json_extract(attrs, '\$.row_count') AS row_count
+     FROM logs
+     WHERE run_id = '<id>'
+       AND json_extract(attrs, '\$.tags') LIKE '%H3%'
+     ORDER BY ts;
+   "
+   ```
+
+5. For fat data payloads, project specific fields with `json_extract(data, '$.<path>')` rather than dumping the whole `data` blob.
 
 If a query returns empty or hits the wrong DB, the failure is usually in the sink config or transmitter — `davstack check` reports the resolved path and recent row count; see `setup.md` for transmitter wiring.
 
+For hypothesis-driven probe-then-slice debugging, see `writing-logs.md`.
+
 ## Reference
 
-- [`README.md`](../../packages/logs-server/README.md) — overview, install, why
-- [`docs/setup.md`](../../packages/logs-server/docs/setup.md) — config file, transmitter setup, auto-instrumentation
-- [`docs/writing-logs.md`](../../packages/logs-server/docs/writing-logs.md) — queryable shape, hypothesis-driven probes
-- [`docs/reading-logs.md`](../../packages/logs-server/docs/reading-logs.md) — schema details + raw sqlite recipes
+- [`README.md`](node_modules/@davstack/logs-server/README.md) — overview, install, why
+- [`docs/setup.md`](node_modules/@davstack/logs-server/docs/setup.md) — config file, transmitter setup, auto-instrumentation
+- [`docs/writing-logs.md`](node_modules/@davstack/logs-server/docs/writing-logs.md) — queryable shape, hypothesis-driven probes
+- [`docs/reading-logs.md`](node_modules/@davstack/logs-server/docs/reading-logs.md) — schema details + ready-to-paste recipes
+- [`docs/transmitter-wiring.md`](node_modules/@davstack/logs-server/docs/transmitter-wiring.md) — route a session's logs to its own DB
+- [`docs/session-views.md`](node_modules/@davstack/logs-server/docs/session-views.md) — per-DB SQL views (`dbg_*`) for keeping queries short across a session

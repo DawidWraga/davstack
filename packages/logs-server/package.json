@@ -24,7 +24,9 @@
   },
   "files": [
     "bin/**",
-    "dist/**"
+    "dist/**",
+    "docs/**",
+    "README.md"
   ],
   "engines": {
     "node": ">=20",

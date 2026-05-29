@@ -1,3 +1,5 @@
+<!-- GENERATED from skills/vitest-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
 ---
 name: vitest-server
 description: >-
@@ -28,7 +30,7 @@ If results look wrong (`(0 test)`, suite errors, post-config-edit weirdness), th
 
 ## Reference
 
-- [`README.md`](../../packages/vitest-server/README.md) — overview, install, why
-- [`docs/setup.md`](../../packages/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
-- [`docs/usage.md`](../../packages/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
-- [`docs/troubleshooting.md`](../../packages/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
+- [`README.md`](node_modules/@davstack/vitest-server/README.md) — overview, install, why
+- [`docs/setup.md`](node_modules/@davstack/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
+- [`docs/usage.md`](node_modules/@davstack/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
+- [`docs/troubleshooting.md`](node_modules/@davstack/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
