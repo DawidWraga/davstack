@@ -10,9 +10,11 @@ daemons were selected (it's the orchestrator, not a selectable daemon).
 `printNextSteps` now points at `davstack start` (in a separate terminal) +
 `davstack check` instead of the per-server `<server> check` lines.
 
-Also update the bundled `logs-server` skill: drop the removed `logs-server
-query` verbs (trace/run/errors/filter, gone since logs-server 2.1.0) and
-document the current read path — reading the store directly with sqlite3
-against `.davstack/logs/<db>`, mirroring the canonical skill. Adds the shared
-lifecycle rule (ask the user to run `davstack start`; never run `serve`
-yourself).
+Also bring the bundled `logs-server`, `vitest-server`, and `playwright-server`
+skills in line with the canonical skills: drop the removed `logs-server query`
+verbs (trace/run/errors/filter, gone since logs-server 2.1.0) in favour of
+reading the store directly with sqlite3 against `.davstack/logs/<db>`; remove
+the `serve &` / per-server `check` recipes; and add the shared lifecycle rule
+(ask the user to run `davstack start` in a separate terminal; never run
+`serve` yourself). The playwright skill also drops the obsolete "only the first
+top-level `test()`" limitation.

@@ -10,18 +10,22 @@ description: >-
   configuring playwright itself.
 ---
 
-Boot once per session, then drive cheaply.
+Boot once per session, then drive cheaply. First run `davstack check` to
+confirm the daemon is running.
 
-    playwright-server check                  # daemon liveness + chromium + auth
-    playwright-server serve &                # boot if check fails (~5-15s)
+> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
+
+Once the daemon is up, drive it with the per-daemon CLI:
+
     playwright-server run <file>             # warm rerun (~1-3s); JSON RunResult
     playwright-server goto <url>             # navigate live page (returns { url })
     playwright-server refresh-auth           # mint a fresh session, reseed context
 
-Exit `0` = pass, `1` = fail. Spec extractor runs **only the first top-level
-`test('...', async ({ page, ... }) => { ... })`** — no `describe`, no
-hooks, no custom fixtures. Wrap codegen output in that exact shape;
-otherwise see [`usage.md`](../../packages/playwright-server/docs/usage.md).
+Exit `0` = pass, `1` = fail. Specs are loaded as real ES modules — full
+TypeScript, multiple `test()` blocks, `test.describe`, `beforeEach` /
+`afterEach`, and `test.use({ storageState })` all work. Custom
+`test.extend(...)` fixtures are the one current gap. See
+[`usage.md`](../../packages/playwright-server/docs/usage.md) for details.
 
 If results look wrong (blank window, cold-boot crash, `no test() block found`, 401 redirects, daemon exit 1), the failure is usually in the daemon, not your code — check `troubleshooting.md` before iterating, or fall back to `playwright test`.
 
