@@ -8,13 +8,15 @@ description: >-
   you wouldn't otherwise open.
 ---
 
+<!-- GENERATED from skills/explore/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
 Scope tightly, then run (backgrounded — the harness notifies you):
 
-    explore submit --file ~/.davstack/specs/<slug>.md
+    npx explore submit --file ~/.davstack/specs/<slug>.md
 
 For a **single scoped fact**, skip the spec file — inline it (no boilerplate):
 
-    explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
+    npx explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
 
 Many `--file` run in parallel from one command. Read the `result → <path>`
 file for the answer.

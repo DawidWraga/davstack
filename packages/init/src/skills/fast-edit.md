@@ -9,9 +9,11 @@ description: >-
   critical, complex edits that require careful judgement.
 ---
 
+<!-- GENERATED from skills/fast-edit/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
 Run (backgrounded — the harness notifies you):
 
-    fast-edit submit --file ~/.davstack/specs/<slug>.md
+    npx fast-edit submit --file ~/.davstack/specs/<slug>.md
 
 **Routing test.** Delegate when a *short* intent+constraints spec is enough
 for the executor to produce the **full** intended edit. If writing the spec

@@ -6,6 +6,7 @@
 		"lint": "turbo lint",
 		"clean": "turbo clean && rm -rf node_modules",
 		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
+		"gen:init-skills": "tsx scripts/sync-init-skills.ts",
 		"changeset": "changeset",
 		"gen:skill-cli": "tsx scripts/gen-skill-cli-reference.ts",
 		"version-packages": "changeset version",

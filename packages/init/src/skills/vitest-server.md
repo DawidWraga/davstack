@@ -9,6 +9,10 @@ description: >-
   itself (daemon caches go stale).
 ---
 
+<!-- GENERATED from skills/vitest-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
+
+> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file.
+
 Boot once per session, then rerun cheaply. First run `davstack check` to
 confirm the daemon is running.
 
@@ -28,7 +32,25 @@ If results look wrong (`(0 test)`, suite errors, post-config-edit weirdness), th
 
 ## Reference
 
-- [`README.md`](../../packages/vitest-server/README.md) — overview, install, why
-- [`docs/setup.md`](../../packages/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
-- [`docs/usage.md`](../../packages/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
-- [`docs/troubleshooting.md`](../../packages/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
+- [`README.md`](node_modules/@davstack/vitest-server/README.md) — overview, install, why
+- [`docs/setup.md`](node_modules/@davstack/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
+- [`docs/usage.md`](node_modules/@davstack/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
+- [`docs/troubleshooting.md`](node_modules/@davstack/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
+
+## CLI reference
+
+<!-- BEGIN cli-reference (generated — do not edit by hand) -->
+
+`vitest-server` — Long-lived Vitest daemon + CLI client for fast story/unit reruns.
+
+| Command | Description | Positionals & flags |
+| --- | --- | --- |
+| `vitest-server serve` | Boot the long-lived Vitest daemon | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`) — Consumer project root<br>`--project <string>` — Vitest project filter (overrides vitest-server.config.ts)<br>`--prime <string>` (env: `VITEST_SERVER_PRIME_FILE`) — File to prime the storybook plugin on boot (overrides config) |
+| `vitest-server run` | Rerun a file against the running daemon | `<file>` — Spec/story path<br>`--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--grep <string>` — Vitest testNamePattern filter |
+| `vitest-server refresh` | Flush vitest transform cache + vite-node module cache and re-read config without restarting (keeps the warm vitest instance alive). Pass --hard for a full shutdown + detached re-serve when soft refresh is insufficient. | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--hard <boolean>` (default: `false`) — Full shutdown + detached re-serve (loses daemon PID).<br>`--cwd <string>` (default: `(current directory)`) — Consumer project root passed to the re-spawned serve (--hard only).<br>`--project <string>` — Vitest project filter, passed to the re-spawned serve (--hard only).<br>`--prime <string>` (env: `VITEST_SERVER_PRIME_FILE`) — Prime file passed to the re-spawned serve (--hard only). |
+| `vitest-server health` | Daemon liveness check | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`) |
+| `vitest-server shutdown` | Stop the running daemon | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`) |
+| `vitest-server doctor` | Validate local install (node, peer dep, config, daemon liveness) | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+| `vitest-server check` | Validate local install (deprecated alias for 'doctor') | `--port <number>` (default: `5179`, env: `VITEST_SERVER_PORT`)<br>`--host <string>` (default: `"127.0.0.1"`, env: `VITEST_SERVER_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+
+<!-- END cli-reference -->
