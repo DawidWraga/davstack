@@ -114,7 +114,7 @@ describe("formatResult", () => {
     expect(out).toContain("/repo")
   })
 
-  test("all-running output omits the start hint", () => {
+  test("all-running output is a terse single line with no table or hint", () => {
     const out = formatResult(
       {
         kind: "checked",
@@ -126,11 +126,15 @@ describe("formatResult", () => {
       },
       false,
     )
-    expect(out).toContain("All configured daemons running.")
-    expect(out).not.toContain("pnpm dlx @davstack/tui start")
+    expect(out).toBe("✓ All davstack daemons running and ready.")
+    expect(out).not.toContain("davstack start")
+    // no header and no per-daemon table on success
+    expect(out).not.toContain("cwd:")
+    expect(out).not.toContain("not running")
+    expect(out.split("\n")).toHaveLength(1)
   })
 
-  test("some-missing output includes the start hint", () => {
+  test("some-missing output includes the table and start hint", () => {
     const out = formatResult(
       {
         kind: "checked",
@@ -143,7 +147,8 @@ describe("formatResult", () => {
       false,
     )
     expect(out).toContain("1 daemon(s) not running.")
-    expect(out).toContain("pnpm dlx @davstack/tui start")
+    expect(out).toContain("davstack start")
+    expect(out).toContain("davstack check (cwd: /repo)")
   })
 
   test("color=true emits ANSI escapes; color=false does not", () => {
