@@ -13,7 +13,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import type { CliSpec, CommandSpec, FlagSpec, Positional } from '@davstack/cli-utils';
+import type { CliSpec, CommandSpec } from '@davstack/cli-utils';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, '..');
@@ -32,96 +32,68 @@ const targets: Target[] = ['logs-server', 'vitest-server', 'playwright-server'].
 );
 
 // ─── rendering ────────────────────────────────────────────────────────────
+//
+// We deliberately emit a LEAN list, not an exhaustive table: command +
+// required positionals + the one-line description, plus a single pointer to
+// `--help` for the full flag set. Dumping every optional flag here is just
+// noise — an agent can run `<server> <command> --help` when it actually needs
+// a flag. Optional positionals, flags, and deprecated aliases are omitted.
 
-function mdEscape(s: string): string {
-  // Escape pipe so descriptions don't break the markdown table.
-  return s.replace(/\|/g, '\\|');
-}
-
-// Some flags default to `process.cwd()` (resolved at spec-eval time). That's
-// a machine-specific absolute path and would make the generated doc both
-// non-deterministic and non-idempotent across checkouts. Normalize it to a
-// stable placeholder so committed output is reproducible everywhere.
-const CWD = process.cwd();
-
-function renderDefault(value: unknown): string {
-  if (typeof value === 'string' && value === CWD) return '`(current directory)`';
-  return `\`${JSON.stringify(value)}\``;
-}
-
-function renderFlag(name: string, def: FlagSpec): string {
-  // Mirror cli-help.ts formatFlag semantics: name, type, then meta
-  // (default / env / required), then description.
-  const meta: string[] = [];
-  if (def.default !== undefined) meta.push(`default: ${renderDefault(def.default)}`);
-  if (def.env) meta.push(`env: \`${def.env}\``);
-  if (def.required) meta.push('required');
-  const metaStr = meta.length ? ` (${meta.join(', ')})` : '';
-  const desc = def.description ? ` — ${def.description}` : '';
-  return `\`--${name} <${def.type}>\`${metaStr}${desc}`;
-}
-
-function renderPositional(p: Positional): string {
-  const tag = p.required ? `\`<${p.name}>\`` : `\`[${p.name}]\``;
-  const desc = p.description ? ` — ${p.description}` : '';
-  return `${tag}${desc}`;
+// Only required positionals are surfaced (e.g. `run <file>`).
+function requiredPositionals(node: CommandSpec): string {
+  return (node.positionals ?? [])
+    .filter((p) => p.required)
+    .map((p) => `<${p.name}>`)
+    .join(' ');
 }
 
 // Walk the command tree (like parseArgs/formatHelp descend through
-// `commands`), emitting one table row per command that has a run handler or
-// is a leaf. Path segments are joined with spaces.
-function collectRows(
+// `commands`), emitting one entry per runnable leaf command. Commands whose
+// description marks them deprecated are skipped — this is a curated surface,
+// not a 1:1 mirror of every alias.
+function collectCommands(
   node: CommandSpec,
   path: string[],
-  rows: { command: string; description: string; args: string }[],
+  out: { command: string; description: string }[],
 ): void {
   const children = node.commands ? Object.entries(node.commands) : [];
-
-  // Emit a row for this node if it is runnable or a leaf (no children).
   const isRoot = path.length === 0;
-  if (!isRoot && (node.run || children.length === 0)) {
-    rows.push({
-      command: path.join(' '),
+  const deprecated = /deprecated/i.test(node.description ?? '');
+
+  if (!isRoot && (node.run || children.length === 0) && !deprecated) {
+    const pos = requiredPositionals(node);
+    out.push({
+      command: pos ? `${path.join(' ')} ${pos}` : path.join(' '),
       description: node.description ?? '',
-      args: renderArgs(node),
     });
   }
 
   for (const [name, child] of children) {
-    collectRows(child, [...path, name], rows);
+    collectCommands(child, [...path, name], out);
   }
 }
 
-function renderArgs(node: CommandSpec): string {
-  const parts: string[] = [];
-  for (const p of node.positionals ?? []) parts.push(renderPositional(p));
-  for (const [name, def] of Object.entries(node.flags ?? {})) {
-    parts.push(renderFlag(name, def));
-  }
-  if (parts.length === 0) return '';
-  return parts.map(mdEscape).join('<br>');
-}
-
-function renderTable(spec: CliSpec): string {
-  const rows: { command: string; description: string; args: string }[] = [];
-  collectRows(spec, [], rows);
+function renderList(spec: CliSpec): string {
+  const cmds: { command: string; description: string }[] = [];
+  collectCommands(spec, [], cmds);
 
   const lines: string[] = [];
   lines.push(`\`${spec.name}\` — ${spec.description ?? ''}`.trimEnd());
   lines.push('');
-  lines.push('| Command | Description | Positionals & flags |');
-  lines.push('| --- | --- | --- |');
-  for (const r of rows) {
-    const cmd = `\`${spec.name} ${r.command}\``;
-    lines.push(`| ${cmd} | ${mdEscape(r.description)} | ${r.args || '—'} |`);
+  for (const c of cmds) {
+    lines.push(`- \`${spec.name} ${c.command}\` — ${c.description}`);
   }
+  lines.push('');
+  lines.push(
+    `Run \`${spec.name} <command> --help\` for the full flags and options of any command.`,
+  );
   return lines.join('\n');
 }
 
 function renderBlock(spec: CliSpec): string {
   // The marker comments bracket a fully generated region. Stable formatting
   // (no timestamps) keeps regeneration idempotent.
-  return [BEGIN, '', renderTable(spec), '', END].join('\n');
+  return [BEGIN, '', renderList(spec), '', END].join('\n');
 }
 
 // ─── injection ──────────────────────────────────────────────────────────

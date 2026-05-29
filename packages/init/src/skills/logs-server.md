@@ -16,8 +16,6 @@ description: >-
 
 First run `davstack check` to confirm the daemon is running.
 
-> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
-
 ## The read path is sqlite3
 
 `logs-server` has no `query` CLI verb (removed in 2.1.0). You read the store directly with sqlite3 against `.davstack/logs/<db>` — works even if the ingest daemon isn't running. You only need `serve` running for the app to *write* new envelopes.
@@ -118,12 +116,11 @@ For hypothesis-driven probe-then-slice debugging, see `writing-logs.md`.
 
 `logs-server` — Local Sentry-shaped log ingest. Read the store with sqlite3 against .davstack/logs/<db> (see docs/reading-logs.md).
 
-| Command | Description | Positionals & flags |
-| --- | --- | --- |
-| `logs-server serve` | Boot the log-ingest HTTP endpoint | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`) |
-| `logs-server refresh` | Evict the daemon's cached DB handles and re-read config without restarting (keeps the daemon PID alive). Pass --hard for a full shutdown + detached re-serve (loses PID; needed for port/host/cors changes). | `--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--hard <boolean>` (default: `false`) — Full shutdown + detached re-serve (loses daemon PID).<br>`--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db |
-| `logs-server health` | Daemon liveness check | `--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`) |
-| `logs-server doctor` | Validate local install (node, config, db rows, daemon liveness) | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
-| `logs-server check` | Validate local install (deprecated alias for 'doctor') | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+- `logs-server serve` — Boot the log-ingest HTTP endpoint
+- `logs-server refresh` — Evict the daemon's cached DB handles and re-read config without restarting (keeps the daemon PID alive). Pass --hard for a full shutdown + detached re-serve (loses PID; needed for port/host/cors changes).
+- `logs-server health` — Daemon liveness check
+- `logs-server doctor` — Validate local install (node, config, db rows, daemon liveness)
+
+Run `logs-server <command> --help` for the full flags and options of any command.
 
 <!-- END cli-reference -->
