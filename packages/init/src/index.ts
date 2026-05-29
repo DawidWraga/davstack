@@ -206,7 +206,9 @@ async function main(): Promise<void> {
     for (const f of result.skipped) console.log(`  skipped ${f} (already exists)`)
     if (result.gitignoreUpdated) console.log("  updated .gitignore")
     else console.log("  .gitignore already has davstack lines")
-    for (const f of result.skillsInstalled) console.log(`  skill   ${f}`)
+    for (const f of result.projectSkills) console.log(`  skill   ${f} (project)`)
+    for (const f of result.globalSkills) console.log(`  skill   ${f} (global)`)
+    for (const f of result.removedGlobal) console.log(`  removed ${f} (stale global copy — now project-local)`)
   } else {
     console.log("Skipping scaffold (--no-scaffold).")
   }

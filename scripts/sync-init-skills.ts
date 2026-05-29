@@ -37,18 +37,24 @@ const SKILLS = [
 
 // Rewrite canonical repo-relative doc links to the consumer's installed
 // package. Canonical links look like `../../packages/<pkg>/docs/<file>.md`
-// or `../../packages/<pkg>/README.md`; on the consumer machine the
-// matching files live under node_modules/@davstack/<pkg>/..., so the
-// installed skill's links resolve locally/offline and version-matched.
-// Reports whether any link was rewritten so we can append the
-// project-root hint (below) only to skills that actually carry such links.
+// or `../../packages/<pkg>/README.md`; on the consumer machine the matching
+// files live under <project>/node_modules/@davstack/<pkg>/....
+//
+// Skills carrying these links install PROJECT-LOCAL at
+// <root>/.claude/skills/<name>/SKILL.md (see packages/init scaffold.ts), so
+// from the installed file `../../../` climbs back to the project root and
+// `../../../node_modules/@davstack/<pkg>/...` resolves to the project's
+// installed package — locally, offline, and version-matched. The `../../../`
+// depth is bound to that install location; keep the two in sync.
+const PROJECT_ROOT_PREFIX = "../../../"
+
 function rewriteLinks(content: string): { text: string; changed: boolean } {
   let changed = false
   const text = content.replace(
     /\.\.\/\.\.\/packages\/([^/)\s]+)\//g,
     (_m, pkg: string) => {
       changed = true
-      return `node_modules/@davstack/${pkg}/`
+      return `${PROJECT_ROOT_PREFIX}node_modules/@davstack/${pkg}/`
     },
   )
   return { text, changed }
@@ -68,13 +74,6 @@ function splitFrontmatter(content: string): { frontmatter: string; body: string 
 const GEN_COMMENT = (name: string) =>
   `<!-- GENERATED from skills/${name}/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->`
 
-// Installed skills live at ~/.claude/skills/<name>/SKILL.md, but their doc
-// links are bare node_modules/@davstack/... paths — i.e. relative to the
-// consumer's PROJECT ROOT (where node_modules lives), not to this file.
-// Spell that out so the link target is unambiguous to the reader.
-const PROJECT_ROOT_HINT =
-  "> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file."
-
 async function main() {
   for (const name of SKILLS) {
     const src = path.join(CANONICAL_DIR, name, "SKILL.md")
@@ -84,13 +83,12 @@ async function main() {
     // regardless of the canonical file's on-disk line endings.
     const normalized = canonical.replace(/\r\n/g, "\n")
     const { frontmatter, body } = splitFrontmatter(normalized)
-    const { text: rewrittenBody, changed } = rewriteLinks(body)
+    const { text: rewrittenBody } = rewriteLinks(body)
 
-    // Note block goes after frontmatter: generated marker, plus the
-    // project-root hint when this skill carries rewritten doc links.
-    const note = changed
-      ? `${GEN_COMMENT(name)}\n\n${PROJECT_ROOT_HINT}\n`
-      : `${GEN_COMMENT(name)}\n`
+    // Note block goes after frontmatter: just the generated marker. The
+    // rewritten doc links are project-root-relative (../../../node_modules/…)
+    // and resolve directly from the installed file, so no extra hint is needed.
+    const note = `${GEN_COMMENT(name)}\n`
     const cleanBody = rewrittenBody.replace(/^\n+/, "")
     const out = frontmatter
       ? `${frontmatter}\n${note}\n${cleanBody}`
