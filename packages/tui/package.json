@@ -1,6 +1,6 @@
 {
   "name": "@davstack/tui",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "license": "MIT",
   "type": "module",
   "description": "Long-running terminal UI that spawns, owns, and surfaces the davstack daemons (vitest-server, playwright-server, logs-server).",

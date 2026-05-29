@@ -1,5 +1,27 @@
 # @davstack/init
 
+## 1.4.0
+
+### Minor Changes
+
+- 5a8bea4: Generate init's shipped skill files from the canonical `skills/` instead of hand-forking them.
+
+  `packages/init/src/skills/<name>.md` is now a generated artifact derived from the canonical `skills/<name>/SKILL.md` via `scripts/sync-init-skills.ts` (`pnpm gen:init-skills`). Relative repo doc links (`../../packages/<pkg>/...`) are rewritten to `node_modules/@davstack/<pkg>/...` so the installed skill's links resolve against the user's locally-installed, version-matched package docs (offline, no GitHub fetch). This fixes drift where the frozen fork shipped removed APIs to users.
+
+  The three daemon packages now ship their `docs/**` and `README.md` so those rewritten links resolve inside `node_modules`.
+
+### Patch Changes
+
+- 2214848: Trim the generated skill CLI-reference to a lean bullet list (command +
+  required positionals + one-line description, with a pointer to
+  `<server> <command> --help` for flags) instead of an exhaustive table —
+  the per-flag detail was noise. Deprecated aliases are dropped from the list.
+
+  Move the daemon-lifecycle guidance ("ask the user to run `davstack start`
+  in a separate terminal; don't run `serve` yourself") out of every daemon
+  skill and into the `davstack check` failure output, since that advice only
+  matters at the moment a daemon is reported down.
+
 ## 1.3.0
 
 ### Minor Changes

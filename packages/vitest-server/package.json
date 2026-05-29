@@ -1,6 +1,6 @@
 {
   "name": "@davstack/vitest-server",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "license": "MIT",
   "type": "module",
   "description": "Warm vitest daemon for fast TDD reruns. Keeps a long-lived vitest runtime hot so per-file reruns drop from ~50s cold to ~3-15s.",
