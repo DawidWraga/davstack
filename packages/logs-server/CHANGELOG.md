@@ -1,5 +1,16 @@
 # @davstack/logs-server
 
+## 2.6.0
+
+### Minor Changes
+
+- af3bbda: Rename the per-server install-validation verb `check` → `doctor` (matching
+  `brew doctor` / `flutter doctor`), freeing `check` for the `davstack check`
+  orchestrator only. Behaviour, flags (`--json`, `--cwd`, …) and output are
+  unchanged. The old `check` verb is retained as a deprecated alias that
+  delegates to `doctor`, so existing scripts keep working for now — migrate to
+  `<server> doctor`. `health` (liveness ping) is unchanged.
+
 ## 2.5.1
 
 ### Patch Changes
