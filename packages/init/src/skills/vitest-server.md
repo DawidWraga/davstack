@@ -11,8 +11,6 @@ description: >-
 
 <!-- GENERATED from skills/vitest-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
-> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file.
-
 Boot once per session, then rerun cheaply. First run `davstack check` to
 confirm the daemon is running.
 
@@ -30,10 +28,10 @@ If results look wrong (`(0 test)`, suite errors, post-config-edit weirdness), th
 
 ## Reference
 
-- [`README.md`](node_modules/@davstack/vitest-server/README.md) — overview, install, why
-- [`docs/setup.md`](node_modules/@davstack/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
-- [`docs/usage.md`](node_modules/@davstack/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
-- [`docs/troubleshooting.md`](node_modules/@davstack/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
+- [`README.md`](../../../node_modules/@davstack/vitest-server/README.md) — overview, install, why
+- [`docs/setup.md`](../../../node_modules/@davstack/vitest-server/docs/setup.md) — config file, runtime matrix, `primeFile` semantics
+- [`docs/usage.md`](../../../node_modules/@davstack/vitest-server/docs/usage.md) — CLI verbs, HTTP API, `RunResult` shape, agent TDD loop
+- [`docs/troubleshooting.md`](../../../node_modules/@davstack/vitest-server/docs/troubleshooting.md) — the daemon-vs-code triage tree
 
 ## CLI reference
 

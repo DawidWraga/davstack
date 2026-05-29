@@ -12,8 +12,6 @@ description: >-
 
 <!-- GENERATED from skills/logs-server/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
-> Doc links in this skill are written relative to your project root (where `node_modules/` lives), not to this file.
-
 First run `davstack check` to confirm the daemon is running.
 
 ## The read path is sqlite3
@@ -103,12 +101,12 @@ For hypothesis-driven probe-then-slice debugging, see `writing-logs.md`.
 
 ## Reference
 
-- [`README.md`](node_modules/@davstack/logs-server/README.md) — overview, install, why
-- [`docs/setup.md`](node_modules/@davstack/logs-server/docs/setup.md) — config file, transmitter setup, auto-instrumentation
-- [`docs/writing-logs.md`](node_modules/@davstack/logs-server/docs/writing-logs.md) — queryable shape, hypothesis-driven probes
-- [`docs/reading-logs.md`](node_modules/@davstack/logs-server/docs/reading-logs.md) — schema details + ready-to-paste recipes
-- [`docs/transmitter-wiring.md`](node_modules/@davstack/logs-server/docs/transmitter-wiring.md) — route a session's logs to its own DB
-- [`docs/session-views.md`](node_modules/@davstack/logs-server/docs/session-views.md) — per-DB SQL views (`dbg_*`) for keeping queries short across a session
+- [`README.md`](../../../node_modules/@davstack/logs-server/README.md) — overview, install, why
+- [`docs/setup.md`](../../../node_modules/@davstack/logs-server/docs/setup.md) — config file, transmitter setup, auto-instrumentation
+- [`docs/writing-logs.md`](../../../node_modules/@davstack/logs-server/docs/writing-logs.md) — queryable shape, hypothesis-driven probes
+- [`docs/reading-logs.md`](../../../node_modules/@davstack/logs-server/docs/reading-logs.md) — schema details + ready-to-paste recipes
+- [`docs/transmitter-wiring.md`](../../../node_modules/@davstack/logs-server/docs/transmitter-wiring.md) — route a session's logs to its own DB
+- [`docs/session-views.md`](../../../node_modules/@davstack/logs-server/docs/session-views.md) — per-DB SQL views (`dbg_*`) for keeping queries short across a session
 
 ## CLI reference
 
