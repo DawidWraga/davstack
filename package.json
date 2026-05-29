@@ -8,6 +8,7 @@
 		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
 		"gen:init-skills": "tsx scripts/sync-init-skills.ts",
 		"changeset": "changeset",
+		"gen:skill-cli": "tsx scripts/gen-skill-cli-reference.ts",
 		"version-packages": "changeset version",
 		"release": "turbo run build --filter={./packages/*} && changeset publish ",
 		"test": "vitest --typecheck",
@@ -23,6 +24,7 @@
 		"@vitest/ui": "^1.4.0",
 		"eslint": "^8.57.0",
 		"prettier": "^3.2.5",
+		"tsx": "^4.19.0",
 		"turbo": "latest",
 		"vitest": "^1.4.0"
 	},
