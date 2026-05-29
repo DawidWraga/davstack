@@ -9,19 +9,20 @@ description: >-
   itself (daemon caches go stale).
 ---
 
-Boot once per session, then rerun cheaply.
+Boot once per session, then rerun cheaply. First run `davstack check` to
+confirm the daemon is running.
 
-    vitest-server check                # verifies daemon liveness + config
-    vitest-server serve &              # boot if check fails (heavy ~50s first time)
+> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
+
+Once the daemon is up, drive it with the per-daemon CLI:
+
     vitest-server run <file>           # warm rerun (~3-15s); JSON RunResult on stdout
 
 Exit `0` = pass, `1` = fail. The full `RunResult` shape (per-test entries,
 error stacks, run-level errors) is on stdout — pipe to `jq` if you only
 want failing tests.
 
-If `check` reports the daemon isn't running, `serve` it once and wait for
-the listening line before invoking `run`. Don't restart `serve` between
-runs — the warm pool is the entire point.
+Don't restart the daemon between runs — the warm pool is the entire point.
 
 If results look wrong (`(0 test)`, suite errors, post-config-edit weirdness), the failure is usually in the daemon, not your code — check `troubleshooting.md` before iterating, or fall back to `vitest run`.
 

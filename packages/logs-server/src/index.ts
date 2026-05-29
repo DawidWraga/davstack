@@ -6,7 +6,8 @@
 //   serve         boot the ingest endpoint
 //   refresh       evict cached DB handles + re-read config; keep PID
 //   health        liveness check
-//   check         validate local install (node, config, db rows, daemon liveness)
+//   doctor        validate local install (node, config, db rows, daemon liveness)
+//                 (formerly `check`; `check` retained as a deprecated alias)
 //
 // Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`.
 // The flat `attrs` column is populated at insert time so probe attributes
@@ -16,11 +17,32 @@
 // Retention is file-based: each session writes its own `.davstack/logs/<name>.db`,
 // so cleanup is `mv` into an archive dir. See docs/reading-logs.md#sessions.
 
-import { defineCli } from '@davstack/cli-utils';
+import { defineCli, type CommandSpec } from '@davstack/cli-utils';
 
 function dbFlag() {
   return { type: 'string' as const, description: 'Path to the log-server sqlite db', env: 'DIAG_DB' };
 }
+
+const doctorSpec: CommandSpec = {
+  description: 'Validate local install (node, config, db rows, daemon liveness)',
+  flags: {
+    db: dbFlag(),
+    port: { type: 'number', env: 'DIAG_PORT' },
+    host: { type: 'string', env: 'DIAG_HOST' },
+    cwd: { type: 'string', default: process.cwd() },
+    json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
+  },
+  run: async (ctx) => {
+    const { runCheck } = await import('./check.js');
+    return runCheck({
+      cwd: ctx.flags.cwd as string,
+      host: ctx.flags.host as string | undefined,
+      port: ctx.flags.port as number | undefined,
+      db: ctx.flags.db as string | undefined,
+      json: ctx.flags.json as boolean,
+    });
+  },
+};
 
 const cli = defineCli({
   name: 'logs-server',
@@ -175,25 +197,10 @@ const cli = defineCli({
         return result.ok ? 0 : 1;
       },
     },
+    doctor: doctorSpec,
     check: {
-      description: 'Validate local install (node, config, db rows, daemon liveness)',
-      flags: {
-        db: dbFlag(),
-        port: { type: 'number', env: 'DIAG_PORT' },
-        host: { type: 'string', env: 'DIAG_HOST' },
-        cwd: { type: 'string', default: process.cwd() },
-        json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
-      },
-      run: async (ctx) => {
-        const { runCheck } = await import('./check.js');
-        return runCheck({
-          cwd: ctx.flags.cwd as string,
-          host: ctx.flags.host as string | undefined,
-          port: ctx.flags.port as number | undefined,
-          db: ctx.flags.db as string | undefined,
-          json: ctx.flags.json as boolean,
-        });
-      },
+      ...doctorSpec,
+      description: "Validate local install (deprecated alias for 'doctor')",
     },
   },
 });

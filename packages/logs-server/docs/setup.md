@@ -181,7 +181,7 @@ Lock down with an allowlist or `false` if you disagree.
 ## 7. Sanity check
 
 ```bash
-logs-server check
+logs-server doctor
 ```
 
 Reports node version, resolved config path, resolved `dbPath` (with total + recent row counts), and daemon liveness against the configured `host:port`. Exit code is 0 unless the install itself is broken (e.g. node < 20) — a not-running daemon or zero recent rows are reported as info, not failure, so agents can disambiguate "broken install" from "needs `serve`". Add `--json` for agent-parseable output.

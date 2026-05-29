@@ -67,7 +67,7 @@ function red(s: string, useColor: boolean): string {
 const START_HINT = [
   "To start the missing daemons, run this in a separate terminal:",
   "",
-  "  pnpm dlx @davstack/tui start",
+  "  davstack start",
   "",
   "The TUI supervises every configured daemon together; closing it",
   "cleans them up. Re-run `davstack check` to confirm.",
@@ -78,6 +78,12 @@ export function formatResult(result: CheckResult, useColor: boolean): string {
 
   if (result.kind === "no-config") {
     return [header, "", "No davstack configs found. Run: pnpm dlx @davstack/init"].join("\n")
+  }
+
+  // Terse on success: a single line, no header, no per-daemon table — keeps
+  // the agent's context clean. Detail + remediation only when something is down.
+  if (result.rows.every((r) => r.running)) {
+    return `${green("✓", useColor)} All davstack daemons running and ready.`
   }
 
   const labelWidth = Math.max(...result.rows.map((r) => r.descriptor.label.length), 1)
@@ -94,14 +100,9 @@ export function formatResult(result: CheckResult, useColor: boolean): string {
     if (!row.running) missing += 1
   }
   lines.push("")
-
-  if (missing === 0) {
-    lines.push("All configured daemons running.")
-  } else {
-    lines.push(`${missing} daemon(s) not running.`)
-    lines.push("")
-    lines.push(START_HINT)
-  }
+  lines.push(`${missing} daemon(s) not running.`)
+  lines.push("")
+  lines.push(START_HINT)
 
   return lines.join("\n")
 }

@@ -10,7 +10,9 @@ description: >-
   (use the dev server directly) or for prod logs (this is local-only).
 ---
 
-First run `davstack check` to confirm the daemon is running. If it isn't, the command prints the start instructions.
+First run `davstack check` to confirm the daemon is running.
+
+> If `davstack check` reports a daemon down, ask the user to run `davstack start` in a **separate terminal** — this makes the whole session faster. Claude can't run it for you; it must live in its own terminal. Do not run `serve` yourself.
 
 ## The read path is sqlite3
 
