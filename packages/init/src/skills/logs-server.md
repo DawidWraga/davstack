@@ -111,3 +111,19 @@ For hypothesis-driven probe-then-slice debugging, see `writing-logs.md`.
 - [`docs/reading-logs.md`](node_modules/@davstack/logs-server/docs/reading-logs.md) — schema details + ready-to-paste recipes
 - [`docs/transmitter-wiring.md`](node_modules/@davstack/logs-server/docs/transmitter-wiring.md) — route a session's logs to its own DB
 - [`docs/session-views.md`](node_modules/@davstack/logs-server/docs/session-views.md) — per-DB SQL views (`dbg_*`) for keeping queries short across a session
+
+## CLI reference
+
+<!-- BEGIN cli-reference (generated — do not edit by hand) -->
+
+`logs-server` — Local Sentry-shaped log ingest. Read the store with sqlite3 against .davstack/logs/<db> (see docs/reading-logs.md).
+
+| Command | Description | Positionals & flags |
+| --- | --- | --- |
+| `logs-server serve` | Boot the log-ingest HTTP endpoint | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`) |
+| `logs-server refresh` | Evict the daemon's cached DB handles and re-read config without restarting (keeps the daemon PID alive). Pass --hard for a full shutdown + detached re-serve (loses PID; needed for port/host/cors changes). | `--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--hard <boolean>` (default: `false`) — Full shutdown + detached re-serve (loses daemon PID).<br>`--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db |
+| `logs-server health` | Daemon liveness check | `--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`) |
+| `logs-server doctor` | Validate local install (node, config, db rows, daemon liveness) | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+| `logs-server check` | Validate local install (deprecated alias for 'doctor') | `--db <string>` (env: `DIAG_DB`) — Path to the log-server sqlite db<br>`--port <number>` (env: `DIAG_PORT`)<br>`--host <string>` (env: `DIAG_HOST`)<br>`--cwd <string>` (default: `(current directory)`)<br>`--json <boolean>` (default: `false`) — JSON output for agent parsing |
+
+<!-- END cli-reference -->
