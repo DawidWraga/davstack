@@ -1,6 +1,6 @@
 {
   "name": "@davstack/logs-server",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "license": "MIT",
   "type": "module",
   "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite. Read with sqlite3 against the logs table (flat attrs column).",

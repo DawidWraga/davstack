@@ -1,5 +1,14 @@
 # @davstack/logs-server
 
+## 2.5.1
+
+### Patch Changes
+
+- Repin `@davstack/cli-utils` to 1.3.1 to pick up the `restartDaemon`
+  PID-mismatch guard and Windows-bun spawn hardening (#60). No
+  logs-server source changes; the fix takes effect via the consumed
+  helper.
+
 ## 2.5.0
 
 ### Minor Changes

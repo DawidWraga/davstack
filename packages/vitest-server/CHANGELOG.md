@@ -1,5 +1,14 @@
 # @davstack/vitest-server
 
+## 1.5.1
+
+### Patch Changes
+
+- Repin `@davstack/cli-utils` to 1.3.1 to pick up the `restartDaemon`
+  PID-mismatch guard (#60). Node-hosted spawn path is unchanged; the
+  guard turns silent false-positives into descriptive errors when a
+  prior daemon doesn't actually shut down.
+
 ## 1.5.0
 
 ### Minor Changes
