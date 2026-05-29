@@ -54,13 +54,20 @@ async function pickTools(opts: CliOptions): Promise<Tool[]> {
 // findRepoRoot(cwd), so global install doesn't lose per-repo settings.)
 const GLOBAL_TOOLS: Tool[] = ["open-agents"]
 
+// Always-global packages installed on every init run, independent of which
+// daemons were selected. `@davstack/tui` provides the `davstack` bin
+// (`davstack start` / `davstack check`) — the orchestrator that spawns and
+// owns the configured daemons together. It's not a selectable daemon, so it
+// lives outside the Tool union / ALL_TOOLS and ships globally so `davstack`
+// resolves from any repo (matching the GLOBAL_TOOLS rationale above).
+const ALWAYS_GLOBAL_PACKAGES = ["@davstack/tui"]
+
 function installCommand(
   manager: PackageManager,
-  tools: Tool[],
+  packages: string[],
   workspaceRoot: boolean,
   global: boolean,
 ): { cmd: string; args: string[] } {
-  const packages = tools.map((t) => `@davstack/${t}`)
   if (global) {
     switch (manager) {
       case "pnpm":
@@ -93,11 +100,11 @@ function installCommand(
 function runInstallGroup(
   root: string,
   manager: PackageManager,
-  tools: Tool[],
+  packages: string[],
   global: boolean,
 ): void {
   const workspaceRoot = manager === "pnpm" && isPnpmWorkspaceRoot(root)
-  const { cmd, args } = installCommand(manager, tools, workspaceRoot, global)
+  const { cmd, args } = installCommand(manager, packages, workspaceRoot, global)
   console.log(`\n> ${cmd} ${args.join(" ")}`)
   const result = spawnSync(cmd, args, {
     cwd: root,
@@ -110,18 +117,27 @@ function runInstallGroup(
 }
 
 function runInstall(root: string, manager: PackageManager, tools: Tool[]): void {
-  const local = tools.filter((t) => !GLOBAL_TOOLS.includes(t))
-  const global = tools.filter((t) => GLOBAL_TOOLS.includes(t))
+  const local = tools.filter((t) => !GLOBAL_TOOLS.includes(t)).map((t) => `@davstack/${t}`)
+  const global = tools.filter((t) => GLOBAL_TOOLS.includes(t)).map((t) => `@davstack/${t}`)
   if (local.length > 0) runInstallGroup(root, manager, local, false)
-  if (global.length > 0) runInstallGroup(root, manager, global, true)
+  // The davstack TUI ships globally on every run, regardless of selection.
+  if (global.length > 0) runInstallGroup(root, manager, [...global, ...ALWAYS_GLOBAL_PACKAGES], true)
+  else runInstallGroup(root, manager, ALWAYS_GLOBAL_PACKAGES, true)
 }
 
 function printNextSteps(tools: Tool[]): void {
+  const daemons = tools.filter((t) => t !== "open-agents")
   console.log("")
   console.log("Done. Next:")
-  if (tools.includes("logs-server")) console.log("  npx logs-server check")
-  if (tools.includes("vitest-server")) console.log("  npx vitest-server check")
-  if (tools.includes("playwright-server")) console.log("  npx playwright-server check")
+  if (daemons.length > 0) {
+    console.log("  davstack start    # in a SEPARATE terminal — launches all configured daemons")
+    console.log("  davstack check    # confirm the daemons are up")
+    console.log("")
+    console.log("  `davstack` is installed globally (the davstack TUI). Run `davstack start`")
+    console.log("  in its own long-running terminal; Claude can't run it for you. Once it's")
+    console.log("  up, `davstack check` reports each daemon's health.")
+    console.log("")
+  }
   if (tools.includes("open-agents")) {
     console.log("  explore check                 # verifies cursor-agent install")
     console.log("  explore   submit '<goal>…</goal> <scope>…</scope>'")
