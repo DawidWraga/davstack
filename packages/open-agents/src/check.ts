@@ -2,7 +2,7 @@
 // binary resolution, config file presence, jobs dir health. Mirrors the
 // shape of doc 06's check verb (human default + --json for agent parsing).
 //
-// No daemon to probe — unlike logs-server/vitest-server/playwright-server,
+// No daemon to probe — unlike logs-server/vitest-server,
 // open-agents is stateless one-shot CLI.
 
 import { spawnSync } from 'node:child_process';

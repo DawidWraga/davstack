@@ -41,7 +41,6 @@ pnpm dlx @davstack/init --all --no-scaffold   # `--no-scaffold` also skips skill
 | --- | --- | --- |
 | `logs-server` | `@davstack/logs-server` | `logs-server` |
 | `vitest-server` | `@davstack/vitest-server` | `vitest-server` |
-| `playwright-server` | `@davstack/playwright-server` | `playwright-server` |
 | `open-agents` | `@davstack/open-agents` | `explore`, `fast-edit` |
 | *(always)* | — | `diagnose` (orchestrator) |
 
@@ -52,7 +51,7 @@ Skills land in `~/.claude/skills/<name>/SKILL.md`. Configs land in `<repo-root>/
 | Flag | Description |
 | --- | --- |
 | `--all` | Select every tool without prompting. |
-| `--tools <list>` | Comma-separated subset: `logs-server,vitest-server,playwright-server,open-agents`. |
+| `--tools <list>` | Comma-separated subset: `logs-server,vitest-server,open-agents`. |
 | `--all-skills` | Install every bundled `SKILL.md` regardless of selected tools. Use to refresh skills from a previous init run without re-selecting all tools. |
 | `--skip-install` | Scaffold only — skip the package manager step. Same as `DAVSTACK_INIT_SKIP_INSTALL=1`. |
 | `--no-scaffold` | Install only — skip writing `.davstack/`, `.gitignore`, **and** skills. |
@@ -64,5 +63,4 @@ After init, see each daemon's own README:
 
 - [@davstack/logs-server](../logs-server/README.md) — local sqlite log sink
 - [@davstack/vitest-server](../vitest-server/README.md) — warm Vitest daemon
-- [@davstack/playwright-server](../playwright-server/README.md) — warm Playwright daemon
 - [@davstack/open-agents](../open-agents/README.md) — `explore` + `fast-edit` cursor-agent jobs

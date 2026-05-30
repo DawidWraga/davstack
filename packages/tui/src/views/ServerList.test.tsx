@@ -14,7 +14,7 @@ import { AgentsProvider } from "../state/agents-context.tsx"
 import { QuitProvider } from "../state/quit-context.tsx"
 import type { DaemonDescriptor } from "../lib/daemon-registry.ts"
 
-function makeDescriptor(key: "logs" | "vitest" | "playwright"): DaemonDescriptor {
+function makeDescriptor(key: "logs" | "vitest"): DaemonDescriptor {
   return {
     key,
     label: key,

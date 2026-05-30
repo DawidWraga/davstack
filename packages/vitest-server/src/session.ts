@@ -70,7 +70,8 @@ async function findFirstStoryFile(cwd: string): Promise<string | null> {
 }
 
 // Peer-dep load: resolve vitest/node from the consumer's cwd, not from the
-// skill script's own dir. See playwright-server/session.ts for the rationale.
+// skill script's own dir. This ensures the consumer's installed version of
+// vitest is used rather than any version the daemon itself might carry.
 type VitestApi = {
   startVitest: typeof import('vitest/node').startVitest;
 };

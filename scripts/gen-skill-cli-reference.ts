@@ -23,7 +23,7 @@ const END = '<!-- END cli-reference -->';
 
 type Target = { server: string; specPath: string; skillPath: string };
 
-const targets: Target[] = ['logs-server', 'vitest-server', 'playwright-server'].map(
+const targets: Target[] = ['logs-server', 'vitest-server'].map(
   (server) => ({
     server,
     specPath: join(repoRoot, 'packages', server, 'src', 'cli-spec.ts'),

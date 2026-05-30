@@ -1,7 +1,7 @@
 // `check` verb — validates the local install: node version, resolved config
 // path, resolved db path + recent row count, daemon liveness (GET on the
 // configured host:port — the sink replies "diag sink ok" with 200 on GET).
-// Mirrors the shape of vitest-server / playwright-server check (human default
+// Mirrors the shape of the vitest-server check (human default
 // + --json for agent parsing).
 //
 // Daemon liveness is INFO not load-bearing — `check` returns 0 even when the

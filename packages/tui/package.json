@@ -3,7 +3,7 @@
   "version": "0.5.1",
   "license": "MIT",
   "type": "module",
-  "description": "Long-running terminal UI that spawns, owns, and surfaces the davstack daemons (vitest-server, playwright-server, logs-server).",
+  "description": "Long-running terminal UI that spawns, owns, and surfaces the davstack daemons (vitest-server, logs-server).",
   "scripts": {
     "test": "pnpm -w exec vitest run --project tui"
   },
