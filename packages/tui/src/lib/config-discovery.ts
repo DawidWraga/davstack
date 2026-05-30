@@ -20,7 +20,6 @@ import type { DaemonKey } from "./daemon-registry.ts"
 const CONFIG_FILE_TO_KEY: Record<string, DaemonKey> = {
   "logs-server.config.ts": "logs",
   "vitest-server.config.ts": "vitest",
-  "playwright-server.config.ts": "playwright",
 }
 
 export async function discoverEnabledDaemons(repoRoot: string): Promise<Set<DaemonKey>> {

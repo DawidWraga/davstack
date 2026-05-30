@@ -10,7 +10,6 @@ Local-first dev tooling for AI-coding-agent workflows. Long-lived daemons, struc
 | [@davstack/tui](./packages/tui) | Terminal UI supervisor — `davstack start` spawns, surfaces, and tears down all configured daemons from a single attached terminal. | [README](./packages/tui/README.md) |
 | [@davstack/logs-server](./packages/logs-server) | Local Sentry-shaped log sink. Ingests envelopes over HTTP, writes to per-repo SQLite, queries by `trace_id` / `run_id` / `level`. | [README](./packages/logs-server/README.md) · [setup](./packages/logs-server/docs/setup.md) · [writing](./packages/logs-server/docs/writing-logs.md) · [reading](./packages/logs-server/docs/reading-logs.md) |
 | [@davstack/vitest-server](./packages/vitest-server) | Long-lived Vitest daemon. Story/unit reruns drop from ~50s cold to ~3–15s warm. | [README](./packages/vitest-server/README.md) · [setup](./packages/vitest-server/docs/setup.md) · [usage](./packages/vitest-server/docs/usage.md) · [troubleshooting](./packages/vitest-server/docs/troubleshooting.md) |
-| [@davstack/playwright-server](./packages/playwright-server) | Long-lived warm-browser Playwright daemon. Spec iteration drops from ~15–25s cold to ~1–3s warm. | [README](./packages/playwright-server/README.md) · [setup](./packages/playwright-server/docs/setup.md) · [usage](./packages/playwright-server/docs/usage.md) · [auth](./packages/playwright-server/docs/auth.md) · [troubleshooting](./packages/playwright-server/docs/troubleshooting.md) |
 | [@davstack/open-agents](./packages/open-agents) | One-shot agent runner (cursor-agent et al) with structured deliverables — explore, fast-edit, etc. | [README](./packages/open-agents/README.md) · [cursor-jobs overview](./packages/open-agents/docs/cursor-jobs-overview.md) |
 | [@davstack/cli-utils](./packages/cli-utils) | Internal: `defineCli` + shared config-resolver (`findRepoRoot`, `findToolConfig`). | [README](./packages/cli-utils/README.md) |
 
@@ -18,7 +17,7 @@ Local-first dev tooling for AI-coding-agent workflows. Long-lived daemons, struc
 
 Agent-facing skill files live in [`skills/`](./skills) — one subdir per skill, each with `SKILL.md`. Loaded via the `npx skills add` installer, which handles `.agents/` registration and Claude symlinks.
 
-Current skills: `explore`, `fast-edit`, `logs-server`, `vitest-server`, `playwright-server`.
+Current skills: `explore`, `fast-edit`, `logs-server`, `vitest-server`.
 
 ## Quick start
 

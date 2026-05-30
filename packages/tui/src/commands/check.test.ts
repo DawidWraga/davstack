@@ -26,7 +26,6 @@ function fakeDescriptor(key: DaemonKey, label: string, port: number): DaemonDesc
 const FAKE_REGISTRY: DaemonDescriptor[] = [
   fakeDescriptor("logs", "logs", 7077),
   fakeDescriptor("vitest", "vitest", 5179),
-  fakeDescriptor("playwright", "playwright", 5180),
 ]
 
 let tmpRoot = ""

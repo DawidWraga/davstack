@@ -1,4 +1,4 @@
-// Shared daemon-restart helper used by playwright-server / vitest-server /
+// Shared daemon-restart helper used by vitest-server /
 // logs-server `refresh --hard`. Sequences: record the prior PID via health →
 // client-side shutdown → wait for the listening socket to release → spawn a
 // detached `<execPath> <entry> serve …` → poll the daemon's health endpoint

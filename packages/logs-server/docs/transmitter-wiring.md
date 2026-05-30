@@ -41,14 +41,6 @@ No transport rewrite, no DSN change, no integration package. Existing CORS / pro
 
 `window.__davstack_db` is the boot-time global. Whoever launches the page sets it before the app's bundle runs.
 
-### Playwright
-
-`playwright-server --db=<value>` seeds the global via `page.addInitScript` before navigation. Nothing else to do — the spec just runs and its logs land in `.davstack/logs/<value>.db`.
-
-```bash
-playwright-server --db=reorder-bug e2e/reorder-flow.spec.ts
-```
-
 ### Dev server / manual reproduction
 
 In the browser devtools console, before reloading the page:

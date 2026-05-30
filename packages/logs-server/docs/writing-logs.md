@@ -23,7 +23,7 @@ Cheap to write, fast to query later (`json_extract(data, '$.url')` in [reading-l
 
 Default: every emission lands in `.davstack/logs/default.db`. If you want a particular debug session, eval run, or repro to live in its own file (archivable-via-`mv`, isolated views, no cross-session noise), the transmitter just stamps one attribute on each log. The daemon dispatches.
 
-See [transmitter-wiring.md](./transmitter-wiring.md) for the 3-line `sentry.ts` snippet and the runner-flag side (`playwright-server --db=<name>`). Once routed, [session-views.md](./session-views.md) shows the high-value follow-up: per-DB SQL views tailored to the bug you're hunting.
+See [transmitter-wiring.md](./transmitter-wiring.md) for the 3-line `sentry.ts` snippet. Once routed, [session-views.md](./session-views.md) shows the high-value follow-up: per-DB SQL views tailored to the bug you're hunting.
 
 ## What you DON'T put in each call
 

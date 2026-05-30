@@ -31,7 +31,6 @@ const SKILLS = [
   "explore",
   "fast-edit",
   "logs-server",
-  "playwright-server",
   "vitest-server",
 ]
 

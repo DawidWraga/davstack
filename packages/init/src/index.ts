@@ -158,14 +158,14 @@ async function main(): Promise<void> {
   program
     .name("davstack-init")
     .description(
-      "Interactive bootstrap for @davstack/{logs,vitest,playwright}-server " +
+      "Interactive bootstrap for @davstack/{logs,vitest}-server " +
         "and @davstack/open-agents. Detects repo root, installs tools, " +
         "scaffolds .davstack/ config + gitignore.",
     )
     .option("--all", "select all tools without prompting")
     .option(
       "--tools <list>",
-      "comma-separated tools to install (logs-server,vitest-server,playwright-server,open-agents)",
+      "comma-separated tools to install (logs-server,vitest-server,open-agents)",
     )
     .option("--skip-install", "skip the package manager install step")
     .option("--no-scaffold", "skip writing .davstack/ and .gitignore")

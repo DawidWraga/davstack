@@ -1,7 +1,7 @@
 # @davstack/tui
 
 Long-running terminal UI that spawns, owns, and surfaces the davstack
-daemons (`logs-server`, `vitest-server`, `playwright-server`). One process
+daemons (`logs-server`, `vitest-server`). One process
 to launch on `cd`, one quit to stop everything cleanly.
 
 ## Install / run
@@ -47,7 +47,6 @@ When `q` triggers confirm-on-quit, only `y` / `n` / `esc` are active.
 |---------------------|--------------|---------------------------------------------------------|
 | `logs-server`       | `7077`       | Local log sink — Sentry-shaped store + `diag` queries.  |
 | `vitest-server`     | `5179`       | Warm vitest daemon for fast unit/storybook reruns.      |
-| `playwright-server` | `5180`       | Warm Playwright daemon for fast spec reruns.            |
 
 Each is independently enabled by dropping its config under
 `.davstack/config/`. Daemons that aren't configured are skipped — the TUI

@@ -15,11 +15,6 @@
 //                     shutdown route: POST http://127.0.0.1:5179/shutdown
 //                     (see packages/vitest-server/src/http.ts:60)
 //
-//   playwright-server port=5180  ready=/\[playwright-server\] listening on http:\/\//i
-//                     bin: packages/playwright-server/bin/playwright-server.mjs
-//                     shutdown route: POST http://127.0.0.1:5180/shutdown
-//                     (see packages/playwright-server/src/http.ts:76)
-//
 // TODO(P5+): parse `.davstack/config/<tool>.config.ts` to honor user-set
 // ports/hosts. For v1 we existence-check the config files (see
 // config-discovery.ts) and keep these hardcoded defaults.
@@ -30,7 +25,7 @@ import path from "node:path"
 
 import { findRepoRoot } from "./repo-root.ts"
 
-export type DaemonKey = "logs" | "vitest" | "playwright"
+export type DaemonKey = "logs" | "vitest"
 
 export type DaemonDescriptor = {
   key: DaemonKey
@@ -48,7 +43,6 @@ export type DaemonDescriptor = {
 
 const LOGS_DEFAULT_PORT = 7077
 const VITEST_DEFAULT_PORT = 5179
-const PLAYWRIGHT_DEFAULT_PORT = 5180
 
 const DEFAULT_HOST = "127.0.0.1"
 
@@ -113,26 +107,6 @@ export const daemonRegistry: DaemonDescriptor[] = [
         "serve",
         "--port",
         String(VITEST_DEFAULT_PORT),
-        "--host",
-        DEFAULT_HOST,
-        "--cwd",
-        repoRoot,
-      ])
-    },
-  },
-  {
-    key: "playwright",
-    label: "playwright",
-    port: PLAYWRIGHT_DEFAULT_PORT,
-    host: DEFAULT_HOST,
-    readyRegex: /\[playwright-server\] listening on http:\/\//i,
-    shutdownUrl: `http://${DEFAULT_HOST}:${PLAYWRIGHT_DEFAULT_PORT}/shutdown`,
-    spawn: () => {
-      const repoRoot = findRepoRoot(process.cwd())
-      return spawnLauncher(pkgLauncher("playwright-server", "playwright-server"), [
-        "serve",
-        "--port",
-        String(PLAYWRIGHT_DEFAULT_PORT),
         "--host",
         DEFAULT_HOST,
         "--cwd",
