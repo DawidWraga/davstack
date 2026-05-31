@@ -1,11 +1,11 @@
 # @davstack/logs-server
 
-Local Sentry-shaped app -> sqlite log sink.
+Local Sentry-shaped app -> sqlite telemetry sink (logs **and** traces).
 
 ## Why
 
-- **E2E traceability.** Frontend + backend + workers POST to the same `.davstack/logs/default.db`; `trace_id` follows requests across services.
-- **Zero infra.** Integrates into existing sentry logger client for auto-instrumentation and low effort setup.
+- **E2E traceability.** Frontend + backend + workers POST to the same `.davstack/logs/default.db`; `trace_id` follows requests across services. Logs and trace spans land in one table, discriminated by a `kind` column (`'log' | 'span'`).
+- **Zero infra.** Integrates into existing sentry logger client for auto-instrumentation and low effort setup. Set `tracesSampleRate` and spans flow into the same sink as logs — no extra wiring.
 - **Optimized for Agents.** Compact one-row-per-line by default — coding agents read it without grouping passes.
 
 ## Install & setup (1 min)
@@ -74,6 +74,38 @@ ts          msg                user_id
 ----------  -----------------  -------
 1716480923  user clicked save  42
 ```
+
+5. Query trace spans — `kind='span'` rows have a real `duration_ms` column, so the slowest spans sort in plain SQL. `op`/`status`/`parent_span_id` are flattened into `attrs`.
+
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT msg, duration_ms,
+         json_extract(attrs, '\$.op')     AS op,
+         json_extract(attrs, '\$.status') AS status
+  FROM logs
+  WHERE kind = 'span'
+  ORDER BY duration_ms DESC
+  LIMIT 10;
+"
+```
+
+(Logs and spans share the `trace_id` column, so a single `WHERE trace_id = ?` slices the full request timeline across both.)
+
+## Schema
+
+One `logs` table per session DB. Key columns:
+
+| column        | logs                     | spans (`kind='span'`)                         |
+| ------------- | ------------------------ | --------------------------------------------- |
+| `kind`        | `'log'`                  | `'span'`                                       |
+| `ts`          | log `timestamp`          | span `start_timestamp`                         |
+| `duration_ms` | `NULL`                   | `(timestamp - start_timestamp) * 1000`         |
+| `msg`         | log `body`               | span `description` \|\| `op` (root: tx name)   |
+| `level`       | OTel level               | `''`                                           |
+| `data`        | verbatim log item        | verbatim span / transaction-trace object       |
+| `attrs`       | flat attrs (unwrapped)   | flat span data + `op`/`status`/`parent_span_id`/`description`/`duration_ms` |
+
+A transaction event expands to one row per span: the root (from `contexts.trace`) plus one per `spans[]` child.
 
 ## Docs
 
