@@ -187,3 +187,291 @@ test('attrs excludes the davstack-logs.db routing key', () => {
   expect(flat['davstack-logs.db']).toBeUndefined();
   expect(flat.seam).toBe('after-fetch');
 });
+
+//* MARK: Transactions (spans)
+
+// Trace ingestion. The fixture below was captured live from @sentry/node
+// 10.16.0 (a real wire envelope, not a guess — see the parser's header comment
+// for the captured shape). A transaction item is `{type:"transaction"}` whose
+// payload is the transaction *event*: the ROOT span lives in `contexts.trace`
+// and is timed by the event's TOP-LEVEL start_timestamp/timestamp (the trace
+// context itself carries no timing); child spans live in `spans[]` and are
+// self-timed. Span `data` is a PLAIN object — NOT the {value,type} log wrapper.
+
+// One transaction envelope (item header + payload), modelled on the real wire.
+function txEnvelope(tx: Record<string, unknown>, sdkName = 'sentry.javascript.node') {
+  return [
+    JSON.stringify({ sdk: { name: sdkName, version: '10.16.0' }, trace: { trace_id: 't'.repeat(32) } }),
+    JSON.stringify({ type: 'transaction' }),
+    JSON.stringify(tx),
+  ].join('\n');
+}
+
+// A faithful transaction event: a root http.server span with two children.
+function transaction(over: Record<string, unknown> = {}) {
+  return {
+    contexts: {
+      trace: {
+        span_id: '90c3461b7a51e4b6',
+        trace_id: 'cf8a364a6a3a7fbf3d6dcf31a1710bec',
+        data: {
+          'sentry.source': 'custom',
+          'sentry.op': 'http.server',
+          'sentry.origin': 'auto.http.otel.http',
+          'diag.project': 'titanium',
+          'diag.run_id': 'run-7',
+          'diag.tag': 'H2',
+        },
+        origin: 'auto.http.otel.http',
+        op: 'http.server',
+        status: 'ok',
+      },
+    },
+    spans: [
+      {
+        span_id: 'effb0f75cd2f106a',
+        trace_id: 'cf8a364a6a3a7fbf3d6dcf31a1710bec',
+        data: { 'sentry.origin': 'manual', 'sentry.op': 'db.sql.query', 'db.system': 'postgresql' },
+        description: 'db.query users',
+        parent_span_id: '90c3461b7a51e4b6',
+        start_timestamp: 1780233556.335,
+        timestamp: 1780233556.3555682, // ~20.6ms
+        status: 'ok',
+        op: 'db.sql.query',
+        origin: 'manual',
+      },
+      {
+        span_id: 'e0207084d4bbc6b7',
+        trace_id: 'cf8a364a6a3a7fbf3d6dcf31a1710bec',
+        data: { 'sentry.origin': 'manual', 'sentry.op': 'http.client' },
+        description: 'http.client fetch',
+        parent_span_id: '90c3461b7a51e4b6',
+        start_timestamp: 1780233556.357,
+        timestamp: 1780233556.368539, // ~11.5ms
+        status: 'ok',
+        op: 'http.client',
+        origin: 'manual',
+      },
+    ],
+    start_timestamp: 1780233556.333,
+    timestamp: 1780233556.3694255, // root ~36.4ms
+    transaction: 'GET /api/test',
+    type: 'transaction',
+    ...over,
+  };
+}
+
+test('a transaction with N child spans yields N+1 span rows, root first, in order', () => {
+  const { rows, skipped } = parseEnvelope(txEnvelope(transaction()));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(3); // root + 2 children
+  expect(rows.every((r) => r.kind === 'span')).toBe(true);
+  // root row: msg = transaction name, timed by the event's top-level window
+  const root = rows[0];
+  expect(root.msg).toBe('GET /api/test');
+  expect(root.span_id).toBe('90c3461b7a51e4b6');
+  expect(root.ts).toBe(1780233556.333);
+  expect(root.level).toBe(''); // spans carry no level
+  expect(root.severity_number).toBe(0);
+  expect(root.duration_ms).toBeCloseTo(36.4255, 3);
+  // children, in array order, self-timed
+  expect(rows.slice(1).map((r) => r.msg)).toEqual(['db.query users', 'http.client fetch']);
+  expect(rows[1].duration_ms).toBeCloseTo(20.5682, 3);
+  expect(rows[2].duration_ms).toBeCloseTo(11.539, 3);
+});
+
+test('span rows surface op/status/parent/description/duration_ms into json-queryable attrs', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction()));
+  const child = JSON.parse(rows[1].attrs as string) as Record<string, unknown>;
+  expect(child.op).toBe('db.sql.query');
+  expect(child.status).toBe('ok');
+  expect(child.parent_span_id).toBe('90c3461b7a51e4b6');
+  expect(child.description).toBe('db.query users');
+  expect(child.duration_ms).toBeCloseTo(20.5682, 3);
+  // the span's own plain data is merged in (NOT unwrapped — it's already plain)
+  expect(child['db.system']).toBe('postgresql');
+});
+
+test('span attribution: project/run_id/logger pulled from span data, tag from diag.tag', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction()));
+  const root = rows[0];
+  expect(root.project).toBe('titanium'); // diag.project from contexts.trace.data
+  expect(root.run_id).toBe('run-7');
+  expect(root.tag).toBe('H2');
+  expect(root.logger).toBe('auto.http.otel.http'); // sentry.origin
+  expect(root.service).toBe('sentry.javascript.node'); // envelope sdk.name
+  // child has no diag.* — project/run_id default empty, logger from origin
+  expect(rows[1].project).toBe('');
+  expect(rows[1].run_id).toBe('');
+  expect(rows[1].logger).toBe('manual');
+});
+
+test('span data is persisted verbatim', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction()));
+  // child span data round-trips deep-equal to the source span object
+  const src = transaction().spans[1];
+  expect(JSON.parse(rows[2].data)).toEqual(src);
+});
+
+test('davstack-logs.db routing is honored for spans and stripped from persisted data', () => {
+  const tx = transaction();
+  // inject the routing hint into the root trace data (where the http.server
+  // root attributes live on the real wire)
+  (tx.contexts.trace.data as Record<string, unknown>)['davstack-logs.db'] = 'trace-bug';
+  const { rows } = parseEnvelope(txEnvelope(tx));
+  const root = rows[0];
+  expect(root.routeDb).toBe('trace-bug');
+  const persisted = JSON.parse(root.data) as { data: Record<string, unknown> };
+  expect(persisted.data['davstack-logs.db']).toBeUndefined();
+  expect(persisted.data['diag.project']).toBe('titanium'); // siblings preserved
+  // and it must not leak into the flattened attrs either
+  const flat = JSON.parse(root.attrs as string) as Record<string, unknown>;
+  expect(flat['davstack-logs.db']).toBeUndefined();
+});
+
+test('a standalone type:"span" item is handled defensively as one span row', () => {
+  const span = {
+    span_id: 'aa11bb22cc33dd44',
+    trace_id: 'd'.repeat(32),
+    description: 'cache.get user:42',
+    op: 'cache.get',
+    status: 'ok',
+    origin: 'auto.cache',
+    start_timestamp: 100.0,
+    timestamp: 100.25, // 250ms
+    data: { 'cache.hit': true },
+  };
+  const raw = [
+    JSON.stringify({ sdk: { name: 'sentry.javascript.node', version: '10.16.0' } }),
+    JSON.stringify({ type: 'span' }),
+    JSON.stringify(span),
+  ].join('\n');
+  const { rows, skipped } = parseEnvelope(raw);
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].kind).toBe('span');
+  expect(rows[0].msg).toBe('cache.get user:42');
+  expect(rows[0].duration_ms).toBeCloseTo(250, 6);
+});
+
+//* MARK: Span tolerance
+
+// The sink's prime directive: never throw, never emit a corrupt row. These
+// exercise the degenerate trace shapes the span path already guards but that
+// the faithful-fixture cases above never hit. Each asserts the ACTUAL guard
+// behavior in envelope.ts — not an aspirational one.
+
+test('duration_ms is null (never NaN) when the root window has no top-level timestamp', () => {
+  // A transaction MISSING `timestamp` (and one missing `start_timestamp`): the
+  // root span window is undeterminable. durationMs() must yield null so the
+  // INSERT can't be corrupted with NaN/undefined.
+  const noEnd = transaction();
+  delete (noEnd as Record<string, unknown>).timestamp;
+  const r1 = parseEnvelope(txEnvelope(noEnd)).rows[0];
+  expect(r1.duration_ms).toBeNull();
+  expect(Number.isNaN(r1.duration_ms as unknown as number)).toBe(false);
+
+  const noStart = transaction();
+  delete (noStart as Record<string, unknown>).start_timestamp;
+  const r2 = parseEnvelope(txEnvelope(noStart)).rows[0];
+  expect(r2.duration_ms).toBeNull();
+});
+
+test('duration_ms is null (never NaN) for a child span missing its timestamp', () => {
+  // Corrupt one child: drop its end `timestamp`. That child row's duration is
+  // null; the well-formed sibling is unaffected. No throw, no NaN.
+  const tx = transaction();
+  delete (tx.spans[0] as Record<string, unknown>).timestamp;
+  const { rows, skipped } = parseEnvelope(txEnvelope(tx));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(3); // still root + 2 children
+  expect(rows[1].duration_ms).toBeNull(); // the corrupted child
+  expect(rows[2].duration_ms).toBeCloseTo(11.539, 3); // healthy sibling intact
+});
+
+test('root-only transaction (empty spans[]) emits exactly the single root span row', () => {
+  const { rows, skipped } = parseEnvelope(txEnvelope(transaction({ spans: [] })));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].kind).toBe('span');
+  expect(rows[0].msg).toBe('GET /api/test'); // the root transaction name
+});
+
+test('root-only transaction (spans key absent entirely) emits exactly the single root span row', () => {
+  const noSpans = transaction();
+  delete (noSpans as Record<string, unknown>).spans;
+  const { rows, skipped } = parseEnvelope(txEnvelope(noSpans));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].kind).toBe('span');
+  expect(rows[0].msg).toBe('GET /api/test');
+});
+
+test('a transaction missing contexts.trace is tolerated: no root row, no throw', () => {
+  // No `contexts.trace` ⇒ the root guard (`if (trace && typeof trace === 'object')`)
+  // skips the root, and with no `spans[]` the result is zero span rows. The
+  // documented best-effort behavior here is "emit nothing, never throw".
+  const noTrace = transaction({ spans: [] });
+  delete (noTrace as Record<string, unknown>).contexts;
+  let result: ReturnType<typeof parseEnvelope> | undefined;
+  expect(() => {
+    result = parseEnvelope(txEnvelope(noTrace));
+  }).not.toThrow();
+  expect(result!.rows).toHaveLength(0); // no contexts.trace, no spans → nothing
+  expect(result!.skipped).toBe(0); // a parseable-but-empty tx is not "skipped"
+});
+
+test('a transaction missing contexts.trace still emits its child spans (best-effort)', () => {
+  // Same missing-root case but WITH children: the root is skipped, yet the
+  // self-timed child spans are still emitted (best-effort, not all-or-nothing).
+  const noTrace = transaction();
+  delete (noTrace as Record<string, unknown>).contexts;
+  const { rows, skipped } = parseEnvelope(txEnvelope(noTrace));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(2); // the two children, no root
+  expect(rows.every((r) => r.kind === 'span')).toBe(true);
+  expect(rows.map((r) => r.msg)).toEqual(['db.query users', 'http.client fetch']);
+});
+
+test('a malformed transaction payload is skipped, never throws, and a sibling log still parses', () => {
+  // transaction item header followed by a non-object garbage payload (a bare
+  // JSON string), then a perfectly good log item in the same envelope. The
+  // transaction is counted in `skipped`; the log still parses.
+  const raw = [
+    JSON.stringify({ sdk: { name: 'sentry.javascript.node', version: '10.16.0' } }),
+    JSON.stringify({ type: 'transaction' }),
+    JSON.stringify('not-a-transaction-object'), // valid JSON, but not an object
+    JSON.stringify({ type: 'log', item_count: 1, content_type: 'application/vnd.sentry.items.log+json' }),
+    JSON.stringify({ items: [log({ body: 'the surviving log' })] }),
+  ].join('\n');
+  let result: ReturnType<typeof parseEnvelope> | undefined;
+  expect(() => {
+    result = parseEnvelope(raw);
+  }).not.toThrow();
+  expect(result!.skipped).toBe(1); // the garbage transaction payload
+  expect(result!.rows).toHaveLength(1);
+  expect(result!.rows[0].kind).toBe('log');
+  expect(result!.rows[0].msg).toBe('the surviving log');
+});
+
+test('back-compat: a mixed envelope (log item + transaction item) yields both kinds', () => {
+  // One envelope carrying a log item AND a transaction item — the parser must
+  // emit a kind:'log' row AND kind:'span' rows from the same body.
+  const raw = [
+    JSON.stringify({ sdk: { name: 'sentry.javascript.node', version: '10.16.0' } }),
+    JSON.stringify({ type: 'log', item_count: 1, content_type: 'application/vnd.sentry.items.log+json' }),
+    JSON.stringify({ items: [log({ body: 'a log line' })] }),
+    JSON.stringify({ type: 'transaction' }),
+    JSON.stringify(transaction()),
+  ].join('\n');
+  const { rows, skipped } = parseEnvelope(raw);
+  expect(skipped).toBe(0);
+  const byKind = rows.reduce<Record<string, number>>((acc, r) => {
+    acc[r.kind] = (acc[r.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  expect(byKind).toEqual({ log: 1, span: 3 });
+  const logRow = rows.find((r) => r.kind === 'log')!;
+  expect(logRow.msg).toBe('a log line');
+  expect(logRow.duration_ms).toBeNull();
+});

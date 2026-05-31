@@ -3,7 +3,7 @@
   "version": "2.6.1",
   "license": "MIT",
   "type": "module",
-  "description": "Local Sentry-shaped log sink: ingest envelopes over HTTP, persist to per-repo SQLite. Read with sqlite3 against the logs table (flat attrs column).",
+  "description": "Local Sentry-shaped telemetry sink (logs + traces): ingest envelopes over HTTP, persist to per-repo SQLite. Read with sqlite3 against the logs table (kind discriminates log vs span; flat attrs column).",
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "tsup",
