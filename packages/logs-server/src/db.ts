@@ -6,25 +6,28 @@
 import { Database } from 'bun:sqlite';
 
 export type LogRow = {
-  ts: number; // client timestamp (Sentry log `timestamp`, seconds float)
+  ts: number; // client timestamp (Sentry log `timestamp` / span `start_timestamp`, seconds float)
   recv_ts: number; // server receive time, ms epoch (clock-skew-safe vs client `ts`)
+  kind: 'log' | 'span'; // row discriminator: a log record or a trace span
   project: string; // diag.project attribute (cwd/repo key)
   service: string; // envelope sdk.name
   run_id: string; // diag.run_id attribute
   trace_id: string;
   span_id: string;
-  level: string;
-  severity_number: number; // OTel 1..24
-  logger: string; // sentry.origin
-  msg: string; // log `body`
-  data: string; // raw log item JSON, verbatim
-  attrs: string | null; // flat key→value JSON, OTel {value,type} wrapper stripped (NULL when attributes missing/empty)
+  level: string; // logs: OTel level; spans: '' (no level — query by kind/op/status)
+  severity_number: number; // OTel 1..24 (0 for spans)
+  logger: string; // logs: sentry.origin; spans: span origin (fallback sdk.name)
+  msg: string; // log `body`; span description||op (root: transaction name||op)
+  data: string; // raw log item / span / transaction JSON, verbatim
+  attrs: string | null; // flat key→value JSON (NULL when none). Spans add op/status/parent_span_id/description/duration_ms.
   tag: string | null; // diag.tag attribution (optional)
+  duration_ms: number | null; // span headline metric ((timestamp - start_timestamp)*1000); NULL for logs
 };
 
 const COLS: (keyof LogRow)[] = [
   'ts',
   'recv_ts',
+  'kind',
   'project',
   'service',
   'run_id',
@@ -37,6 +40,7 @@ const COLS: (keyof LogRow)[] = [
   'data',
   'attrs',
   'tag',
+  'duration_ms',
 ];
 
 // Migrate pre-2.2 schemas: add the `attrs` column if missing, backfill from
@@ -71,6 +75,33 @@ function migrateAttrsColumn(db: Database): void {
   }
 }
 
+// Migrate pre-2.7 schemas to the telemetry shape: add `kind` (log|span) and
+// `duration_ms` columns if missing. Existing rows are all logs, so `kind`
+// backfills to 'log' (the column default already does this on ALTER, but we
+// set it explicitly for clarity / parity with fresh CREATE). `duration_ms`
+// stays NULL on legacy rows (only spans carry it). Wrapped in BEGIN IMMEDIATE
+// so partial state can't leak; idempotent (guarded by the table_info check).
+function migrateKindColumns(db: Database): void {
+  const cols = db.query('PRAGMA table_info(logs)').all() as { name: string }[];
+  const hasKind = cols.some((c) => c.name === 'kind');
+  const hasDuration = cols.some((c) => c.name === 'duration_ms');
+  if (hasKind && hasDuration) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!hasKind) {
+      db.exec("ALTER TABLE logs ADD COLUMN kind TEXT DEFAULT 'log'");
+      db.exec("UPDATE logs SET kind = 'log' WHERE kind IS NULL");
+    }
+    if (!hasDuration) {
+      db.exec('ALTER TABLE logs ADD COLUMN duration_ms REAL');
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 export function openDb(path: string): Database {
   const db = new Database(path);
   db.exec('PRAGMA journal_mode = WAL'); // concurrent hammer-ingest + query
@@ -79,6 +110,7 @@ export function openDb(path: string): Database {
       id              INTEGER PRIMARY KEY,
       ts              REAL,
       recv_ts         REAL,
+      kind            TEXT DEFAULT 'log',
       project         TEXT,
       service         TEXT,
       run_id          TEXT,
@@ -90,13 +122,15 @@ export function openDb(path: string): Database {
       msg             TEXT,
       data            TEXT,
       attrs           TEXT,
-      tag             TEXT
+      tag             TEXT,
+      duration_ms     REAL
     )`);
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_logs_corr
        ON logs (project, run_id, trace_id, level, ts)`,
   );
   migrateAttrsColumn(db);
+  migrateKindColumns(db);
   return db;
 }
 
