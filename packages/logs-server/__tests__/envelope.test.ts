@@ -354,6 +354,106 @@ test('a standalone type:"span" item is handled defensively as one span row', () 
   expect(rows[0].duration_ms).toBeCloseTo(250, 6);
 });
 
+//* MARK: Span tolerance
+
+// The sink's prime directive: never throw, never emit a corrupt row. These
+// exercise the degenerate trace shapes the span path already guards but that
+// the faithful-fixture cases above never hit. Each asserts the ACTUAL guard
+// behavior in envelope.ts — not an aspirational one.
+
+test('duration_ms is null (never NaN) when the root window has no top-level timestamp', () => {
+  // A transaction MISSING `timestamp` (and one missing `start_timestamp`): the
+  // root span window is undeterminable. durationMs() must yield null so the
+  // INSERT can't be corrupted with NaN/undefined.
+  const noEnd = transaction();
+  delete (noEnd as Record<string, unknown>).timestamp;
+  const r1 = parseEnvelope(txEnvelope(noEnd)).rows[0];
+  expect(r1.duration_ms).toBeNull();
+  expect(Number.isNaN(r1.duration_ms as unknown as number)).toBe(false);
+
+  const noStart = transaction();
+  delete (noStart as Record<string, unknown>).start_timestamp;
+  const r2 = parseEnvelope(txEnvelope(noStart)).rows[0];
+  expect(r2.duration_ms).toBeNull();
+});
+
+test('duration_ms is null (never NaN) for a child span missing its timestamp', () => {
+  // Corrupt one child: drop its end `timestamp`. That child row's duration is
+  // null; the well-formed sibling is unaffected. No throw, no NaN.
+  const tx = transaction();
+  delete (tx.spans[0] as Record<string, unknown>).timestamp;
+  const { rows, skipped } = parseEnvelope(txEnvelope(tx));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(3); // still root + 2 children
+  expect(rows[1].duration_ms).toBeNull(); // the corrupted child
+  expect(rows[2].duration_ms).toBeCloseTo(11.539, 3); // healthy sibling intact
+});
+
+test('root-only transaction (empty spans[]) emits exactly the single root span row', () => {
+  const { rows, skipped } = parseEnvelope(txEnvelope(transaction({ spans: [] })));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].kind).toBe('span');
+  expect(rows[0].msg).toBe('GET /api/test'); // the root transaction name
+});
+
+test('root-only transaction (spans key absent entirely) emits exactly the single root span row', () => {
+  const noSpans = transaction();
+  delete (noSpans as Record<string, unknown>).spans;
+  const { rows, skipped } = parseEnvelope(txEnvelope(noSpans));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].kind).toBe('span');
+  expect(rows[0].msg).toBe('GET /api/test');
+});
+
+test('a transaction missing contexts.trace is tolerated: no root row, no throw', () => {
+  // No `contexts.trace` ⇒ the root guard (`if (trace && typeof trace === 'object')`)
+  // skips the root, and with no `spans[]` the result is zero span rows. The
+  // documented best-effort behavior here is "emit nothing, never throw".
+  const noTrace = transaction({ spans: [] });
+  delete (noTrace as Record<string, unknown>).contexts;
+  let result: ReturnType<typeof parseEnvelope> | undefined;
+  expect(() => {
+    result = parseEnvelope(txEnvelope(noTrace));
+  }).not.toThrow();
+  expect(result!.rows).toHaveLength(0); // no contexts.trace, no spans → nothing
+  expect(result!.skipped).toBe(0); // a parseable-but-empty tx is not "skipped"
+});
+
+test('a transaction missing contexts.trace still emits its child spans (best-effort)', () => {
+  // Same missing-root case but WITH children: the root is skipped, yet the
+  // self-timed child spans are still emitted (best-effort, not all-or-nothing).
+  const noTrace = transaction();
+  delete (noTrace as Record<string, unknown>).contexts;
+  const { rows, skipped } = parseEnvelope(txEnvelope(noTrace));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(2); // the two children, no root
+  expect(rows.every((r) => r.kind === 'span')).toBe(true);
+  expect(rows.map((r) => r.msg)).toEqual(['db.query users', 'http.client fetch']);
+});
+
+test('a malformed transaction payload is skipped, never throws, and a sibling log still parses', () => {
+  // transaction item header followed by a non-object garbage payload (a bare
+  // JSON string), then a perfectly good log item in the same envelope. The
+  // transaction is counted in `skipped`; the log still parses.
+  const raw = [
+    JSON.stringify({ sdk: { name: 'sentry.javascript.node', version: '10.16.0' } }),
+    JSON.stringify({ type: 'transaction' }),
+    JSON.stringify('not-a-transaction-object'), // valid JSON, but not an object
+    JSON.stringify({ type: 'log', item_count: 1, content_type: 'application/vnd.sentry.items.log+json' }),
+    JSON.stringify({ items: [log({ body: 'the surviving log' })] }),
+  ].join('\n');
+  let result: ReturnType<typeof parseEnvelope> | undefined;
+  expect(() => {
+    result = parseEnvelope(raw);
+  }).not.toThrow();
+  expect(result!.skipped).toBe(1); // the garbage transaction payload
+  expect(result!.rows).toHaveLength(1);
+  expect(result!.rows[0].kind).toBe('log');
+  expect(result!.rows[0].msg).toBe('the surviving log');
+});
+
 test('back-compat: a mixed envelope (log item + transaction item) yields both kinds', () => {
   // One envelope carrying a log item AND a transaction item — the parser must
   // emit a kind:'log' row AND kind:'span' rows from the same body.
