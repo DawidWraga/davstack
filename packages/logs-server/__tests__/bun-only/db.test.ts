@@ -4,7 +4,7 @@
 // `project` column scopes).
 
 import { test, expect } from 'bun:test';
-import { openDb, insertLogs, selectByTrace, type LogRow } from '../src/db.js';
+import { openDb, insertLogs, selectByTrace, type LogRow } from '../../src/db.js';
 
 function row(over: Partial<LogRow>): LogRow {
   return {

@@ -6,8 +6,8 @@
 // on garbage.
 
 import { test, expect } from 'bun:test';
-import { openDb, selectByTrace, type LogRow } from '../src/db.js';
-import { startServer } from '../src/server.js';
+import { openDb, selectByTrace, type LogRow } from '../../src/db.js';
+import { startServer } from '../../src/server.js';
 
 // Local error-context helper — replaces removed src/query.ts. Centers a ±N
 // window on each error row and clamps at edges, scoped via selectByTrace.
