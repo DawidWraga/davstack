@@ -1,5 +1,11 @@
 # @davstack/init
 
+## 1.6.0
+
+### Minor Changes
+
+- 9873de3: Remove the playwright-server tool option; the @davstack/playwright-server daemon has been retired in favour of running stock `playwright test`.
+
 ## 1.5.2
 
 ### Patch Changes

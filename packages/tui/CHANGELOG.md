@@ -1,5 +1,11 @@
 # @davstack/tui
 
+## 0.5.2
+
+### Patch Changes
+
+- 9873de3: Drop the retired playwright-server daemon from the supervisor: removed its `DaemonDescriptor`, the `"playwright"` `DaemonKey`, and `PLAYWRIGHT_DEFAULT_PORT`. The TUI now manages logs and vitest servers only.
+
 ## 0.5.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@davstack/init",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "license": "MIT",
   "type": "module",
   "description": "Interactive bootstrap CLI for @davstack/{logs,vitest}-server. Detects repo root, installs tools, scaffolds .davstack/ config + gitignore.",
