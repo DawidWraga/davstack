@@ -23,7 +23,7 @@ fast-edit submit --file <spec>.md
 Bins are global because they have no per-repo state — per-repo config is
 still read from `.davstack/config/open-agents.config.ts` in your cwd.
 `@davstack/init` installs open-agents globally by default for the same
-reason; the other daemons (logs/vitest/playwright) stay project-local.
+reason; the other daemons (logs/vitest) stay project-local.
 
 Two bins, one package — both bins resolve to the same engine with a
 different profile bound (read-only vs `--force` edit).
