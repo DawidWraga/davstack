@@ -48,10 +48,10 @@ Indexed on `(project, run_id, trace_id, level, ts)` — filter on those first.
 
 - **`msg`** — log body, ANSI prefix stripped. Indexed-string predicates are cheap here.
 - **`data`** — raw Sentry log record JSON, verbatim. Includes OTel-typed `attributes`.
-- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Populated at insert time. Reach in with `json_extract(attrs, '$.<key>')` — much shorter than the four-segment `data.attributes.<key>.value` path.
+- **`attrs`** — flat `{key: value}` JSON of `data.attributes`, OTel `{value, type}` wrapper stripped. Populated at insert time. Reach in with `attrs->>'<key>'` — much shorter than the four-segment `data.attributes.<key>.value` path.
 - **`tag`** — promoted from `diag.tag` (nullable).
 
-Need the OTel type discriminator? `json_extract(data, '$.attributes.<key>.type')` — rarely needed.
+Need the OTel type discriminator? `data->>'$.attributes.<key>.type'` — rarely needed.
 
 ## Investigation pattern
 
@@ -84,16 +84,16 @@ Need the OTel type discriminator? `json_extract(data, '$.attributes.<key>.type')
    ```bash
    sqlite3 -header -column .davstack/logs/default.db "
      SELECT ts, msg,
-            json_extract(attrs, '\$.seam')      AS seam,
-            json_extract(attrs, '\$.row_count') AS row_count
+            attrs->>'seam'      AS seam,
+            attrs->>'row_count' AS row_count
      FROM logs
      WHERE run_id = '<id>'
-       AND json_extract(attrs, '\$.tags') LIKE '%H3%'
+       AND attrs->>'tags' LIKE '%H3%'
      ORDER BY ts;
    "
    ```
 
-5. For fat data payloads, project specific fields with `json_extract(data, '$.<path>')` rather than dumping the whole `data` blob.
+5. For fat data payloads, project specific fields with `data->>'$.<path>'` rather than dumping the whole `data` blob.
 
 If a query returns empty or hits the wrong DB, the failure is usually in the sink config or transmitter — `davstack check` reports the resolved path and recent row count; see `setup.md` for transmitter wiring.
 

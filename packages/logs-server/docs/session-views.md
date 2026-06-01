@@ -15,13 +15,13 @@ sqlite3 .davstack/logs/reorder-bug.db
 ```sql
 CREATE VIEW IF NOT EXISTS dbg_probe AS
 SELECT id, ts, level,
-       json_extract(data, '$.body')         AS msg,
-       json_extract(attrs, '$.seam')        AS seam,
-       json_extract(attrs, '$.nextDims')    AS nextDims,
-       json_extract(attrs, '$.prevDims')    AS prevDims,
-       json_extract(attrs, '$.columnOrder') AS columnOrder
+       data->>'body'         AS msg,
+       attrs->>'seam'        AS seam,
+       attrs->>'nextDims'    AS nextDims,
+       attrs->>'prevDims'    AS prevDims,
+       attrs->>'columnOrder' AS columnOrder
 FROM logs
-WHERE json_extract(data, '$.body') LIKE '%[colorder-probe]%';
+WHERE data->>'body' LIKE '%[colorder-probe]%';
 ```
 
 Then every subsequent query is:
@@ -30,7 +30,7 @@ Then every subsequent query is:
 SELECT ts, seam, columnOrder FROM dbg_probe ORDER BY ts;
 ```
 
-One cheap reference per query — no JSON-extract repetition, no probe-tag string repetition, no risk of typos drifting between queries.
+One cheap reference per query — no `->>` repetition, no probe-tag string repetition, no risk of typos drifting between queries.
 
 ## Useful view shapes
 
@@ -60,14 +60,14 @@ If your probes always emit the same attribute set, rotate them into typed column
 ```sql
 CREATE VIEW dbg_seam_pivot AS
 SELECT ts,
-       json_extract(attrs, '$.seam')                                   AS seam,
-       CAST(json_extract(attrs, '$.row_count') AS INTEGER)             AS row_count,
-       json_extract(attrs, '$.ok')                                     AS ok
+       attrs->>'seam'                       AS seam,
+       CAST(attrs->>'row_count' AS INTEGER) AS row_count,
+       attrs->>'ok'                         AS ok
 FROM logs
-WHERE json_extract(data, '$.body') LIKE '%[probe]%';
+WHERE data->>'body' LIKE '%[probe]%';
 ```
 
-Then `WHERE row_count > 100` works without an inline `json_extract` in every query.
+Then `WHERE row_count > 100` works without an inline `->>` in every query.
 
 ## Lifecycle
 

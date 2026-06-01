@@ -60,9 +60,9 @@ notes:
 
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
-  SELECT ts, msg, json_extract(attrs, '\$.user_id') AS user_id
+  SELECT ts, msg, attrs->>'user_id' AS user_id
   FROM logs
-  WHERE json_extract(data, '\$.body') LIKE '%clicked save%'
+  WHERE data->>'body' LIKE '%clicked save%'
   ORDER BY ts;
 "
 ```
@@ -80,8 +80,8 @@ ts          msg                user_id
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT msg, duration_ms,
-         json_extract(attrs, '\$.op')     AS op,
-         json_extract(attrs, '\$.status') AS status
+         attrs->>'op'     AS op,
+         attrs->>'status' AS status
   FROM logs
   WHERE kind = 'span'
   ORDER BY duration_ms DESC
