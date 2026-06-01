@@ -113,7 +113,7 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
 // A span row carries no severity and no OTel-wrapped attributes — its `data` is
 // the verbatim span/transaction-trace object. We surface the span's headline
 // fields (op, status, parent, description, duration_ms) into the flat `attrs`
-// JSON so they're `json_extract`-queryable alongside the span's own plain data.
+// JSON so they're `->>`-queryable alongside the span's own plain data.
 
 // Flatten a span's plain `data` object (NO {value,type} unwrap — that's
 // log-only) into a flat map, merged with the span-specific headline fields.
