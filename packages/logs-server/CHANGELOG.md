@@ -1,5 +1,12 @@
 # @davstack/logs-server
 
+## 2.7.1
+
+### Patch Changes
+
+- 592b81b: logs-server docs: adopt the `->>` operator for JSON projection (`attrs->>'seam'` in place of `json_extract(attrs, '$.seam')`) across the skill, reading/writing/session-views docs, and README recipes. Shorter, single recommended idiom; init's shipped skill copy regenerated.
+- d94d6c0: Robustly decode `Content-Encoding: deflate` bodies. `Bun.inflateSync` accepts only raw DEFLATE (RFC 1951), so standards-compliant zlib-wrapped deflate (RFC 1950, what `Content-Encoding: deflate` officially means) silently failed to a garbage raw decode. The deflate branch now tries zlib-wrapped first, then raw — both forms round-trip.
+
 ## 2.7.0
 
 ### Minor Changes
