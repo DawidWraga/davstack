@@ -12,7 +12,6 @@ import { StatusBar, isPillFocused, type DaemonPill } from "./StatusBar.tsx"
 const PILLS: DaemonPill[] = [
   { key: "1", daemonKey: "logs", label: "logs", status: "running" },
   { key: "2", daemonKey: "vitest", label: "vitest", status: "not-running" },
-  { key: "3", daemonKey: "playwright", label: "playwright", status: "not-running" },
 ]
 
 let active: ReturnType<typeof render> | null = null
@@ -26,7 +25,6 @@ test("renders all pills with labels and number keys", () => {
   const frame = active.lastFrame() ?? ""
   expect(frame).toContain("1 logs")
   expect(frame).toContain("2 vitest")
-  expect(frame).toContain("3 playwright")
 })
 
 test("status glyphs reflect each pill's status", () => {

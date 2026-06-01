@@ -1,5 +1,5 @@
 // Zero-dep CLI helper for the diagnose skill's servers. Designed for the
-// modest needs of `log-sink` / `playwright-server` / `vitest-server`:
+// modest needs of `log-sink` / `vitest-server`:
 // subcommand routing (1–2 deep), flag parsing with env-var fallback,
 // boolean negation via --no-flag, and conventional exit codes:
 //   0 = success

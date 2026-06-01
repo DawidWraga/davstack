@@ -1,5 +1,5 @@
-// Tests for the consumer-config loader. Mirrors playwright-server/auth.ts's
-// shape: optional `vitest-server.config.ts` in CWD overrides defaults.
+// Tests for the consumer-config loader. Optional `vitest-server.config.ts`
+// in CWD overrides defaults; absent file returns built-in defaults.
 
 import { test, expect, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

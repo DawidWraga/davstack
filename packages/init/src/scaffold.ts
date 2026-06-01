@@ -7,7 +7,7 @@
 //
 // Skills install to one of two roots depending on whether they reference
 // the project's installed packages:
-//   • Daemon skills (logs-server, vitest-server, playwright-server) link to
+//   • Daemon skills (logs-server, vitest-server) link to
 //     node_modules/@davstack/<pkg>/docs/... — those paths only resolve from
 //     a specific project root, so these install PROJECT-LOCAL to
 //     <root>/.claude/skills/<name>/. (Their links are rewritten to
@@ -23,12 +23,11 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-export type Tool = "logs-server" | "vitest-server" | "playwright-server" | "open-agents"
+export type Tool = "logs-server" | "vitest-server" | "open-agents"
 
 export const ALL_TOOLS: Tool[] = [
   "logs-server",
   "vitest-server",
-  "playwright-server",
   "open-agents",
 ]
 
@@ -37,7 +36,6 @@ export const ALL_TOOLS: Tool[] = [
 const TOOL_SKILLS: Record<Tool, string[]> = {
   "logs-server": ["logs-server"],
   "vitest-server": ["vitest-server"],
-  "playwright-server": ["playwright-server"],
   "open-agents": ["explore", "fast-edit"],
 }
 
@@ -50,7 +48,6 @@ const ALWAYS_SKILLS = ["diagnose"]
 const PROJECT_LOCAL_SKILLS = new Set([
   "logs-server",
   "vitest-server",
-  "playwright-server",
 ])
 
 const here = path.dirname(fileURLToPath(import.meta.url))

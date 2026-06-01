@@ -47,11 +47,11 @@ logger.debug("user clicked save", { user_id: 42, run_id: "r-99" })
 3. Run repo with --db (optional) — scopes this session's logs to its own DB
 
 ```bash
-playwright-server run --db=reorder-bug e2e/reorder-flow.spec.ts   # → .davstack/logs/reorder-bug.db (default: default.db)
+vitest-server run --db=reorder-bug src/reorder.test.ts   # → .davstack/logs/reorder-bug.db (default: default.db)
 ```
 
 notes:
-- Davstack runner is recommended ([vitest-server](../vitest-server/README.md), [playwright-server](../playwright-server/README.md)), however regular `pnpm dev` still captures logs
+- Davstack runner is recommended ([vitest-server](../vitest-server/README.md)), however regular `pnpm dev` still captures logs
 - `--db` usage is recommended, however without it logs still land in `default.db`.
 
 (more info: [transmitter-wiring.md](./docs/transmitter-wiring.md))

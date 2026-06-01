@@ -24,19 +24,17 @@ async function writeConfig(name: string): Promise<void> {
 }
 
 describe("discoverEnabledDaemons", () => {
-  test("returns all three keys when all configs present", async () => {
-    await writeConfig("logs-server.config.ts")
-    await writeConfig("vitest-server.config.ts")
-    await writeConfig("playwright-server.config.ts")
-    const set = await discoverEnabledDaemons(tmpRoot)
-    expect(set).toEqual(new Set(["logs", "vitest", "playwright"]))
-  })
-
-  test("returns only the subset that exists", async () => {
+  test("returns both keys when all configs present", async () => {
     await writeConfig("logs-server.config.ts")
     await writeConfig("vitest-server.config.ts")
     const set = await discoverEnabledDaemons(tmpRoot)
     expect(set).toEqual(new Set(["logs", "vitest"]))
+  })
+
+  test("returns only the subset that exists", async () => {
+    await writeConfig("vitest-server.config.ts")
+    const set = await discoverEnabledDaemons(tmpRoot)
+    expect(set).toEqual(new Set(["vitest"]))
   })
 
   test("returns empty set when .davstack/config is missing entirely", async () => {

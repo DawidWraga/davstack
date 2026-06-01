@@ -6,11 +6,7 @@
 //
 // Prerequisites:
 // - `bun` on PATH (logs-server defaults to bun runtime).
-// - vitest-server + playwright-server use tsx by default — no extra
-//   binary needed beyond Node 24.
-// - Playwright chromium download may not be present on every dev box;
-//   if playwright-server fails to start, that's noted in the report
-//   but doesn't fail the run (unit tests are the contract).
+// - vitest-server uses tsx by default — no extra binary needed beyond Node 24.
 //
 // Reports which daemons came up + which didn't.
 
@@ -29,7 +25,6 @@ const configDir = path.join(repoRoot, ".davstack", "config")
 const knownConfigs = {
   "logs-server.config.ts": "logs",
   "vitest-server.config.ts": "vitest",
-  "playwright-server.config.ts": "playwright",
 }
 let expected = []
 try {
@@ -57,7 +52,6 @@ function checkListening(s) {
   // contain "listening on http://". For multi-daemon disambiguation, look
   // for the labels too.
   if (/\[vitest-server\] listening on http/i.test(s)) sawListening.add("vitest")
-  if (/\[playwright-server\] listening on http/i.test(s)) sawListening.add("playwright")
   if (/log-server listening on http/i.test(s)) sawListening.add("logs")
 }
 
@@ -70,8 +64,7 @@ child.stderr.on("data", (b) => {
   stderr += b.toString("utf8")
 })
 
-// Per-daemon boot timeouts: vitest cold start can be 30s; playwright
-// (chromium launch + auth) can be 30s. Give them all 60s total.
+// Per-daemon boot timeouts: vitest cold start can be 30s. Give them 60s total.
 const BOOT_TIMEOUT_MS = 60_000
 const EXIT_TIMEOUT_MS = 75_000
 

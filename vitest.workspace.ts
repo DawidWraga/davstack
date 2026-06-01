@@ -42,16 +42,6 @@ export default defineWorkspace([
 	{
 		resolve: { alias: { vitest: vitestAlias } },
 		test: {
-			name: 'playwright-server',
-			root: './packages/playwright-server',
-			environment: 'node',
-			include: ['__tests__/**/*.test.ts'],
-			exclude: ['__tests__/bun-only/**', '**/node_modules/**'],
-		},
-	},
-	{
-		resolve: { alias: { vitest: vitestAlias } },
-		test: {
 			name: 'open-agents',
 			root: './packages/open-agents',
 			environment: 'node',

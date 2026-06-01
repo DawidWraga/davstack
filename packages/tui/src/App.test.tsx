@@ -68,13 +68,12 @@ test("renders the empty state with version + init command when no daemons config
   expect(frame).toContain("Press q to quit")
 })
 
-test("renders three daemon rows + three status pills when all configured", () => {
+test("renders two daemon rows + two status pills when all configured", () => {
   active = render(
     <App
       registry={[
         makeFakeDescriptor("logs", "logs", 7077),
         makeFakeDescriptor("vitest", "vitest", 5179),
-        makeFakeDescriptor("playwright", "playwright", 5180),
       ]}
       autoStart={false}
       skipConfigDiscovery
@@ -84,9 +83,7 @@ test("renders three daemon rows + three status pills when all configured", () =>
 
   expect(frame).toContain("logs")
   expect(frame).toContain("vitest")
-  expect(frame).toContain("playwright")
-  // Status pills are numbered 1/2/3 in the bottom bar.
+  // Status pills are numbered 1/2 in the bottom bar.
   expect(frame).toMatch(/1.*logs/)
   expect(frame).toMatch(/2.*vitest/)
-  expect(frame).toMatch(/3.*playwright/)
 })

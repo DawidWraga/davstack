@@ -35,7 +35,7 @@ sqlite3 -header -column .davstack/logs/<db> "<SQL>"
   hotfix-7c.db
 ```
 
-`default.db` is the catch-all. Named siblings appear when a transmitter stamps a `davstack-logs.db` attribute (or `playwright-server --db=<name>`). The file IS the session boundary.
+`default.db` is the catch-all. Named siblings appear when a transmitter stamps a `davstack-logs.db` attribute. The file IS the session boundary.
 
 ## Schema
 

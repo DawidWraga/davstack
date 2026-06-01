@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Disciplined diagnosis loop for hard bugs and performance regressions. Frame → reproduce the USER's failure → hypothesis tree → pre-registered experiment → instrument (delegated) → interpret with a confound gate → root cause → fix-as-hypothesis. Backed by a local Sentry log-ingest sink + `diag` query CLI, a warm Playwright host for live-app replays, and a Vitest daemon for fast unit/storybook reruns. Use when the user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
+description: Disciplined diagnosis loop for hard bugs and performance regressions. Frame → reproduce the USER's failure → hypothesis tree → pre-registered experiment → instrument (delegated) → interpret with a confound gate → root cause → fix-as-hypothesis. Backed by a local Sentry log-ingest sink + `diag` query CLI and a Vitest daemon for fast unit/storybook reruns. Use when the user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 ---
 
 <!-- GENERATED from skills/diagnose/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
@@ -51,8 +51,7 @@ of dispatching the next experiment, you're in the wrong loop.
 or a delegated `explore` slice — never a full re-read
 (`feedback_delegate_big_file_recon`). Compounds with the note rule above.
 
-**Daemon prereq.** This loop leans on `logs-server`, `vitest-server`, and
-`playwright-server`. First run `davstack check` to confirm the required
+**Daemon prereq.** This loop leans on `logs-server` and `vitest-server`. First run `davstack check` to confirm the required
 daemons are running — it prints the start instructions if anything's missing.
 
 ## 0 — Frame

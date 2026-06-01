@@ -1,6 +1,6 @@
 # @davstack/cli-utils
 
-Zero-dep CLI scaffolding shared by the davstack daemon packages (`logs-server`, `vitest-server`, `playwright-server`).
+Zero-dep CLI scaffolding shared by the davstack daemon packages (`logs-server`, `vitest-server`).
 
 ## Why
 
@@ -53,4 +53,4 @@ $ mytool --help                     # auto-generated help tree
 | `@davstack/cli-utils/help` | [`src/cli-help.ts`](./src/cli-help.ts) | `formatHelp(commandPath, spec)` |
 | `@davstack/cli-utils/config` | [`src/config.ts`](./src/config.ts) | `findRepoRoot(start?)`, `findToolConfig(toolName, cwd?)` |
 
-Type signatures live in source — read them rather than re-documenting. Real consumers: `packages/logs-server/src/index.ts`, `packages/vitest-server/src/index.ts`, `packages/playwright-server/src/index.ts`.
+Type signatures live in source — read them rather than re-documenting. Real consumers: `packages/logs-server/src/index.ts`, `packages/vitest-server/src/index.ts`.

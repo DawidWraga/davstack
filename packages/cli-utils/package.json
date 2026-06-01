@@ -3,7 +3,7 @@
   "version": "1.3.1",
   "license": "MIT",
   "type": "module",
-  "description": "Tiny CLI helper shared by @davstack/logs-server, vitest-server, playwright-server.",
+  "description": "Tiny CLI helper shared by @davstack/logs-server and vitest-server.",
   "exports": {
     ".": {
       "types": "./dist/cli.d.ts",
