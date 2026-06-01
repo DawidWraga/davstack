@@ -75,10 +75,12 @@ logger.info("checkpoint", { seam: "after-fetch", row_count: 42 })
 
 So:
 
-- Everyday reads → `json_extract(attrs, '$.<key>')` returns the raw value directly.
-- Need the OTel type discriminator → `json_extract(data, '$.attributes.<key>')` returns the typed `{value, type}` envelope. Rarely needed in practice.
+- Everyday reads → `attrs->>'<key>'` returns the raw value directly.
+- Need the OTel type discriminator → `data->>'$.attributes.<key>'` returns the typed `{value, type}` envelope. Rarely needed in practice.
 
-`attrs` is freely indexable via expression indexes if a hot key emerges: `CREATE INDEX ... ON logs(json_extract(attrs, '$.seam'))`.
+`attrs` is freely indexable via expression indexes if a hot key emerges: `CREATE INDEX ... ON logs(attrs->>'seam')`.
+
+A bare key implies a top-level `$.<key>`; for a nested reach pass an explicit path (`data->>'$.attributes.seam.type'`). For a projection you re-hit every query, stash it once in a session view ([session-views.md](./session-views.md)) so subsequent queries are `SELECT seam, row_count FROM dbg_x`.
 
 ## Recipes
 
@@ -92,11 +94,11 @@ The killer recipe — pick exactly the projection you need from `data.attributes
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT ts,
          msg,
-         json_extract(attrs, '\$.seam')      AS seam,
-         json_extract(attrs, '\$.row_count') AS row_count
+         attrs->>'seam'      AS seam,
+         attrs->>'row_count' AS row_count
   FROM logs
   WHERE ts > $BASELINE
-    AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
+    AND data->>'body' LIKE '%<probe-tag>%'
   ORDER BY ts;
 "
 ```
@@ -106,10 +108,10 @@ sqlite3 -header -column .davstack/logs/default.db "
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
   SELECT count(*) AS n,
-         json_extract(attrs, '\$.seam') AS seam
+         attrs->>'seam' AS seam
   FROM logs
   WHERE ts > $BASELINE
-    AND json_extract(data, '\$.body') LIKE '%<probe-tag>%'
+    AND data->>'body' LIKE '%<probe-tag>%'
   GROUP BY seam
   ORDER BY n DESC;
 "

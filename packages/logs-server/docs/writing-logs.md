@@ -15,9 +15,9 @@ logger.debug("panel-ctx.joinCleanup.no-joins-path", {
 Two rules:
 
 1. **The message string is a structured name** — kebab + dot, like a routing path: `<area>.<seam>.<event>`. Predictable, greppable, stable enough to copy into commit messages.
-2. **All data lives in the object, not the string.** Strings can't be `json_extract`-ed; objects can. Prefer `logger.debug("fetch.start", { url, method })` over `logger.debug(\`fetch.start url=${url}\`)`.
+2. **All data lives in the object, not the string.** Strings can't be queried with `->>`; objects can. Prefer `logger.debug("fetch.start", { url, method })` over `logger.debug(\`fetch.start url=${url}\`)`.
 
-Cheap to write, fast to query later (`json_extract(data, '$.url')` in [reading-logs.md](./reading-logs.md)).
+Cheap to write, fast to query later (`data->>'url'` in [reading-logs.md](./reading-logs.md)).
 
 ## Routing a session's logs to its own DB
 
@@ -61,10 +61,10 @@ When debugging, the receiver gives you a fast loop:
 
    ```bash
    sqlite3 -header -column .davstack/logs/default.db "
-     SELECT ts, msg, json_extract(attrs, '\$.tags') AS tags
+     SELECT ts, msg, attrs->>'tags' AS tags
      FROM logs
      WHERE run_id = '<id>'
-       AND json_extract(attrs, '\$.tags') LIKE '%H3%'
+       AND attrs->>'tags' LIKE '%H3%'
      ORDER BY ts;
    "
    ```
@@ -83,7 +83,7 @@ It's fine to log entire state trees, query ASTs, GraphQL responses, etc. Storage
 
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
-  SELECT ts, json_extract(data, '\$.next') AS next
+  SELECT ts, data->>'next' AS next
   FROM logs
   WHERE msg LIKE 'panel-ctx.update%'
   ORDER BY ts;
@@ -92,9 +92,9 @@ sqlite3 -header -column .davstack/logs/default.db "
 
 …you'll be staring at a 2KB object per row. A few habits keep this manageable:
 
-- **Filter on the indexed `msg` column first**, then project payload fields with `json_extract`. Narrowing on the indexed string first cuts the row set 10–100×.
-- **Prefer `json_extract(data, '$.next.entity')`** over dumping the whole `data` blob to terminal. The SQL recipes in [reading-logs.md](./reading-logs.md) show the shape.
-- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tags`, `hypothesis`, etc.) so the `WHERE json_extract(attrs, '$.tags') LIKE '%H3%'` cut works without a deep walk.
+- **Filter on the indexed `msg` column first**, then project payload fields with `->>`. Narrowing on the indexed string first cuts the row set 10–100×.
+- **Prefer `data->>'$.next.entity'`** over dumping the whole `data` blob to terminal. The SQL recipes in [reading-logs.md](./reading-logs.md) show the shape.
+- **If one specific payload field keeps being the focus** of debugging, lift it to a top-level attribute (`tags`, `hypothesis`, etc.) so the `WHERE attrs->>'tags' LIKE '%H3%'` cut works without a deep walk.
 
 ## What NOT to log
 

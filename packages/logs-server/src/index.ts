@@ -11,7 +11,7 @@
 //
 // Reading the log store: use sqlite3 directly against `.davstack/logs/<db>`.
 // The flat `attrs` column is populated at insert time so probe attributes
-// are one `json_extract` away. Recipes live in
+// are one `attrs->>'key'` away. Recipes live in
 // packages/logs-server/docs/reading-logs.md.
 //
 // Retention is file-based: each session writes its own `.davstack/logs/<name>.db`,

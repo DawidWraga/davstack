@@ -54,8 +54,8 @@ test('openDb stores attrs as a real column (no logs_v view)', () => {
   insertLogs(db, [row({ msg: 'with-attrs', attrs: JSON.stringify({ seam: 'x', n: 42 }) })]);
   const r = db
     .query(
-      `SELECT json_extract(attrs, '$.seam') AS seam,
-              json_extract(attrs, '$.n')    AS n
+      `SELECT attrs->>'seam' AS seam,
+              attrs->>'n'    AS n
        FROM logs WHERE msg = 'with-attrs'`,
     )
     .get() as { seam: unknown; n: unknown };
@@ -95,7 +95,7 @@ test('openDb migrates pre-2.2 schema: backfills attrs column, drops logs_v view'
   const cols = db.query("PRAGMA table_info(logs)").all() as { name: string }[];
   expect(cols.some((c) => c.name === 'attrs')).toBe(true);
   const r1 = db
-    .query(`SELECT json_extract(attrs, '$.seam') AS seam, json_extract(attrs, '$.n') AS n FROM logs WHERE msg = 'with'`)
+    .query(`SELECT attrs->>'seam' AS seam, attrs->>'n' AS n FROM logs WHERE msg = 'with'`)
     .get() as { seam: unknown; n: unknown };
   expect(r1.seam).toBe('after');
   expect(r1.n).toBe(7);
@@ -106,7 +106,7 @@ test('openDb migrates pre-2.2 schema: backfills attrs column, drops logs_v view'
   db.close();
   const db2 = openDb(tmp);
   const r1b = db2
-    .query(`SELECT json_extract(attrs, '$.seam') AS seam FROM logs WHERE msg = 'with'`)
+    .query(`SELECT attrs->>'seam' AS seam FROM logs WHERE msg = 'with'`)
     .get() as { seam: unknown };
   expect(r1b.seam).toBe('after');
   db2.close();
