@@ -49,6 +49,12 @@ test('mislabelled gzip (actually plain text) falls back to raw decode, never thr
   expect(decodeBody(enc.encode(ENVELOPE), 'gzip')).toBe(ENVELOPE);
 });
 
+test('mislabelled deflate (actually plain text) falls back to raw decode, never throws', () => {
+  // Neither zlib-wrapped nor raw DEFLATE — both inflate paths throw, so the
+  // tolerant outer catch best-effort raw-decodes rather than emitting garbage.
+  expect(decodeBody(enc.encode(ENVELOPE), 'deflate')).toBe(ENVELOPE);
+});
+
 test('unknown encoding falls back to raw decode', () => {
   expect(decodeBody(enc.encode(ENVELOPE), 'br')).toBe(ENVELOPE);
 });
