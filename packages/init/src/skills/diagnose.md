@@ -18,9 +18,9 @@ Discipline for hard bugs. Skip a phase only with a written reason.
 
 **Division of labor.** The orchestrator does all epistemics (framing,
 hypotheses, experiment design, interpretation). Delegate only mechanical edits
-(via the `fast-edit` skill) and *raw quoted extraction* (via the `explore`
-skill) — never analysis. Over-generalization starts the moment interpretation
-leaks to the executor or is decided after seeing data.
+(to a subagent) and *raw quoted extraction* (a delegated read-only sweep) —
+never analysis. Over-generalization starts the moment interpretation leaks to
+the executor or is decided after seeing data.
 
 **Diagnosis log.** One markdown file per investigation
 (`~/.davstack/diagnoses/<slug>.md`). It holds **only** pre-registration — hypothesis
@@ -148,8 +148,8 @@ warning. Log misfires to `~/.davstack/diagnose-feedback/`.
 
 ## 5 — Delegate instrumentation
 
-Default to `fast-edit` — manual edits here burn orchestrator tokens for zero
-epistemic gain. Hand a precise spec:
+Default to delegating these edits to a subagent — manual edits here burn
+orchestrator tokens for zero epistemic gain. Hand a precise spec:
 
     target_files, hypothesis_log (= ~/.davstack/diagnoses/<slug>.md),
     add_logs: [{file, seam_name, insertion_anchor, tag, capture: […]}],
@@ -175,10 +175,10 @@ before spending a real run.
 
 ## 6 — Run + raw extraction
 
-Drive the **real** repro (the user's path, not a proxy). Delegate the run
-read-only via the `explore` skill; it returns the `diag query` digest **as
-quoted evidence only** — quote-extractor, not analyst. ≥2 independent runs
-(single-run signals never count).
+Drive the **real** repro (the user's path, not a proxy). Delegate the run as a
+read-only sweep; it returns a `sqlite3` query of the sink **as quoted evidence
+only** — quote-extractor, not analyst. ≥2 independent runs (single-run signals
+never count).
 
 ## 7 — Interpret (orchestrator only): the diagnosticity gate
 
