@@ -1,11 +1,6 @@
-import { test, expect } from 'vitest';
-import { gzipSync, deflateSync } from 'node:zlib';
-import { decodeBody } from '../src/decode.js';
-
-const Bun = {
-  gzipSync: (buf: Uint8Array) => new Uint8Array(gzipSync(buf)),
-  deflateSync: (buf: Uint8Array) => new Uint8Array(deflateSync(buf)),
-};
+import { test, expect } from 'bun:test';
+import { deflateSync as nodeDeflateSync } from 'node:zlib';
+import { decodeBody } from '../../src/decode.js';
 
 // A realistic Sentry log envelope (newline-delimited JSON) — the exact shape
 // the Python SDK ships, so the round-trip proves the real path.
@@ -27,7 +22,14 @@ test('x-gzip alias is honoured', () => {
   expect(decodeBody(gz, 'x-gzip')).toBe(ENVELOPE);
 });
 
-test('deflate body round-trips', () => {
+test('deflate body (zlib-wrapped, RFC 7230) round-trips', () => {
+  // What a standards-compliant HTTP client sends for `Content-Encoding: deflate`.
+  const df = new Uint8Array(nodeDeflateSync(enc.encode(ENVELOPE)));
+  expect(decodeBody(df, 'deflate')).toBe(ENVELOPE);
+});
+
+test('deflate body (raw DEFLATE) round-trips', () => {
+  // What Bun.deflateSync and many real clients emit — raw, no zlib wrapper.
   const df = Bun.deflateSync(enc.encode(ENVELOPE));
   expect(decodeBody(df, 'deflate')).toBe(ENVELOPE);
 });
@@ -45,6 +47,12 @@ test('Content-Encoding casing/whitespace tolerated', () => {
 test('mislabelled gzip (actually plain text) falls back to raw decode, never throws', () => {
   // Header lies — body is not gzip. Must not throw; best-effort raw decode.
   expect(decodeBody(enc.encode(ENVELOPE), 'gzip')).toBe(ENVELOPE);
+});
+
+test('mislabelled deflate (actually plain text) falls back to raw decode, never throws', () => {
+  // Neither zlib-wrapped nor raw DEFLATE — both inflate paths throw, so the
+  // tolerant outer catch best-effort raw-decodes rather than emitting garbage.
+  expect(decodeBody(enc.encode(ENVELOPE), 'deflate')).toBe(ENVELOPE);
 });
 
 test('unknown encoding falls back to raw decode', () => {

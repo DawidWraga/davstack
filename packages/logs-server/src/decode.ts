@@ -9,6 +9,8 @@
 // corrupt encoding falls back to a best-effort UTF-8 decode rather than
 // throwing — a sink that rejects bodies would induce SDK retry storms.
 
+import { inflateSync as zlibInflateSync } from 'node:zlib';
+
 const td = new TextDecoder();
 
 export function decodeBody(
@@ -21,7 +23,14 @@ export function decodeBody(
       return td.decode(Bun.gunzipSync(bytes));
     }
     if (enc === 'deflate') {
-      return td.decode(Bun.inflateSync(bytes));
+      // `Content-Encoding: deflate` is ambiguous in the wild: RFC 7230 means
+      // zlib-wrapped (RFC 1950), but many clients send raw DEFLATE (RFC 1951).
+      // Bun.inflateSync accepts only raw, so try zlib-wrapped first, then raw.
+      try {
+        return td.decode(zlibInflateSync(bytes));
+      } catch {
+        return td.decode(Bun.inflateSync(bytes));
+      }
     }
   } catch {
     // Corrupt/mislabelled stream — fall through to raw decode. Better to feed
