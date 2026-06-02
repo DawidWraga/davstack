@@ -354,6 +354,25 @@ test('a standalone type:"span" item is handled defensively as one span row', () 
   expect(rows[0].duration_ms).toBeCloseTo(250, 6);
 });
 
+test('ISO-8601 string timestamps (python sentry_sdk) yield real ts + duration, not ts=0/null', () => {
+  // python sentry_sdk serializes transaction start_timestamp/timestamp as
+  // ISO-8601 strings, where the JS SDK sends epoch-second floats. The sink must
+  // coerce both so backend spans don't land at ts=0 / null duration.
+  const iso = transaction({
+    start_timestamp: '2026-06-01T00:00:00.000Z',
+    timestamp: '2026-06-01T00:00:00.250Z', // 250ms root window
+  });
+  iso.spans[0].start_timestamp = '2026-06-01T00:00:00.000Z';
+  iso.spans[0].timestamp = '2026-06-01T00:00:00.020Z'; // 20ms child
+  const { rows, skipped } = parseEnvelope(txEnvelope(iso, 'sentry.python'));
+  expect(skipped).toBe(0);
+  const root = rows[0];
+  expect(root.ts).toBe(Date.parse('2026-06-01T00:00:00.000Z') / 1000); // epoch seconds
+  expect(root.ts).toBeGreaterThan(0);
+  expect(root.duration_ms).toBeCloseTo(250, 3);
+  expect(rows[1].duration_ms).toBeCloseTo(20, 3);
+});
+
 //* MARK: Span tolerance
 
 // The sink's prime directive: never throw, never emit a corrupt row. These

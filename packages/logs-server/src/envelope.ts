@@ -135,9 +135,21 @@ function num(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
+// Coerce a span timestamp to epoch seconds. The JS SDK sends numeric epoch
+// seconds; python sentry_sdk sends ISO-8601 strings — accept both so backend
+// spans don't land at ts=0 / null duration.
+function tsNum(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const ms = Date.parse(v);
+    if (Number.isFinite(ms)) return ms / 1000;
+  }
+  return undefined;
+}
+
 function durationMs(start: unknown, end: unknown): number | null {
-  const s = num(start);
-  const e = num(end);
+  const s = tsNum(start);
+  const e = tsNum(end);
   if (s === undefined || e === undefined) return null;
   return (e - s) * 1000;
 }
@@ -183,7 +195,7 @@ function spanRow(opts: {
   };
 
   return {
-    ts: num(start) ?? 0,
+    ts: tsNum(start) ?? 0,
     kind: 'span',
     project: strOr(dataForPersist?.['diag.project'], ''),
     service: sdkName,
