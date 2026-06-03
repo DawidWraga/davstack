@@ -130,6 +130,31 @@ export const cliSpec: CliSpec = {
           `log-server listening on http://${srv.host}:${srv.port}  ` +
             `${pinned ? `db=${defaultDbPath}` : `logs=${defaultDbPath}/..`}\n`,
         );
+
+        // Auto-clean timer (daemon-owned). Unset interval → off. Runs only in
+        // multi-DB mode: pinned single-DB mode hands its handle to startServer
+        // and shouldn't be VACUUMed out from under it. The timer uses the
+        // cache's own handle (getOrOpen) so there's no stale-handle problem —
+        // it's our live connection. See startAutoClean for the overlap guard.
+        if (!pinned && config.autoCleanInterval) {
+          const { startAutoClean } = await import('./clean.js');
+          const mode = config.cleaningMode ?? 'archive';
+          const window = config.autoCleanWindow ?? '24h';
+          startAutoClean({
+            interval: config.autoCleanInterval,
+            window,
+            mode,
+            dbPath: defaultDbPath,
+            getDb: () => cache.getOrOpen(defaultDbPath),
+            log: (m) => process.stdout.write(`[logs-server] ${m}\n`),
+            warn: (m) => process.stderr.write(`[logs-server] ${m}\n`),
+          });
+          process.stdout.write(
+            `[logs-server] auto-clean every ${config.autoCleanInterval} ` +
+              `(window=${window}, mode=${mode})\n`,
+          );
+        }
+
         return new Promise<number>(() => {});
       },
     },
@@ -184,6 +209,48 @@ export const cliSpec: CliSpec = {
         });
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
         return result.ok ? 0 : 1;
+      },
+    },
+    clean: {
+      description:
+        'Bound the working DB: remove rows (full sweep by default; --window for a retention sweep), then VACUUM to reclaim disk. Archives to a .sql.br first unless --mode delete. Refreshes the daemon afterward so its cached handle picks up the rewritten file.',
+      flags: {
+        db: dbFlag(),
+        mode: {
+          type: 'string' as const,
+          description: 'archive | delete (overrides config cleaningMode)',
+        },
+        window: {
+          type: 'string' as const,
+          description:
+            'Retention window (e.g. "24h"); presence = windowed sweep (drop rows older than this), absence = full sweep (all rows).',
+        },
+        port: { type: 'number', env: 'DIAG_PORT' },
+        host: { type: 'string', env: 'DIAG_HOST' },
+        json: { type: 'boolean', default: false, description: 'JSON output for agent parsing' },
+      },
+      run: async (ctx) => {
+        const { loadConfig } = await import('./config.js');
+        const { runClean, formatCleanSummary } = await import('./run-clean.js');
+        try {
+          const summary = await runClean({
+            config: await loadConfig(process.cwd()),
+            dbFlag: ctx.flags.db as string | undefined,
+            modeFlag: ctx.flags.mode as string | undefined,
+            windowFlag: ctx.flags.window as string | undefined,
+            host: ctx.flags.host as string | undefined,
+            port: ctx.flags.port as number | undefined,
+          });
+          process.stdout.write(
+            ctx.flags.json
+              ? JSON.stringify(summary, null, 2) + '\n'
+              : formatCleanSummary(summary),
+          );
+          return 0;
+        } catch (e) {
+          process.stderr.write(`[logs-server] clean failed: ${(e as Error)?.message ?? e}\n`);
+          return 1;
+        }
       },
     },
     doctor: doctorSpec,
