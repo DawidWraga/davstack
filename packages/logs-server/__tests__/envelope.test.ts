@@ -375,6 +375,82 @@ test('ISO-8601 string timestamps (python sentry_sdk) yield real ts + duration, n
   expect(rows[1].duration_ms).toBeCloseTo(20, 3);
 });
 
+//* MARK: Transaction metadata (web vitals + request)
+
+// Web vitals ride at the EVENT level (`event.measurements`), NOT on any span.
+// The architecture stores transaction-level metadata ONCE on the ROOT span row
+// (the segment); child spans never carry it. The key convention is
+// `attrs["measurement.<vital>"] = <value>` (value only, unit implied) and
+// `attrs["request.url"] / ["request.method"]`. trace-view.ts reads these.
+
+const measurements = {
+  lcp: { value: 1234.5, unit: 'millisecond' },
+  cls: { value: 0.01, unit: '' },
+  fcp: { value: 800.2, unit: 'millisecond' },
+  ttfb: { value: 120, unit: 'millisecond' },
+  inp: { value: 80, unit: 'millisecond' },
+};
+
+test('root row attrs carry web vitals from event.measurements (value extracted)', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction({ measurements })));
+  const root = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(root['measurement.lcp']).toBe(1234.5);
+  expect(root['measurement.cls']).toBe(0.01);
+  expect(root['measurement.fcp']).toBe(800.2);
+  expect(root['measurement.ttfb']).toBe(120);
+  expect(root['measurement.inp']).toBe(80);
+  // the trace context's own data is preserved alongside the vitals
+  expect(root.op).toBe('http.server');
+  expect(root['diag.project']).toBe('titanium');
+});
+
+test('child span rows do NOT carry the transaction web vitals', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction({ measurements })));
+  for (const child of rows.slice(1)) {
+    const a = JSON.parse(child.attrs as string) as Record<string, unknown>;
+    expect(a['measurement.lcp']).toBeUndefined();
+    expect(a['measurement.cls']).toBeUndefined();
+  }
+});
+
+test('no measurements / no request ⇒ nothing added (back-compat baseline)', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction()));
+  const root = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(Object.keys(root).some((k) => k.startsWith('measurement.'))).toBe(false);
+  expect(root['request.url']).toBeUndefined();
+  expect(root['request.method']).toBeUndefined();
+});
+
+test('a measurement with a non-numeric value is skipped (never corrupts attrs)', () => {
+  const { rows } = parseEnvelope(
+    txEnvelope(transaction({ measurements: { lcp: { value: 'oops', unit: '' } } })),
+  );
+  const root = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(root['measurement.lcp']).toBeUndefined();
+});
+
+test('root row attrs capture request.url and request.method when present', () => {
+  const { rows } = parseEnvelope(
+    txEnvelope(transaction({ request: { url: 'https://app.test/dashboard', method: 'GET' } })),
+  );
+  const root = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(root['request.url']).toBe('https://app.test/dashboard');
+  expect(root['request.method']).toBe('GET');
+  // and child spans still do not carry request metadata
+  const child = JSON.parse(rows[1].attrs as string) as Record<string, unknown>;
+  expect(child['request.url']).toBeUndefined();
+});
+
+test('vitals attach to the root even when the trace context had no data block', () => {
+  // A trace context with no `data` ⇒ root.attrs would be null without vitals.
+  // Merging must still produce a valid attrs object carrying the measurements.
+  const tx = transaction({ measurements: { lcp: { value: 999, unit: 'millisecond' } } });
+  delete (tx.contexts.trace as Record<string, unknown>).data;
+  const { rows } = parseEnvelope(txEnvelope(tx));
+  const root = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(root['measurement.lcp']).toBe(999);
+});
+
 //* MARK: Span tolerance
 
 // The sink's prime directive: never throw, never emit a corrupt row. These

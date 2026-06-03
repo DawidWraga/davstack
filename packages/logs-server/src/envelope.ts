@@ -236,6 +236,40 @@ function spanRow(opts: {
   };
 }
 
+// Transaction-level metadata that lives ONCE on the ROOT span row (the
+// segment) — we never duplicate it onto child spans; nesting/inheritance is
+// reconstructed on demand by the reader (scripts/trace-view.ts). Two groups:
+//
+//   measurement.<vital> — web vitals from `event.measurements`. VALUE ONLY
+//     (the unit is implied — ms for timing vitals, unitless for CLS), e.g.
+//     attrs["measurement.lcp"] = 1234.5. Keys are lowercased vital names
+//     exactly as Sentry sends them (lcp, cls, fcp, ttfb, inp, fp, fid, ...).
+//   request.url / request.method — from `event.request`, cheap bug-repro
+//     context.
+//
+// Mirror this convention in scripts/trace-view.ts (the "view substitute").
+function rootTransactionAttrs(tx: Record<string, unknown>): Record<string, unknown> {
+  const extra: Record<string, unknown> = {};
+
+  const measurements = tx.measurements as Record<string, unknown> | undefined;
+  if (measurements && typeof measurements === 'object') {
+    for (const k of Object.keys(measurements)) {
+      const m = measurements[k] as { value?: unknown } | undefined;
+      const v = m && typeof m === 'object' ? m.value : undefined;
+      if (typeof v === 'number' && Number.isFinite(v)) extra[`measurement.${k}`] = v;
+    }
+  }
+
+  const request = tx.request as Record<string, unknown> | undefined;
+  if (request && typeof request === 'object') {
+    if (request.url !== undefined && request.url !== null) extra['request.url'] = request.url;
+    if (request.method !== undefined && request.method !== null)
+      extra['request.method'] = request.method;
+  }
+
+  return extra;
+}
+
 // Expand a transaction event into its span rows: the ROOT (from
 // `contexts.trace`, timed by the event's top-level start/timestamp) plus one
 // row per `spans[]` child (each self-timed). Emitted in that order.
@@ -252,16 +286,25 @@ function transactionRows(
   if (trace && typeof trace === 'object') {
     const op = (trace.data as Record<string, unknown> | undefined)?.['sentry.op'] ?? trace.op;
     const rootMsg = strOr(tx.transaction ?? op, '');
-    out.push(
-      spanRow({
-        spanObj: trace,
-        msg: rootMsg,
-        start: tx.start_timestamp,
-        end: tx.timestamp,
-        sdkName,
-        envTraceId,
-      }),
-    );
+    const root = spanRow({
+      spanObj: trace,
+      msg: rootMsg,
+      start: tx.start_timestamp,
+      end: tx.timestamp,
+      sdkName,
+      envTraceId,
+    });
+
+    // Attach transaction-level metadata (web vitals + request) onto the ROOT
+    // row's flat attrs only — never the child spans. Merge into the existing
+    // attrs JSON (which may be null when the trace context had no data).
+    const extra = rootTransactionAttrs(tx);
+    if (Object.keys(extra).length > 0) {
+      const existing = root.attrs ? (JSON.parse(root.attrs) as Record<string, unknown>) : {};
+      root.attrs = JSON.stringify({ ...existing, ...extra });
+    }
+
+    out.push(root);
   }
 
   const spans = tx.spans;
