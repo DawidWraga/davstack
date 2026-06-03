@@ -54,6 +54,12 @@ function strOr(v: unknown, d: string): string {
   return v === undefined || v === null ? d : String(v);
 }
 
+// Like strOr but yields null (not a default) for absent values — for nullable
+// columns (e.g. `runtime`) where absence must round-trip as SQL NULL.
+function strOrNull(v: unknown): string | null {
+  return v === undefined || v === null ? null : String(v);
+}
+
 // Strip a leading ANSI styled prefix shaped like `\x1b[<style>m%s\x1b[0m ` —
 // pure rendering noise from console-monkey-patchers upstream of the JS
 // `consoleLoggingIntegration` (React DevTools / HMR / the `debug` package
@@ -118,6 +124,7 @@ function toRow(rec: Record<string, unknown>, sdkName: string, envTraceId: string
     attrs: flattenAttrs(attrsForFlatten),
     tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
     duration_ms: null,
+    runtime: strOrNull(attrVal(attrs, 'runtime')),
     routeDb,
   };
 }
@@ -224,6 +231,7 @@ function spanRow(opts: {
     attrs: flattenSpanAttrs(dataForPersist, headline),
     tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
     duration_ms: dur,
+    runtime: strOrNull(dataForPersist?.['runtime']),
     routeDb,
   };
 }
@@ -368,6 +376,12 @@ function eventRow(
   }
   const diagTag = (evForPersist.tags as Record<string, unknown> | undefined)?.['diag.tag'];
 
+  // runtime: prefer an explicit tags.runtime stamp; else fall back to Sentry's
+  // native contexts.runtime.name (the SDK auto-fills this for server events).
+  const tagRuntime = (evForPersist.tags as Record<string, unknown> | undefined)?.['runtime'];
+  const ctxRuntime = (contexts?.runtime as Record<string, unknown> | undefined)?.name;
+  const runtime = strOrNull(tagRuntime ?? ctxRuntime);
+
   return {
     ts: tsNum(ev.timestamp) ?? 0,
     kind: 'event',
@@ -384,6 +398,7 @@ function eventRow(
     attrs: Object.keys(headline).length === 0 ? null : JSON.stringify(headline),
     tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
     duration_ms: null,
+    runtime,
     routeDb,
   };
 }

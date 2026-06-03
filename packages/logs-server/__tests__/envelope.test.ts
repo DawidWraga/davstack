@@ -497,6 +497,52 @@ test('back-compat: a mixed envelope (log item + transaction item) yields both ki
   expect(logRow.duration_ms).toBeNull();
 });
 
+//* MARK: Runtime
+
+// The `runtime` column records which Next.js runtime (browser|node|edge)
+// emitted the row, stamped at the Sentry config source. Logs read it from
+// `attributes.runtime`; spans from the span's plain `data.runtime`; events from
+// `tags.runtime` (falling back to Sentry's native `contexts.runtime.name`).
+
+test('log runtime comes from attributes.runtime', () => {
+  const { rows } = parseEnvelope(envelope([log({ attributes: { runtime: a('browser') } })]));
+  expect(rows[0].runtime).toBe('browser');
+});
+
+test('log runtime is null when attributes.runtime is absent', () => {
+  const { rows } = parseEnvelope(envelope([log()]));
+  expect(rows[0].runtime).toBeNull();
+});
+
+test('span runtime comes from the span/trace plain data.runtime, root + children', () => {
+  const tx = transaction();
+  (tx.contexts.trace.data as Record<string, unknown>).runtime = 'node';
+  (tx.spans[0].data as Record<string, unknown>).runtime = 'node';
+  (tx.spans[1].data as Record<string, unknown>).runtime = 'node';
+  const { rows } = parseEnvelope(txEnvelope(tx));
+  expect(rows.every((r) => r.runtime === 'node')).toBe(true);
+});
+
+test('span runtime is null when data.runtime is absent', () => {
+  const { rows } = parseEnvelope(txEnvelope(transaction()));
+  expect(rows.every((r) => r.runtime === null)).toBe(true);
+});
+
+test('event runtime prefers tags.runtime', () => {
+  const ev = exceptionEvent({ tags: { runtime: 'edge' } });
+  expect(parseEnvelope(eventEnvelope(ev)).rows[0].runtime).toBe('edge');
+});
+
+test('event runtime falls back to contexts.runtime.name when no tag', () => {
+  // exceptionEvent() carries contexts.runtime = { name: 'node', ... }
+  expect(parseEnvelope(eventEnvelope(exceptionEvent())).rows[0].runtime).toBe('node');
+});
+
+test('event runtime is null when neither tags.runtime nor contexts.runtime present', () => {
+  const bare = { event_id: 'deadbeef', level: 'info', timestamp: 1.0 };
+  expect(parseEnvelope(eventEnvelope(bare)).rows[0].runtime).toBeNull();
+});
+
 //* MARK: Events (exceptions)
 
 // Real error/message events. Both fixtures below are the verbatim payloads

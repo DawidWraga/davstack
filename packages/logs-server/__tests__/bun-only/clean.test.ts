@@ -43,6 +43,7 @@ function row(over: Partial<LogRow>): LogRow {
     attrs: null,
     tag: null,
     duration_ms: null,
+    runtime: null,
     ...over,
   };
 }

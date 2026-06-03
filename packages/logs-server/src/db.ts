@@ -22,6 +22,7 @@ export type LogRow = {
   attrs: string | null; // flat key→value JSON (NULL when none). Spans add op/status/parent_span_id/description/duration_ms.
   tag: string | null; // diag.tag attribution (optional)
   duration_ms: number | null; // span headline metric ((timestamp - start_timestamp)*1000); NULL for logs
+  runtime: string | null; // emitting Next.js runtime (browser|node|edge), stamped at the Sentry config; NULL when absent
 };
 
 const COLS: (keyof LogRow)[] = [
@@ -41,6 +42,7 @@ const COLS: (keyof LogRow)[] = [
   'attrs',
   'tag',
   'duration_ms',
+  'runtime',
 ];
 
 // Migrate pre-2.2 schemas: add the `attrs` column if missing, backfill from
@@ -102,6 +104,24 @@ function migrateKindColumns(db: Database): void {
   }
 }
 
+// Migrate pre-2.9 schemas: add the free-text `runtime` column if missing. It
+// records which Next.js runtime (browser|node|edge) emitted the row, stamped at
+// the Sentry config source. Legacy rows stay NULL (the runtime split didn't
+// exist when they were written). Wrapped in BEGIN IMMEDIATE so partial state
+// can't leak; idempotent (guarded by the table_info check).
+function migrateRuntimeColumn(db: Database): void {
+  const cols = db.query('PRAGMA table_info(logs)').all() as { name: string }[];
+  if (cols.some((c) => c.name === 'runtime')) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec('ALTER TABLE logs ADD COLUMN runtime TEXT');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 export function openDb(path: string): Database {
   const db = new Database(path);
   db.exec('PRAGMA journal_mode = WAL'); // concurrent hammer-ingest + query
@@ -123,7 +143,8 @@ export function openDb(path: string): Database {
       data            TEXT,
       attrs           TEXT,
       tag             TEXT,
-      duration_ms     REAL
+      duration_ms     REAL,
+      runtime         TEXT
     )`);
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_logs_corr
@@ -131,6 +152,7 @@ export function openDb(path: string): Database {
   );
   migrateAttrsColumn(db);
   migrateKindColumns(db);
+  migrateRuntimeColumn(db);
   return db;
 }
 

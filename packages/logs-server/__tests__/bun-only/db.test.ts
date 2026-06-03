@@ -24,6 +24,7 @@ function row(over: Partial<LogRow>): LogRow {
     attrs: null,
     tag: null,
     duration_ms: null,
+    runtime: null,
     ...over,
   };
 }
@@ -179,6 +180,68 @@ test('openDb migrates pre-2.7 schema: adds kind/duration_ms, existing rows → k
   db2.close();
   // Best-effort cleanup. On Windows the WAL/shm handles can linger a beat after
   // close(), so a rm race can EBUSY — swallow it (the OS reclaims the temp file).
+  for (const p of [tmp, `${tmp}-wal`, `${tmp}-shm`]) {
+    try {
+      require('node:fs').rmSync(p, { force: true });
+    } catch {
+      /* temp file still locked — leave it for the OS */
+    }
+  }
+});
+
+test('openDb stores runtime column; it round-trips and absence is NULL', () => {
+  const db = openDb(':memory:');
+  const cols = db.query('PRAGMA table_info(logs)').all() as { name: string }[];
+  expect(cols.some((c) => c.name === 'runtime')).toBe(true);
+  insertLogs(db, [
+    row({ msg: 'browser-row', runtime: 'browser' }),
+    row({ msg: 'node-row', runtime: 'node' }),
+    row({ msg: 'unstamped' }), // runtime defaults to null in row()
+  ]);
+  const got = db
+    .query('SELECT msg, runtime FROM logs ORDER BY id')
+    .all() as { msg: string; runtime: unknown }[];
+  expect(got).toEqual([
+    { msg: 'browser-row', runtime: 'browser' },
+    { msg: 'node-row', runtime: 'node' },
+    { msg: 'unstamped', runtime: null },
+  ]);
+});
+
+test('openDb migrates pre-2.9 schema: adds runtime column, existing rows → NULL', () => {
+  // Hand-build a 2.8-era table (kind/duration_ms present, no runtime). The
+  // migration must add the column; existing rows stay NULL.
+  const { Database } = require('bun:sqlite');
+  const legacy = new Database(':memory:');
+  legacy.exec(`CREATE TABLE logs (
+    id INTEGER PRIMARY KEY, ts REAL, recv_ts REAL, kind TEXT DEFAULT 'log',
+    project TEXT, service TEXT, run_id TEXT, trace_id TEXT, span_id TEXT,
+    level TEXT, severity_number INTEGER, logger TEXT, msg TEXT, data TEXT,
+    attrs TEXT, tag TEXT, duration_ms REAL
+  )`);
+  legacy.exec(`INSERT INTO logs (ts, recv_ts, kind, project, msg, data) VALUES
+    (1, 1, 'log', 'p', 'old-one', '{"body":"x"}')`);
+  const tmp = `/tmp/migrate-runtime-${process.pid}-${Date.now()}.db`;
+  legacy.exec(`VACUUM INTO '${tmp}'`);
+  legacy.close();
+
+  const db = openDb(tmp);
+  const cols = db.query('PRAGMA table_info(logs)').all() as { name: string }[];
+  expect(cols.some((c) => c.name === 'runtime')).toBe(true);
+  const old = db.query("SELECT runtime FROM logs WHERE msg = 'old-one'").get() as {
+    runtime: unknown;
+  };
+  expect(old.runtime).toBeNull();
+
+  // Idempotent — a second open is a no-op, and a freshly stamped row coexists.
+  db.close();
+  const db2 = openDb(tmp);
+  insertLogs(db2, [row({ msg: 'new-row', runtime: 'edge', ts: 2, recv_ts: 2 })]);
+  const got = db2.query("SELECT runtime FROM logs WHERE msg = 'new-row'").get() as {
+    runtime: unknown;
+  };
+  expect(got.runtime).toBe('edge');
+  db2.close();
   for (const p of [tmp, `${tmp}-wal`, `${tmp}-shm`]) {
     try {
       require('node:fs').rmSync(p, { force: true });
