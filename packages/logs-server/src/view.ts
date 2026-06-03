@@ -75,7 +75,7 @@ export function vitalsLine(a: Record<string, any>): string {
   if (ms('ttfb')) parts.push(`TTFB ${ms('ttfb')}`);
   if (ms('inp')) parts.push(`INP ${ms('inp')}`);
   if (ms('fid')) parts.push(`FID ${ms('fid')}`);
-  if (typeof a['measurement.cls'] === 'number') parts.push(`CLS ${a['measurement.cls']}`);
+  if (typeof a['measurement.cls'] === 'number') parts.push(`CLS ${parseFloat(a['measurement.cls'].toFixed(4))}`);
   const req = a['request.method'] && a['request.url'] ? `${a['request.method']} ${a['request.url']}` : a['request.url'] || '';
   let line = '';
   if (parts.length) line += `vitals: ${parts.join(' · ')}`;
@@ -137,9 +137,22 @@ export function buildTree(rows: ViewRow[]): { r: ViewRow; depth: number }[] {
   return flat;
 }
 
-/** The topmost root row of a trace (carries the vitals/request attrs). */
+/** The topmost root row of a trace. */
 function rootOf(rows: ViewRow[]): ViewRow | undefined {
   return buildTree(rows).find((x) => x.depth === 0)?.r;
+}
+
+/**
+ * Attrs of the span that measured web vitals (the pageload / transaction
+ * segment), if any. NOT necessarily the trace root: trace propagation nests the
+ * browser pageload — which carries `measurement.*` — under the server root.
+ */
+function vitalsSegmentAttrs(rows: ViewRow[]): Record<string, any> | null {
+  for (const r of rows) {
+    const a = parse(r.attrs);
+    if (Object.keys(a).some((k) => k.startsWith('measurement.'))) return a;
+  }
+  return null;
 }
 
 //* MARK: Summary
@@ -184,8 +197,13 @@ export function renderWaterfall(rows: ViewRow[], opts: { showIds?: boolean; limi
   if (opts.limit && flat.length > opts.limit) {
     md += `| … | | | | ${opts.showIds ? '| | ' : ''}| _(${flat.length - opts.limit} more rows)_ |\n`;
   }
+  // Vitals live on the transaction segment that measured them — in a propagated
+  // cross-runtime trace that's the browser pageload, which gets re-parented under
+  // the server root, so it is NOT rootOf(rows). Find the segment carrying
+  // measurements; fall back to the root for request context on vitals-less traces.
   const root = rootOf(rows);
-  const vitals = root ? vitalsLine(parse(root.attrs)) : '';
+  const vitalsAttrs = vitalsSegmentAttrs(rows) ?? (root ? parse(root.attrs) : {});
+  const vitals = vitalsLine(vitalsAttrs);
   return { md, n: rows.length, vitals };
 }
 

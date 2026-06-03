@@ -164,6 +164,28 @@ test('renderTrace nests children/logs and prints a vitals header from the root',
   expect(md).toContain('node'); // runtime column
 });
 
+test('renderTrace surfaces vitals from a browser pageload nested under the server root', () => {
+  // Propagation re-parents the browser pageload (which carries measurement.*)
+  // under the node http.server root — so vitals are NOT on the trace root.
+  const db = openDb(':memory:');
+  insertLogs(db, [
+    logRow({ kind: 'span', span_id: 'srv00000', msg: 'GET /', duration_ms: 800, ts: 1000, runtime: 'node', attrs: JSON.stringify({ op: 'http.server', runtime: 'node' }) }),
+    logRow({
+      kind: 'span',
+      span_id: 'pageload0',
+      msg: '/',
+      duration_ms: 1283,
+      ts: 1000.01,
+      runtime: 'browser',
+      data: JSON.stringify({ parent_span_id: 'srv00000' }),
+      attrs: JSON.stringify({ op: 'pageload', runtime: 'browser', 'measurement.lcp': 624, 'measurement.cls': 0.0001 }),
+    }),
+  ]);
+  const md = renderTrace(db, T, 'default');
+  expect(md).toContain('LCP 624ms');
+  expect(md).toContain('CLS 0.0001');
+});
+
 test('renderTrace reports an empty db cleanly', () => {
   const db = openDb(':memory:');
   expect(renderTrace(db, T, 'default')).toContain('no rows in db');
