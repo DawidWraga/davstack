@@ -5,7 +5,8 @@
 // `data`.
 //
 // Wire format (notes 03): newline-delimited JSON — an envelope header line,
-// then (item header, item payload) line pairs. Two item types are persisted:
+// then (item header, item payload) line pairs. Three item types are persisted
+// (log → kind:'log', transaction/span → kind:'span', event → kind:'event'):
 //
 //   type:"log" payload = `{ items: [ <log>, ... ] }` → one `kind:'log'` row per
 //     item (severity, body, OTel {value,type} attributes).
@@ -21,6 +22,19 @@
 //       PLUS one row per `spans[]` entry. Each is a `kind:'span'` row.
 //     `type:"span"` standalone items (Sentry's newer span-streaming protocol)
 //     are handled defensively as a single span.
+//
+//   type:"event" payload = an error/message *event* (Sentry.captureException,
+//     captureMessage, unhandled errors, React error boundaries). Shape captured
+//     live from @sentry/node 10.16.0:
+//       { event_id, level, platform, timestamp,
+//         exception: { values: [ { type, value, mechanism, stacktrace:
+//                                  { frames: [ { filename, function, lineno,
+//                                                colno, in_app } ] } } ] },
+//         message?, contexts: { trace: { trace_id, span_id } } }
+//     → ONE `kind:'event'` row. msg = "{type}: {value}" of the innermost
+//       exception (or the `message` for captureMessage events); the FULL
+//       stacktrace is kept verbatim in `data`. trace_id correlates it with the
+//       logs/spans of the same request.
 //
 // Span `data` is a PLAIN object (NOT the log {value,type} wrapper) — it gets its
 // own flattener; the log unwrap is never applied to it.
@@ -264,6 +278,116 @@ function transactionRows(
   return out;
 }
 
+//* MARK: Events
+
+// Map an event `level` to the OTel severity_number, for parity with log rows
+// (which carry their own severity_number). Sentry levels: fatal/error/warning/
+// info/debug; we map the four that matter and floor the rest at 0.
+function levelToSeverity(level: string): number {
+  switch (level) {
+    case 'fatal':
+      return 21;
+    case 'error':
+      return 17;
+    case 'warning':
+      return 13;
+    case 'info':
+      return 9;
+    default:
+      return 0;
+  }
+}
+
+// Build an event row from a Sentry `{type:"event"}` payload (captureException /
+// captureMessage / unhandled errors / React error boundaries). The verbatim
+// event JSON — including the full `exception.values[].stacktrace` — is kept in
+// `data`; a small set of headline fields is surfaced into the flat `attrs`.
+function eventRow(
+  ev: Record<string, unknown>,
+  sdkName: string,
+  envTraceId: string,
+): ParsedLog {
+  const contexts = ev.contexts as Record<string, unknown> | undefined;
+  const trace = contexts?.trace as Record<string, unknown> | undefined;
+
+  // The innermost exception is LAST in Sentry's values[] ordering.
+  const values = (ev.exception as { values?: unknown[] } | undefined)?.values;
+  const lastExc =
+    Array.isArray(values) && values.length > 0
+      ? (values[values.length - 1] as Record<string, unknown> | undefined)
+      : undefined;
+
+  // msg: exception → "{type}: {value}"; message event → message/logentry; else event_id.
+  let msg: string;
+  if (lastExc && (lastExc.type !== undefined || lastExc.value !== undefined)) {
+    msg = `${strOr(lastExc.type, 'Error')}: ${strOr(lastExc.value, '')}`;
+  } else {
+    const logentry = ev.logentry as { formatted?: unknown } | undefined;
+    msg = strOr(ev.message ?? logentry?.formatted ?? ev.event_id, '');
+  }
+
+  const level = strOr(ev.level, '');
+
+  // Headline attrs: keep small + queryable. exception type/mechanism + the
+  // first in_app frame (the user's own code, where the error actually is).
+  const headline: Record<string, unknown> = {};
+  if (lastExc) {
+    if (lastExc.type !== undefined) headline.exception_type = lastExc.type;
+    const mech = lastExc.mechanism as Record<string, unknown> | undefined;
+    if (mech) {
+      if (mech.type !== undefined) headline.mechanism = mech.type;
+      if (mech.handled !== undefined) headline.handled = mech.handled;
+    }
+    const frames = (lastExc.stacktrace as { frames?: unknown[] } | undefined)?.frames;
+    if (Array.isArray(frames)) {
+      const top =
+        (frames.find((f) => f && (f as Record<string, unknown>).in_app === true) as
+          | Record<string, unknown>
+          | undefined) ?? undefined;
+      if (top) {
+        if (top.function !== undefined) headline.function = top.function;
+        if (top.filename !== undefined) headline.filename = top.filename;
+        if (top.lineno !== undefined) headline.lineno = top.lineno;
+      }
+    }
+  }
+  const culprit = ev.culprit ?? ev.transaction;
+  if (culprit !== undefined && culprit !== null) headline.culprit = culprit;
+
+  // Best-effort routing + tag from the event's `tags` object. Strip the routing
+  // hint from the persisted copy (consistent with toRow/spanRow).
+  const tags = ev.tags as Record<string, unknown> | undefined;
+  let routeDb: string | undefined;
+  let evForPersist: Record<string, unknown> = ev;
+  if (tags && ROUTE_DB_ATTR in tags) {
+    const v = tags[ROUTE_DB_ATTR];
+    if (typeof v === 'string' && v.length > 0) routeDb = v;
+    const { [ROUTE_DB_ATTR]: _drop, ...rest } = tags;
+    void _drop;
+    evForPersist = { ...ev, tags: rest };
+  }
+  const diagTag = (evForPersist.tags as Record<string, unknown> | undefined)?.['diag.tag'];
+
+  return {
+    ts: tsNum(ev.timestamp) ?? 0,
+    kind: 'event',
+    project: strOr((evForPersist.tags as Record<string, unknown> | undefined)?.['diag.project'], ''),
+    service: sdkName,
+    run_id: strOr((evForPersist.tags as Record<string, unknown> | undefined)?.['diag.run_id'], ''),
+    trace_id: strOr(trace?.trace_id ?? envTraceId, ''),
+    span_id: strOr(trace?.span_id, ''),
+    level,
+    severity_number: levelToSeverity(level),
+    logger: strOr(ev.logger ?? sdkName, ''),
+    msg,
+    data: JSON.stringify(evForPersist), // verbatim — incl. full stacktrace, minus routing key
+    attrs: Object.keys(headline).length === 0 ? null : JSON.stringify(headline),
+    tag: diagTag === undefined || diagTag === null ? null : String(diagTag),
+    duration_ms: null,
+    routeDb,
+  };
+}
+
 function tryParse(line: string): unknown | undefined {
   try {
     return JSON.parse(line);
@@ -345,7 +469,19 @@ export function parseEnvelope(raw: string): { rows: ParsedLog[]; skipped: number
       continue;
     }
 
-    // Any other item type (event, profile, session, ...) is ignored.
+    if (itemHeader.type === 'event') {
+      // An error/message event (captureException, captureMessage, unhandled
+      // errors, React error boundaries). Persisted as a single kind:'event'
+      // row carrying the full stacktrace verbatim in `data`.
+      if (payload && typeof payload === 'object') {
+        rows.push(eventRow(payload as Record<string, unknown>, sdkName, envTraceId));
+      } else {
+        skipped += 1; // event header but unusable payload
+      }
+      continue;
+    }
+
+    // Any other item type (profile, session, attachment, ...) is ignored.
   }
 
   return { rows, skipped };

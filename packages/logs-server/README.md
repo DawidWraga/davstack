@@ -4,7 +4,7 @@ Local Sentry-shaped app -> sqlite telemetry sink (logs **and** traces).
 
 ## Why
 
-- **E2E traceability.** Frontend + backend + workers POST to the same `.davstack/logs/default.db`; `trace_id` follows requests across services. Logs and trace spans land in one table, discriminated by a `kind` column (`'log' | 'span'`).
+- **E2E traceability.** Frontend + backend + workers POST to the same `.davstack/logs/default.db`; `trace_id` follows requests across services. Logs, trace spans, and error events land in one table, discriminated by a `kind` column (`'log' | 'span' | 'event'`).
 - **Zero infra.** Integrates into existing sentry logger client for auto-instrumentation and low effort setup. Set `tracesSampleRate` and spans flow into the same sink as logs — no extra wiring.
 - **Optimized for Agents.** Compact one-row-per-line by default — coding agents read it without grouping passes.
 
@@ -91,21 +91,36 @@ sqlite3 -header -column .davstack/logs/default.db "
 
 (Logs and spans share the `trace_id` column, so a single `WHERE trace_id = ?` slices the full request timeline across both.)
 
+6. Query error events — `kind='event'` rows are real exceptions (`Sentry.captureException`, unhandled errors, React error boundaries). The full stacktrace is in `data`; `exception_type`/`mechanism` are flattened into `attrs`.
+
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT ts, msg,
+         attrs->>'exception_type' AS type,
+         attrs->>'function'       AS fn,
+         attrs->>'filename'       AS file
+  FROM logs
+  WHERE kind = 'event'
+  ORDER BY ts DESC
+  LIMIT 10;
+"
+```
+
 ## Schema
 
 One `logs` table per session DB. Key columns:
 
-| column        | logs                     | spans (`kind='span'`)                         |
-| ------------- | ------------------------ | --------------------------------------------- |
-| `kind`        | `'log'`                  | `'span'`                                       |
-| `ts`          | log `timestamp`          | span `start_timestamp`                         |
-| `duration_ms` | `NULL`                   | `(timestamp - start_timestamp) * 1000`         |
-| `msg`         | log `body`               | span `description` \|\| `op` (root: tx name)   |
-| `level`       | OTel level               | `''`                                           |
-| `data`        | verbatim log item        | verbatim span / transaction-trace object       |
-| `attrs`       | flat attrs (unwrapped)   | flat span data + `op`/`status`/`parent_span_id`/`description`/`duration_ms` |
+| column        | logs                     | spans (`kind='span'`)                         | events (`kind='event'`)                        |
+| ------------- | ------------------------ | --------------------------------------------- | ---------------------------------------------- |
+| `kind`        | `'log'`                  | `'span'`                                       | `'event'`                                       |
+| `ts`          | log `timestamp`          | span `start_timestamp`                         | event `timestamp`                              |
+| `duration_ms` | `NULL`                   | `(timestamp - start_timestamp) * 1000`         | `NULL`                                          |
+| `msg`         | log `body`               | span `description` \|\| `op` (root: tx name)   | `"{type}: {value}"` (exc) \|\| `message`        |
+| `level`       | OTel level               | `''`                                           | event `level` (error/fatal/warning/info)       |
+| `data`        | verbatim log item        | verbatim span / transaction-trace object       | verbatim event (full `exception`/`stacktrace`) |
+| `attrs`       | flat attrs (unwrapped)   | flat span data + `op`/`status`/`parent_span_id`/`description`/`duration_ms` | `exception_type`/`mechanism`/`handled` + top `in_app` frame |
 
-A transaction event expands to one row per span: the root (from `contexts.trace`) plus one per `spans[]` child.
+A transaction event expands to one row per span: the root (from `contexts.trace`) plus one per `spans[]` child. An error/message event (`Sentry.captureException`, `captureMessage`, unhandled errors, React error boundaries) becomes one `kind='event'` row — the full stacktrace lives verbatim in `data`, and its `trace_id` correlates it with the logs/spans of the same request.
 
 ## Docs
 

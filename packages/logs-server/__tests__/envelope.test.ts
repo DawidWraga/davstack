@@ -84,13 +84,15 @@ test('missing optional fields default sanely; data still verbatim', () => {
   expect(JSON.parse(r.data)).toEqual(bare);
 });
 
-test('tolerant: non-log items ignored, malformed lines skipped, never throws', () => {
-  // envelope header, an `event` item (header+payload), a `log` item, then a
-  // malformed trailing line. Only the log records parse; nothing throws.
+test('tolerant: unknown items ignored, malformed lines skipped, never throws', () => {
+  // envelope header, an unknown `profile` item (header+payload), a `log` item,
+  // then a malformed trailing line. Only the log records parse; nothing throws.
+  // (`event` items ARE persisted now — see the Events section below; this case
+  // uses `profile` to exercise the genuinely-ignored branch.)
   const raw = [
     JSON.stringify({ sdk: { name: 'sentry.javascript.browser', version: '9.41.0' } }),
-    JSON.stringify({ type: 'event', content_type: 'application/json' }),
-    JSON.stringify({ message: 'an error event, not a log' }),
+    JSON.stringify({ type: 'profile', content_type: 'application/json' }),
+    JSON.stringify({ profile: 'not handled' }),
     JSON.stringify({ type: 'log', item_count: 1, content_type: 'application/vnd.sentry.items.log+json' }),
     JSON.stringify({ items: [log({ body: 'the real log' })] }),
     '{ this is not json',
@@ -493,4 +495,204 @@ test('back-compat: a mixed envelope (log item + transaction item) yields both ki
   const logRow = rows.find((r) => r.kind === 'log')!;
   expect(logRow.msg).toBe('a log line');
   expect(logRow.duration_ms).toBeNull();
+});
+
+//* MARK: Events (exceptions)
+
+// Real error/message events. Both fixtures below are the verbatim payloads
+// captured live from @sentry/node 10.16.0 (a custom transport dumped the
+// serialized envelope from Sentry.captureException / Sentry.captureMessage —
+// real wire, not a guess). Sentry packages an exception as a `{type:"event"}`
+// item whose payload carries `exception.values[].stacktrace` + mechanism; a
+// captureMessage event carries a top-level `message`. Both were silently
+// dropped before — this is the whole reason errors never reached the sink.
+
+// The captured exception event. One added frame has in_app:true (the captured
+// frames were all in_app:false because the probe ran inside node_modules) so
+// the headline-frame attr is exercised against a realistic shape.
+function exceptionEvent(over: Record<string, unknown> = {}) {
+  return {
+    exception: {
+      values: [
+        {
+          type: 'TypeError',
+          value: "Cannot read properties of undefined (reading 'id')",
+          stacktrace: {
+            frames: [
+              {
+                filename: 'node:internal/modules/run_main',
+                module: 'run_main',
+                function: 'asyncRunEntryPointWithESMLoader',
+                lineno: 101,
+                colno: 5,
+                in_app: false,
+              },
+              {
+                filename: 'src/server/handler.ts',
+                module: 'handler',
+                function: 'loadUser',
+                lineno: 42,
+                colno: 9,
+                in_app: true,
+              },
+            ],
+          },
+          mechanism: { type: 'generic', handled: true },
+        },
+      ],
+    },
+    event_id: 'bcfa99a9ca694e69b484691dc8cf4f20',
+    level: 'error',
+    platform: 'node',
+    contexts: {
+      trace: {
+        trace_id: 'd7bb35a9330f4576938454c270be61b2',
+        span_id: '94a0c549144838cb',
+      },
+      runtime: { name: 'node', version: 'v24.13.0' },
+    },
+    server_name: 'dawid-laptop',
+    timestamp: 1780505594.791,
+    environment: 'production',
+    sdk: {
+      name: 'sentry.javascript.node',
+      version: '10.16.0',
+      integrations: [],
+      packages: [{ name: 'npm:@sentry/node', version: '10.16.0' }],
+    },
+    ...over,
+  };
+}
+
+// The captured captureMessage event (no exception, top-level `message`).
+function messageEvent(over: Record<string, unknown> = {}) {
+  return {
+    event_id: 'b00c74f911c1490ba300541b0db3a0cc',
+    level: 'warning',
+    message: 'something noteworthy happened',
+    platform: 'node',
+    contexts: {
+      trace: {
+        trace_id: 'd7bb35a9330f4576938454c270be61b2',
+        span_id: '9e620021461e3a30',
+      },
+      runtime: { name: 'node', version: 'v24.13.0' },
+    },
+    server_name: 'dawid-laptop',
+    timestamp: 1780505594.798,
+    environment: 'production',
+    sdk: { name: 'sentry.javascript.node', version: '10.16.0' },
+    ...over,
+  };
+}
+
+// An `{type:"event"}` envelope (item header + payload), modelled on the real wire.
+function eventEnvelope(ev: Record<string, unknown>, sdkName = 'sentry.javascript.node') {
+  return [
+    JSON.stringify({
+      sdk: { name: sdkName, version: '10.16.0' },
+      trace: { trace_id: 'd7bb35a9330f4576938454c270be61b2' },
+    }),
+    JSON.stringify({ type: 'event' }),
+    JSON.stringify(ev),
+  ].join('\n');
+}
+
+test('an exception event is persisted as a single kind:"event" row', () => {
+  const { rows, skipped } = parseEnvelope(eventEnvelope(exceptionEvent()));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  const r = rows[0];
+  expect(r.kind).toBe('event');
+  // msg = "{type}: {value}" of the LAST (innermost) exception value
+  expect(r.msg).toBe("TypeError: Cannot read properties of undefined (reading 'id')");
+  expect(r.level).toBe('error');
+  expect(r.severity_number).toBe(17); // OTel error
+  expect(r.trace_id).toBe('d7bb35a9330f4576938454c270be61b2');
+  expect(r.span_id).toBe('94a0c549144838cb');
+  expect(r.service).toBe('sentry.javascript.node');
+  expect(r.duration_ms).toBeNull();
+  expect(r.ts).toBe(1780505594.791);
+});
+
+test('the full stacktrace/exception survives verbatim in data', () => {
+  const { rows } = parseEnvelope(eventEnvelope(exceptionEvent()));
+  const data = JSON.parse(rows[0].data) as Record<string, any>;
+  // the whole exception object round-trips deep-equal (this is the payload that
+  // was being dropped before — the stacktrace must be intact)
+  expect(data.exception).toEqual(exceptionEvent().exception);
+  expect(data.exception.values[0].stacktrace.frames).toHaveLength(2);
+});
+
+test('event attrs surface queryable headline fields (type, mechanism, top in_app frame)', () => {
+  const { rows } = parseEnvelope(eventEnvelope(exceptionEvent()));
+  const attrs = JSON.parse(rows[0].attrs as string) as Record<string, unknown>;
+  expect(attrs.exception_type).toBe('TypeError');
+  expect(attrs.handled).toBe(true);
+  expect(attrs.mechanism).toBe('generic');
+  // the FIRST in_app frame is surfaced as the headline frame
+  expect(attrs.function).toBe('loadUser');
+  expect(attrs.filename).toBe('src/server/handler.ts');
+  expect(attrs.lineno).toBe(42);
+});
+
+test('a captureMessage event yields kind:"event", msg = the message', () => {
+  const { rows, skipped } = parseEnvelope(eventEnvelope(messageEvent()));
+  expect(skipped).toBe(0);
+  expect(rows).toHaveLength(1);
+  const r = rows[0];
+  expect(r.kind).toBe('event');
+  expect(r.msg).toBe('something noteworthy happened');
+  expect(r.level).toBe('warning');
+  expect(r.severity_number).toBe(13); // OTel warning
+  expect(r.trace_id).toBe('d7bb35a9330f4576938454c270be61b2');
+});
+
+test('event trace_id falls back to the envelope header when contexts.trace is absent', () => {
+  const ev = messageEvent();
+  delete (ev as Record<string, unknown>).contexts;
+  const { rows } = parseEnvelope(eventEnvelope(ev));
+  expect(rows[0].trace_id).toBe('d7bb35a9330f4576938454c270be61b2'); // from header trace
+  expect(rows[0].span_id).toBe('');
+});
+
+test('a degenerate event (no exception, no message) falls back to event_id for msg', () => {
+  const bare = { event_id: 'deadbeef', level: 'info', timestamp: 1.0 };
+  const { rows, skipped } = parseEnvelope(eventEnvelope(bare));
+  expect(skipped).toBe(0);
+  expect(rows[0].kind).toBe('event');
+  expect(rows[0].msg).toBe('deadbeef');
+  expect(rows[0].severity_number).toBe(9); // info
+});
+
+test('a malformed event payload is skipped, never throws, sibling log survives', () => {
+  const raw = [
+    JSON.stringify({ sdk: { name: 'sentry.javascript.node', version: '10.16.0' } }),
+    JSON.stringify({ type: 'event' }),
+    JSON.stringify('not-an-event-object'),
+    JSON.stringify({ type: 'log', item_count: 1, content_type: 'application/vnd.sentry.items.log+json' }),
+    JSON.stringify({ items: [log({ body: 'the surviving log' })] }),
+  ].join('\n');
+  let result: ReturnType<typeof parseEnvelope> | undefined;
+  expect(() => {
+    result = parseEnvelope(raw);
+  }).not.toThrow();
+  expect(result!.skipped).toBe(1);
+  expect(result!.rows).toHaveLength(1);
+  expect(result!.rows[0].kind).toBe('log');
+});
+
+test('event routing: davstack-logs.db hint is honored and stripped from data', () => {
+  const ev = exceptionEvent({ tags: { 'davstack-logs.db': 'crash-bug', feature: 'checkout' } });
+  const { rows } = parseEnvelope(eventEnvelope(ev));
+  expect(rows[0].routeDb).toBe('crash-bug');
+  const data = JSON.parse(rows[0].data) as { tags: Record<string, unknown> };
+  expect(data.tags['davstack-logs.db']).toBeUndefined();
+  expect(data.tags.feature).toBe('checkout'); // siblings preserved
+});
+
+test('event tag is pulled from tags.diag.tag (best-effort), null otherwise', () => {
+  const tagged = exceptionEvent({ tags: { 'diag.tag': 'H4' } });
+  expect(parseEnvelope(eventEnvelope(tagged)).rows[0].tag).toBe('H4');
+  expect(parseEnvelope(eventEnvelope(exceptionEvent())).rows[0].tag).toBeNull();
 });

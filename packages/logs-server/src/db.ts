@@ -8,7 +8,7 @@ import { Database } from 'bun:sqlite';
 export type LogRow = {
   ts: number; // client timestamp (Sentry log `timestamp` / span `start_timestamp`, seconds float)
   recv_ts: number; // server receive time, ms epoch (clock-skew-safe vs client `ts`)
-  kind: 'log' | 'span'; // row discriminator: a log record or a trace span
+  kind: 'log' | 'span' | 'event'; // row discriminator: a log record, a trace span, or an error/message event (free-text TEXT col, no CHECK — no migration needed)
   project: string; // diag.project attribute (cwd/repo key)
   service: string; // envelope sdk.name
   run_id: string; // diag.run_id attribute
