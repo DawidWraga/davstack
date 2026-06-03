@@ -1,5 +1,31 @@
 # @davstack/logs-server
 
+## 2.8.0
+
+### Minor Changes
+
+- d509ee3: Add the `clean` verb + daemon auto-clean to bound the working DB.
+
+  - `clean` CLI verb: full sweep by default (drop all rows for a fresh slate) or `--window <dur>` for a retention sweep (drop rows older than the cutoff by `recv_ts`). `--mode archive|delete`. Both `VACUUM` afterward so the file actually shrinks, then best-effort `/__refresh` the daemon so its cached handle picks up the rewritten file.
+  - `archive` mode (default) writes a self-contained, Brotli-compressed SQL dump of the targeted rows to `<logsDir>/archive/<ts>.sql.br` before deleting — lossless, zero new dependency.
+  - Config keys: `autoCleanInterval` (daemon sweep cadence; unset → off), `autoCleanWindow` (retention, default `"24h"`), `cleaningMode` (default `"archive"`).
+  - Daemon owns an auto-clean timer that runs a windowed sweep on its own handle, with an overlap guard.
+
+- ddc0785: Ingest Sentry `event` envelope items (real exceptions) as a new `kind:'event'` row.
+
+  Previously the parser persisted only `log`, `transaction`, and `span` items — Sentry packages a real exception (`captureException`, unhandled rejections, React error boundaries, automatic capture) as an envelope item of `type:"event"`, which was silently dropped. So local error events vanished; only error-_level_ console logs survived.
+
+  The parser now ingests `type:"event"` items and persists them discriminably as `kind:'event'`:
+
+  - **msg**: `"{type}: {value}"` of the innermost `exception.values[]` entry; `message`/`logentry.formatted` for `captureMessage`; falls back to `event_id`.
+  - **level** + **severity_number**: from `event.level`, mapped to OTel (fatal=21, error=17, warning=13, info=9).
+  - **trace_id**/**span_id**: from `contexts.trace` (header `trace.trace_id` fallback), so events correlate with logs/spans of the same request.
+  - **data**: the verbatim event JSON — the full `exception`/`stacktrace` is kept intact.
+  - **attrs**: headline fields (`exception_type`, `mechanism`, `handled`, `culprit`, top `in_app` frame).
+  - Honors the `davstack-logs.db` routing hint and `diag.tag` from the event's `tags`.
+
+  No DB migration needed — `kind` is a free-text column.
+
 ## 2.7.2
 
 ### Patch Changes
