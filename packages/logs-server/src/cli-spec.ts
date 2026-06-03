@@ -253,6 +253,36 @@ export const cliSpec: CliSpec = {
         }
       },
     },
+    view: {
+      description:
+        'Render one trace as a nested waterfall, or scan recent traces (--list / --cross for cross-runtime propagation). Writes Markdown to .davstack/view.md (wide tables wrap badly in a terminal); --stdout to print instead.',
+      positionals: [{ name: 'trace_id', required: false, description: 'Trace to render (omit with --list / --cross)' }],
+      flags: {
+        db: dbFlag(),
+        list: { type: 'boolean', default: false, description: 'List N most-recent traces' },
+        cross: { type: 'boolean', default: false, description: 'Scan recent traces for ones spanning >1 runtime' },
+        n: { type: 'number', description: 'Count for --list (default 20) / --cross (default 200)' },
+        limit: { type: 'number', description: 'Cap rows in a waterfall' },
+        ids: { type: 'boolean', default: false, description: 'Add span_id / parent columns (propagation debugging)' },
+        out: { type: 'string', description: 'Output path (default .davstack/view.md)' },
+        stdout: { type: 'boolean', default: false, description: 'Print to stdout instead of writing a file' },
+      },
+      run: async (ctx) => {
+        const { runView } = await import('./view.js');
+        return runView({
+          trace: ctx.positionals[0],
+          list: ctx.flags.list as boolean,
+          cross: ctx.flags.cross as boolean,
+          n: ctx.flags.n as number | undefined,
+          limit: ctx.flags.limit as number | undefined,
+          ids: ctx.flags.ids as boolean,
+          out: ctx.flags.out as string | undefined,
+          stdout: ctx.flags.stdout as boolean,
+          db: ctx.flags.db as string | undefined,
+          cwd: process.cwd(),
+        });
+      },
+    },
     doctor: doctorSpec,
     check: {
       ...doctorSpec,
