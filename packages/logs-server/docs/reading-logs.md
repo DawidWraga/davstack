@@ -141,3 +141,70 @@ sqlite3 -header -column .davstack/logs/default.db "
 "
 ```
 
+## Spans: transaction metadata + the tree
+
+We do NOT duplicate transaction-level metadata onto every span. It is stored
+ONCE on the **ROOT span row** (the segment — the row whose `parent_span_id` is
+empty / not present in the trace), and nesting is reconstructed on demand. There
+is no SQL view for the tree; this CTE (and `titanium/scripts/trace-view.ts`) IS
+the view substitute.
+
+### Root-only metadata keys (in `attrs`)
+
+Stamped onto the root span row only, by `transactionRows()` in `src/envelope.ts`:
+
+| key                    | source                       | notes                          |
+|------------------------|------------------------------|--------------------------------|
+| `measurement.lcp`      | `event.measurements.lcp`     | web vital, **value only**, ms  |
+| `measurement.fcp`      | `event.measurements.fcp`     | ms                             |
+| `measurement.ttfb`     | `event.measurements.ttfb`    | ms                             |
+| `measurement.inp`      | `event.measurements.inp`     | ms                             |
+| `measurement.cls`      | `event.measurements.cls`     | unitless                       |
+| `measurement.<other>`  | `event.measurements.<k>`     | any vital Sentry sends         |
+| `request.url`          | `event.request.url`          | bug-repro context              |
+| `request.method`       | `event.request.method`       | bug-repro context              |
+
+```bash
+# Web vitals for a trace (read off the root span row)
+sqlite3 -header -column .davstack/logs/default.db "
+  SELECT attrs->>'measurement.lcp'  AS lcp_ms,
+         attrs->>'measurement.cls'  AS cls,
+         attrs->>'measurement.inp'  AS inp_ms,
+         attrs->>'request.url'      AS url
+  FROM logs
+  WHERE kind = 'span'
+    AND trace_id = '<trace_id>'
+    AND COALESCE(attrs->>'parent_span_id','') = '';
+"
+```
+
+### Reconstruct the span tree (recursive CTE)
+
+`parent_span_id` is surfaced into `attrs` for each span. Walk it from the roots
+to get depth + a materialised path, ordered depth-first — the same shape the
+`trace-view.ts` waterfall renders.
+
+```bash
+sqlite3 -header -column .davstack/logs/default.db "
+  WITH RECURSIVE tree AS (
+    -- roots: spans with no resolvable parent in this trace
+    SELECT id, span_id, attrs->>'parent_span_id' AS parent,
+           0 AS depth, printf('%010d', id) AS path, msg, duration_ms
+    FROM logs
+    WHERE kind = 'span' AND trace_id = '<trace_id>'
+      AND COALESCE(attrs->>'parent_span_id','') = ''
+    UNION ALL
+    SELECT c.id, c.span_id, c.attrs->>'parent_span_id',
+           t.depth + 1, t.path || '.' || printf('%010d', c.id), c.msg, c.duration_ms
+    FROM logs c
+    JOIN tree t ON c.attrs->>'parent_span_id' = t.span_id
+    WHERE c.kind = 'span' AND c.trace_id = '<trace_id>'
+  )
+  SELECT depth,
+         substr('                    ', 1, depth*2) || msg AS tree,
+         round(duration_ms) AS dur_ms
+  FROM tree
+  ORDER BY path;
+"
+```
+
