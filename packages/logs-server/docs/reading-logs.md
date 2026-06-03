@@ -8,6 +8,17 @@ sqlite3 -header -column .davstack/logs/default.db "<SQL>"
 
 `-header` prints column names, `-column` aligns the output as a table.
 
+## `sqlite3` vs `view` — when to write a file
+
+Default to **`sqlite3`** (or `logs-server view --stdout`) for your own investigation —
+querying answers a question without leaving an artifact behind. The `view` command's
+**file output (`.davstack/view.md`) is for handing a rendered trace to a human** to
+read in their editor; reach for it only when you're actually presenting a trace, not
+for every lookup. Don't generate a Markdown file per query — that litters the repo.
+
+- Agent self-service / a quick check → `sqlite3 …` or `view <trace> --stdout`.
+- Showing a person a trace waterfall → `view <trace>` (writes `.davstack/view.md`).
+
 ## Sessions
 
 The daemon writes one file per "session" under `.davstack/logs/` based on --db tag:
@@ -41,7 +52,10 @@ logs(
   msg             TEXT,     -- Sentry log body, ANSI prefix stripped
   data            TEXT,     -- raw Sentry log record JSON, verbatim
   attrs           TEXT,     -- flat {key: value} JSON, OTel {value,type} wrapper stripped (NULL when no attributes)
-  tag             TEXT      -- promoted from data.attributes['diag.tag'].value (nullable)
+  tag             TEXT,     -- promoted from data.attributes['diag.tag'].value (nullable)
+  kind            TEXT,     -- row discriminator: 'log' | 'span' | 'event'
+  duration_ms     REAL,     -- span headline metric ((end-start)*1000); NULL for logs
+  runtime         TEXT      -- emitting runtime ('browser'|'node'|'edge'), stamped by the consumer; NULL when absent
 )
 ```
 
@@ -146,7 +160,7 @@ sqlite3 -header -column .davstack/logs/default.db "
 We do NOT duplicate transaction-level metadata onto every span. It is stored
 ONCE on the **ROOT span row** (the segment — the row whose `parent_span_id` is
 empty / not present in the trace), and nesting is reconstructed on demand. There
-is no SQL view for the tree; this CTE (and `titanium/scripts/trace-view.ts`) IS
+is no SQL view for the tree; this CTE (and the `logs-server view` CLI) IS
 the view substitute.
 
 ### Root-only metadata keys (in `attrs`)
@@ -182,7 +196,7 @@ sqlite3 -header -column .davstack/logs/default.db "
 
 `parent_span_id` is surfaced into `attrs` for each span. Walk it from the roots
 to get depth + a materialised path, ordered depth-first — the same shape the
-`trace-view.ts` waterfall renders.
+`logs-server view` waterfall renders.
 
 ```bash
 sqlite3 -header -column .davstack/logs/default.db "
