@@ -4,6 +4,7 @@ export default defineConfig({
 	entry: {
 		index: "src/index.ts",
 		config: "src/config.ts",
+		sink: "src/sink.ts",
 	},
 	format: ["esm"],
 	target: "node20",

@@ -1,5 +1,13 @@
 # @davstack/logs-server
 
+## 2.10.0
+
+### Minor Changes
+
+- Add a `./sink` programmatic embedding entry point.
+
+  `@davstack/logs-server/sink` re-exports the existing in-process ingest primitives (`openDb`, `handleIngest`, `dispatchIngest`, `insertLogs`, `selectByTrace`, `parseEnvelope`, `decodeBody`, plus the `LogRow`/`IngestResult`/`ParsedLog` types) so a consumer can persist Sentry telemetry to a sink SQLite file in-process — no HTTP daemon, no network. Purely additive: the CLI/daemon/server/ingest logic is unchanged; this is a new side-effect-free export surface only.
+
 ## 2.9.1
 
 ### Patch Changes
