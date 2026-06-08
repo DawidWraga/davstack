@@ -143,9 +143,6 @@ export function sweepDotTest(repoPath: string, before: DotTestState | null): voi
   if (isGitTracked(repoPath, DOTTEST)) return; // committed (degenerate) — leave it
   try {
     unlinkSync(join(repoPath, DOTTEST));
-    process.stderr.write(
-      `open-agents: swept stray 0-byte ${DOTTEST} (cursor-agent Windows probe litter)\n`,
-    );
   } catch {
     /* best-effort */
   }

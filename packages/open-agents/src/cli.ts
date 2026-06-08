@@ -13,6 +13,7 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agyAdapter } from './adapters/agy.js';
@@ -145,6 +146,17 @@ function pickProfile(flags: Flags): Profile {
 const SHELL_HOSTILE = /[\n"'`$();|&<>]/;
 const COMPACT_TAIL_TOKENS = 50000;
 
+function userPath(path: string): string {
+  const home = homedir();
+  const normalized = path.replace(/\\/g, '/');
+  const normalizedHome = home.replace(/\\/g, '/');
+  if (normalized === normalizedHome) return '~';
+  if (normalized.startsWith(`${normalizedHome}/`)) {
+    return `~/${normalized.slice(normalizedHome.length + 1)}`;
+  }
+  return normalized;
+}
+
 function compactHistoryFile(flags: Flags): string {
   const historyFile = resolveCompactHistoryFile({ historyFile: flags.historyFile });
   if (!historyFile) {
@@ -208,7 +220,9 @@ async function generateCompactSpec(input: {
     `open-agents: compact-mode spec writer running (${adapter.name}, ${model}, ${history.tailTokens} history tokens) ...\n`,
   );
   const preToken = adapter.preSpawn(input.repoPath);
+  const specStartedAt = Date.now();
   await runJob({ adapter, profile: specWriterProfile }, input.repoPath, id);
+  const specElapsedSec = Math.round((Date.now() - specStartedAt) / 1000);
   adapter.postExit(input.repoPath, preToken);
   const job = readJob(input.repoPath, id);
   if (!job || job.status !== 'done') {
@@ -218,7 +232,9 @@ async function generateCompactSpec(input: {
   if (!generated || generated === '(no final message captured)') {
     throw new Error(`compact-mode spec writer produced no spec: ${id}`);
   }
-  process.stderr.write(`open-agents: compact-mode generated spec ${id} (${generated.length} chars)\n`);
+  process.stderr.write(
+    `open-agents: compact-mode generated spec ${id} in ${specElapsedSec}s (${generated.length} chars) -> ${userPath(job.resultPath || '')}\n`,
+  );
   return generated;
 }
 
