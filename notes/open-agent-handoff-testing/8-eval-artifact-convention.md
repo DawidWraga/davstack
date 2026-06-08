@@ -8,10 +8,42 @@ per run: inputs, outputs, job metadata, scores, and notes.
 
 ## Current Convention
 
-Ignored local eval artifacts live under:
+Ignored local eval artifacts live under one folder per run:
 
 ```text
-.davstack/evals/runs/<run-id>/artifacts/
+.davstack/evals/runs/<run-id>/
+```
+
+Each run folder should be self-contained enough to inspect later without knowing
+which global history files, open-agents job files, or fixture cache were used.
+
+Preferred layout:
+
+```text
+.davstack/evals/runs/<run-id>/
+  promptfoo-results.json
+  run.json
+  manual-review.json
+  score.md
+  history/
+    related-history.jsonl
+    recent-tail.txt
+    source-pointer.txt
+  inputs/
+    variant-a.md
+    variant-b.md
+    variant-c.md
+  outputs/
+    variant-a.md
+    variant-b.md
+    variant-c.md
+  jobs/
+    variant-a.job.json
+    variant-b.job.json
+    variant-c.job.json
+  artifacts/
+    citation-checks.json
+    diff-summary.json
 ```
 
 Promptfoo should own the primary machine-readable result file:
@@ -26,16 +58,17 @@ inventing a separate score format.
 For a manual comparison run, store:
 
 ```text
-score.md
-scores.json
 promptfoo-results.json
-variant-a-input.md
-variant-a-output.md
-variant-a-job.json
-variant-b-input.md
-variant-b-output.md
-variant-b-job.json
-related-history.jsonl
+manual-review.json
+score.md
+history/related-history.jsonl
+history/recent-tail.txt
+inputs/variant-a.md
+inputs/variant-b.md
+outputs/variant-a.md
+outputs/variant-b.md
+jobs/variant-a.job.json
+jobs/variant-b.job.json
 ```
 
 The fixture checkout can live beside `artifacts/` while the run is being scored:
@@ -47,6 +80,25 @@ The fixture checkout can live beside `artifacts/` while the run is being scored:
 That checkout is noisy, but useful for clickable citation verification. Once a
 run is scored, we can either keep the checkout temporarily or delete it and rely
 on the pinned commit plus copied outputs.
+
+## History Snapshots
+
+If a variant uses history/context from outside the run folder, copy the exact
+material into the run folder before launching the agent.
+
+Examples:
+
+- related synthetic Claude-history-shaped JSONL;
+- redacted excerpts from `~/.claude/history.jsonl`;
+- Cursor/agent chat exports, if used;
+- a recent-tail text file;
+- a `source-pointer.txt` file naming the original source path, timestamp, and
+  redaction/sampling rule.
+
+Do not make later review depend on mutable global files such as
+`~/.claude/history.jsonl` or Cursor history databases. The run should contain
+the exact history bytes the agent saw, or a clear statement that no history was
+provided.
 
 ## What Gets Committed
 
@@ -71,6 +123,7 @@ Do not commit:
 The Promptfoo provider should write this artifact bundle automatically:
 
 - copy final prompt/spec for each variant;
+- copy any history/context files used by that variant;
 - copy open-agents result;
 - copy job JSON;
 - run citation-range validation;
