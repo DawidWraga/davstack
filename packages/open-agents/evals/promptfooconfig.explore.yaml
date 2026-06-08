@@ -1,0 +1,92 @@
+description: Open-agents handoff explore eval with LLM-as-judge grading
+
+prompts:
+  - file://prompts/a-main-agent-spec.md
+  - file://prompts/b-title-tail-history.md
+  - file://prompts/c-spec-writer-title-tail-history.md
+
+providers:
+  - 'exec: node ./scripts/promptfoo-provider.mjs'
+
+tests:
+  - vars:
+      fixture: nextbase-supabase-starter
+      scenario: explore-private-items
+      tailChars: 50000
+      goal: In the pinned Supabase starter fixture, trace how the private-items CRUD flow is structured from route/page entry points through server/data access and Supabase calls. Cite relevant files and lines. Do not modify files.
+      context: Trace route/page entry points, server/data access, and Supabase client calls for private-items CRUD.
+      historyPointer: not wired.
+    assert:
+      - type: contains
+        value: 'private'
+      - type: contains
+        value: 'Supabase'
+      - type: javascript
+        metric: citation_format
+        value: |
+          return /[\w./-]+\.\w+:(?:L)?\d+/.test(output);
+
+      - type: llm-rubric
+        metric: coverage
+        threshold: 0.7
+        provider: file://scripts/promptfoo-grader-provider.mjs
+        value: |
+          Score coverage from 0.0 to 1.0:
+          1.0 = identifies all important implementation areas needed for the task.
+          0.7 = covers the main implementation path but misses minor useful details.
+          0.4 = partial answer; misses important modules or relationships.
+          0.0 = mostly unrelated or not enough detail to act.
+
+          Judge only the candidate answer. The answer was generated against the checked-out fixture repository, not this runner workspace.
+
+      - type: llm-rubric
+        metric: usefulness
+        threshold: 0.7
+        provider: file://scripts/promptfoo-grader-provider.mjs
+        value: |
+          Score usefulness from 0.0 to 1.0:
+          1.0 = a developer could confidently use this to make the next decision.
+          0.7 = useful with small follow-up inspection.
+          0.4 = somewhat useful but requires substantial rework.
+          0.0 = not useful.
+
+          Judge only the candidate answer. The answer was generated against the checked-out fixture repository, not this runner workspace.
+
+      - type: llm-rubric
+        metric: hallucination_safety
+        threshold: 0.8
+        provider: file://scripts/promptfoo-grader-provider.mjs
+        value: |
+          Score hallucination safety from 0.0 to 1.0:
+          1.0 = claims are grounded in cited files or clearly marked as inference.
+          0.7 = mostly grounded, with minor uncited claims.
+          0.4 = several unsupported claims.
+          0.0 = fabricates files, APIs, behavior, or line numbers.
+
+          Judge only the candidate answer. Do not assume claims are correct just because they sound plausible.
+
+      - type: llm-rubric
+        metric: citation_quality
+        threshold: 0.7
+        provider: file://scripts/promptfoo-grader-provider.mjs
+        value: |
+          Score citation quality from 0.0 to 1.0:
+          1.0 = references are precise and relevant to the claims they support.
+          0.7 = references are mostly useful but might miss minor details or include slight misalignment.
+          0.4 = many references are vague, misplaced, or missing for key statements.
+          0.0 = no citations or completely unhelpful citations.
+
+          Judge only the candidate answer. The fixture checkout is separate from this runner workspace.
+
+      - type: llm-rubric
+        metric: actionability
+        threshold: 0.7
+        provider: file://scripts/promptfoo-grader-provider.mjs
+        value: |
+          Score actionability from 0.0 to 1.0:
+          1.0 = provides clear, concrete next steps or precise code locations so a developer or agent can act immediately.
+          0.7 = suggests concrete next steps but requires some interpretation.
+          0.4 = broad suggestions without clear instructions or code locations.
+          0.0 = vague, generic advice that cannot be directly acted upon.
+
+          Judge only the candidate answer.

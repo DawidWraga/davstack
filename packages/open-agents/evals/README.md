@@ -35,6 +35,10 @@ The package script writes Promptfoo JSON to:
 .davstack/evals/runs/smoke/promptfoo-results.json
 ```
 
+The wrapper passes `--no-cache` to Promptfoo because the provider creates local
+case artifacts as side effects. Cached Promptfoo results can otherwise report a
+pass without creating the corresponding `cases/` folders.
+
 Provider artifacts are grouped by case:
 
 ```text
@@ -56,6 +60,30 @@ For a named run:
 ```sh
 pnpm --filter @davstack/open-agents eval -- --run-id=first-explore
 ```
+
+## Explore + LLM Judge Eval
+
+The real explore eval is intentionally separate from smoke because it launches
+agents and judge calls:
+
+```sh
+pnpm --filter @davstack/open-agents eval:explore
+```
+
+It uses `promptfooconfig.explore.yaml`, keeps explore checkouts for later
+inspection, and grades subjective dimensions through
+`scripts/promptfoo-grader-provider.mjs`.
+
+Gemini judge knobs:
+
+```sh
+OPEN_AGENTS_EVAL_GRADER_MODEL=gemini-3.1-flash-lite-preview
+OPEN_AGENTS_EVAL_GRADER_TIMEOUT_MS=120000
+GEMINI_CLI_BIN=/path/to/gemini
+```
+
+The grader resolves the installed `@google/gemini-cli` bundle on Windows before
+falling back to `gemini` on PATH.
 
 ## Fixture Prep
 

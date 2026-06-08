@@ -30,8 +30,14 @@ const variant = /Variant B/.test(prompt)
   : /Variant C/.test(prompt)
     ? 'c-spec-writer-title-tail-history'
     : 'a-main-agent-spec';
+const safeSegment = (value) =>
+  String(value)
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^-|-$/g, '');
+const scenarioId = safeSegment(scenario);
+const variantId = safeSegment(variant);
 const runPath = join(repoRoot, '.davstack', 'evals', 'runs', runId);
-const casePath = join(runPath, 'cases', variant);
+const casePath = join(runPath, 'cases', scenarioId, variantId);
 
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
@@ -53,7 +59,7 @@ try {
   const prepared = prepareFixture({
     fixture,
     runId,
-    variant,
+    variant: `${scenarioId}-${variantId}`,
     workRoot: options.workRoot,
     fresh: true,
     quiet: true,
@@ -69,30 +75,45 @@ try {
   const isSmoke = scenario === 'fixture-prepare-smoke';
 
   if (!isSmoke) {
-    const exploreBin = resolve(repoRoot, 'packages', 'open-agents', 'bin', 'explore.mjs');
-    const resultRun = spawnSync('node', [
-      exploreBin,
-      'submit',
-      '--cwd', prepared.checkoutPath,
-      '--file', join(casePath, 'input.md'),
-      '--provider', 'gemini'
-    ], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-    });
+    const exploreEntry = resolve(repoRoot, 'packages', 'open-agents', 'src', 'entrypoints', 'explore.ts');
+    const agentProvider =
+      vars.agentProvider || options.agentProvider || process.env.OPEN_AGENTS_EVAL_AGENT_PROVIDER || 'gemini';
+    const resultRun = spawnSync(
+      'bun',
+      [
+        exploreEntry,
+        'submit',
+        '--cwd',
+        prepared.checkoutPath,
+        '--file',
+        join(casePath, 'input.md'),
+        '--provider',
+        agentProvider,
+      ],
+      {
+        encoding: 'utf8',
+        shell: false,
+        timeout: Number(process.env.OPEN_AGENTS_EVAL_AGENT_TIMEOUT_MS || options.agentTimeoutMs || 600000),
+      },
+    );
 
-    agentExitCode = resultRun.status ?? 0;
+    agentExitCode = resultRun.status ?? (resultRun.error || resultRun.signal ? 1 : 0);
     const stdout = resultRun.stdout || '';
     const match = stdout.match(/RESULT_PATH:\s*(.+)/);
     if (match && match[1]) {
       const resultPath = match[1].trim();
       if (existsSync(resultPath)) {
         agentText = readFileSync(resultPath, 'utf8');
-        writeFileSync(join(casePath, 'output.md'), agentText);
+      } else {
+        agentText = `Agent reported missing result path: ${resultPath}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${resultRun.stderr || ''}`;
       }
     } else {
-      agentText = `Agent run failed with exit code ${agentExitCode}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${resultRun.stderr || ''}`;
+      agentText =
+        `Agent run failed with exit code ${agentExitCode}` +
+        (resultRun.error ? ` (${resultRun.error.message})` : '') +
+        `\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${resultRun.stderr || ''}`;
     }
+    writeFileSync(join(casePath, 'output.md'), agentText);
 
     // Check if any files were changed in the checkout path
     const gitStatus = spawnSync('git', ['status', '--porcelain'], {
@@ -110,7 +131,7 @@ try {
     fixture,
     scenario,
     variant,
-    caseId: variant,
+    caseId: `${scenarioId}/${variantId}`,
     promptChars: prompt.length,
     checkoutPath: prepared.checkoutPath,
     commit: prepared.actualCommit,
@@ -148,7 +169,9 @@ try {
   writeJson(join(casePath, 'manual-review.json'), blankManualReview());
 
   if (!keepRun && prepared.ok) {
-    rmSync(prepared.checkoutPath, { recursive: true, force: true });
+    if (isSmoke) {
+      rmSync(prepared.checkoutPath, { recursive: true, force: true });
+    }
   }
 
   if (isSmoke) {
@@ -162,7 +185,7 @@ try {
     fixture,
     scenario,
     variant,
-    caseId: variant,
+    caseId: `${scenarioId}/${variantId}`,
     promptChars: prompt.length,
     error: error instanceof Error ? error.message : String(error),
   };

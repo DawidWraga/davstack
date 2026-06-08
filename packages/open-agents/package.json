@@ -9,7 +9,8 @@
     "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project open-agents",
     "eval": "node evals/scripts/run-promptfoo.mjs",
-    "eval:smoke": "node evals/scripts/run-promptfoo.mjs --run-id=smoke"
+    "eval:smoke": "node evals/scripts/run-promptfoo.mjs --config=promptfooconfig.yaml --run-id=smoke",
+    "eval:explore": "node evals/scripts/run-promptfoo.mjs --config=promptfooconfig.explore.yaml --run-id=explore-private-items"
   },
   "bin": {
     "explore": "./bin/explore.mjs",
