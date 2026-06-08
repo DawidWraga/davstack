@@ -15,6 +15,17 @@ Run (backgrounded — the harness notifies you):
 
     npx fast-edit submit --file ~/.davstack/specs/<slug>.md
 
+When the current conversation already contains the real context, prefer compact
+mode over writing a spec:
+
+    npx fast-edit submit --compact-mode "rename legacy adapter"
+
+Keep the inline compact prompt to roughly 5-10 words. Do not paste details,
+requirements, quotes, or file lists into it; the compact spec-writer reads the
+current transcript/history and distills that context for the executor. Trust the
+subagent handoff unless the edit is too risky or underspecified from
+conversation history.
+
 **Routing test.** Delegate when a *short* intent+constraints spec is enough
 for the executor to produce the **full** intended edit. If writing the spec
 would mean pasting the new file contents or spelling out every line, the spec

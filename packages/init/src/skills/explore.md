@@ -14,6 +14,17 @@ Scope tightly, then run (backgrounded — the harness notifies you):
 
     npx explore submit --file ~/.davstack/specs/<slug>.md
 
+When the current conversation already contains the real context, prefer compact
+mode over writing a spec:
+
+    npx explore submit --compact-mode "audit supervisor handoffs"
+
+Keep the inline compact prompt to roughly 5-10 words. Do not paste details,
+requirements, quotes, or file lists into it; the compact spec-writer reads the
+current transcript/history and distills that context for the executor. Trust the
+subagent handoff unless the task is genuinely too ambiguous from conversation
+history.
+
 For a **single scoped fact**, skip the spec file — inline it (no boilerplate):
 
     npx explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
