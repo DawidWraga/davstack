@@ -13,10 +13,10 @@ The current eval proves plumbing only:
 - cleans successful run checkouts by default;
 - keeps the reusable mirror cache under `.davstack/evals/repo-cache`.
 
-Run from this folder:
+Run from the repo root:
 
 ```sh
-npx promptfoo@latest eval -c promptfooconfig.yaml --output ../../..\\.davstack\\evals\\runs\\smoke\\promptfoo-results.json
+pnpm --filter @davstack/open-agents eval:smoke
 ```
 
 Expected result:
@@ -28,6 +28,18 @@ Expected result:
 Promptfoo should be the source of truth for machine-readable eval results. Use
 `--output <path>` so each run gets a Promptfoo JSON result file alongside any
 open-agents artifacts copied by the provider.
+
+The package script writes Promptfoo JSON to:
+
+```text
+.davstack/evals/runs/smoke/promptfoo-results.json
+```
+
+For a named run:
+
+```sh
+pnpm --filter @davstack/open-agents eval -- --run-id=first-explore
+```
 
 ## Fixture Prep
 

@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "tsup",
-    "test": "pnpm -w exec vitest run --project open-agents"
+    "test": "pnpm -w exec vitest run --project open-agents",
+    "eval": "node evals/scripts/run-promptfoo.mjs",
+    "eval:smoke": "node evals/scripts/run-promptfoo.mjs --run-id=smoke"
   },
   "bin": {
     "explore": "./bin/explore.mjs",
