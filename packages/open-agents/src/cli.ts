@@ -19,6 +19,7 @@ import { agyAdapter } from './adapters/agy.js';
 import { cursorAdapter } from './adapters/cursor.js';
 import { geminiAdapter } from './adapters/gemini.js';
 import type { AgentAdapter, Tier } from './adapters/types.js';
+import { buildCompactSpecWriterTask, loadCompactHistory } from './core/compact.js';
 import { readDeliverable, renderJobResult } from './core/deliverable.js';
 import {
   createJob,
@@ -31,6 +32,7 @@ import { jobsDir } from './core/paths.js';
 import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.js';
 import { editProfile } from './profiles/edit.js';
 import { exploreProfile } from './profiles/explore.js';
+import { specWriterProfile } from './profiles/spec-writer.js';
 import type { Profile } from './profiles/types.js';
 import { loadConfig } from './config.js';
 import { runCheck } from './check.js';
@@ -67,6 +69,8 @@ export interface Flags {
   timeout?: number;
   parallelMode?: string;
   adapter?: string;
+  compactMode?: boolean;
+  historyFile?: string;
 }
 
 export function parseFlags(argv: string[]): { flags: Flags; positional: string[] } {
@@ -83,6 +87,7 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
     const val = () => (inlineVal !== undefined ? inlineVal : argv[++i]);
     if (a === '--edit' || a === '--any' || a === '--all' || a === '--detach')
       (flags as any)[a.slice(2)] = true;
+    else if (a === '--compact-mode') flags.compactMode = true;
     else if (a === '--smarter') flags.tier = 'smarter';
     else if (a === '--faster') flags.tier = 'faster';
     else if (a === '--background' || a === '--bg' || a === '--no-wait') flags.detach = true;
@@ -93,6 +98,7 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
     else if (a === '--timeout') flags.timeout = Number(val());
     else if (a === '--parallel-mode') flags.parallelMode = val();
     else if (a === '--adapter' || a === '--provider') flags.adapter = val();
+    else if (a === '--history-file') flags.historyFile = val();
     else positional.push(argv[i]);
   }
   return { flags, positional };
@@ -133,6 +139,77 @@ function pickProfile(flags: Flags): Profile {
 
 // --- submit ----------------------------------------------------------------
 const SHELL_HOSTILE = /[\n"'`$();|&<>]/;
+const COMPACT_TAIL_TOKENS = 50000;
+
+function compactHistoryFile(flags: Flags): string {
+  const historyFile = flags.historyFile || process.env.OPEN_AGENTS_HISTORY_FILE;
+  if (!historyFile) {
+    throw new Error(
+      'open-agents submit --compact-mode requires --history-file <path> or OPEN_AGENTS_HISTORY_FILE',
+    );
+  }
+  return historyFile;
+}
+
+async function generateCompactSpec(input: {
+  repoPath: string;
+  timeoutSec: number;
+  targetProfile: Profile;
+  task: string;
+  historyFile: string;
+}): Promise<string> {
+  const history = loadCompactHistory(input.historyFile, COMPACT_TAIL_TOKENS);
+  const specWriterTask = buildCompactSpecWriterTask({
+    task: input.task,
+    repoPath: input.repoPath,
+    targetProfile: input.targetProfile.name,
+    historyPath: history.path,
+    historyTail: history.tail,
+    tailTokens: COMPACT_TAIL_TOKENS,
+  });
+  const id = genId();
+  const adapter = cursorAdapter;
+  const model = cursorAdapter.defaultModel();
+  createJob({
+    id,
+    repoPath: input.repoPath,
+    prompt: `compact spec: ${input.task}`.slice(0, 500),
+    model,
+    background: true,
+  });
+  updateJob(input.repoPath, id, {
+    fullPrompt: specWriterProfile.buildPrompt(specWriterTask),
+    edit: false,
+    model,
+    timeoutSec: input.timeoutSec,
+  });
+  try {
+    writeFileSync(
+      join(jobsDir(input.repoPath), `${id}.spec.md`),
+      specWriterTask.trim() + '\n',
+      'utf8',
+    );
+  } catch {
+    /* best-effort */
+  }
+
+  process.stderr.write(
+    `open-agents: compact-mode spec writer running (${adapter.name}, ${model}, ${history.tailTokens} history tokens) ...\n`,
+  );
+  const preToken = adapter.preSpawn(input.repoPath);
+  await runJob({ adapter, profile: specWriterProfile }, input.repoPath, id);
+  adapter.postExit(input.repoPath, preToken);
+  const job = readJob(input.repoPath, id);
+  if (!job || job.status !== 'done') {
+    throw new Error(`compact-mode spec writer failed: ${id}`);
+  }
+  const generated = readDeliverable(adapter, job).trim();
+  if (!generated || generated === '(no final message captured)') {
+    throw new Error(`compact-mode spec writer produced no spec: ${id}`);
+  }
+  process.stderr.write(`open-agents: compact-mode generated spec ${id} (${generated.length} chars)\n`);
+  return generated;
+}
 
 async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const repoPath = flags.cwd || process.cwd();
@@ -160,7 +237,7 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const preToken = adapter.preSpawn(repoPath);
 
   // Gather one or more spec bodies. Multiple --file → run them in parallel.
-  const bodies: string[] = [];
+  let bodies: string[] = [];
   const files = flags.files || [];
   if (files.length) {
     for (const f of files) {
@@ -184,6 +261,21 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
       process.exit(2);
     }
     bodies.push(body);
+  }
+
+  if (flags.compactMode) {
+    const historyFile = compactHistoryFile(flags);
+    bodies = await Promise.all(
+      bodies.map((body) =>
+        generateCompactSpec({
+          repoPath,
+          timeoutSec,
+          targetProfile: profile,
+          task: body,
+          historyFile,
+        }),
+      ),
+    );
   }
 
   const ids = bodies.map((body) => {
@@ -452,6 +544,10 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
              --no-wait): print bare id(s), don't wait, no inline output.
            --parallel-mode asap|all-together (default asap): asap prints each
              index line the moment its job finishes; all-together = submit order.
+           --compact-mode: treat the input as a very short task title and ask
+             a spec-writer agent to turn recent history into the executor spec.
+             Requires --history-file <path> or OPEN_AGENTS_HISTORY_FILE.
+             Uses the last 50000 token-like units from the history file.
   wait                         wait for ALL running jobs in this repo
   wait   "<id…>" | <id…>       wait for ALL of these
   wait   --any <id…>           return when ≥1 done; prints which (loop = popcorn)

@@ -12,7 +12,7 @@ tests:
   - vars:
       fixture: nextbase-supabase-starter
       scenario: fixture-prepare-smoke
-      tailChars: 50000
+      tailTokens: 50000
       goal: Prepare the pinned fixture repo and report whether the checkout is available for open-agents handoff testing.
       context: This prompt stands in for the current baseline where the main agent writes a detailed execution spec before delegating.
       historyPointer: not wired in this smoke slice.

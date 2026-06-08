@@ -2,10 +2,11 @@
 
 Task title: {{goal}}
 
-Recent history tail budget: {{tailChars}} chars.
+Recent history tail budget: {{tailTokens}} tokens.
 
 Full history pointer: {{historyPointer}}
 
-In the full flow, this variant first asks a spec-writer agent to produce the
-execution spec. In this smoke slice, the provider only proves fixture
-preparation and Promptfoo plumbing.
+The provider gives the last {{tailTokens}} token-like units from the configured
+history source to a spec-writer agent at the bottom of its task prompt, persists
+the generated execution spec, then gives that generated spec to the executor
+agent.

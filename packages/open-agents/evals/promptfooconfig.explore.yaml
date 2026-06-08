@@ -12,7 +12,7 @@ tests:
   - vars:
       fixture: nextbase-supabase-starter
       scenario: explore-private-items
-      tailChars: 50000
+      tailTokens: 50000
       goal: In the pinned Supabase starter fixture, trace how the private-items CRUD flow is structured from route/page entry points through server/data access and Supabase calls. Cite relevant files and lines. Do not modify files.
       context: Trace route/page entry points, server/data access, and Supabase client calls for private-items CRUD.
       historyPointer: not wired.

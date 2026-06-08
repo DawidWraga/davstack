@@ -131,9 +131,22 @@ The eval provider should generate/copy:
 - `cases/<case-id>/output.md`;
 - `cases/<case-id>/input.md`;
 - `cases/<case-id>/history.jsonl`;
+- `cases/<case-id>/recent-tail.md`;
 - `cases/<case-id>/scores.json`;
 - objective checks that Promptfoo can assert on, such as citation count and
   valid citation ranges.
+
+For the spec-writer hybrid variant, the provider also writes:
+
+- `cases/<case-id>/spec-writer-input.md`;
+- `cases/<case-id>/generated-spec.md`;
+- `cases/<case-id>/spec-writer-job.json` when the spec-writer agent actually
+  runs.
+
+Set `tailTokens: 50000` plus either `historyText` or `historyPath` in Promptfoo
+vars/options to feed the spec writer a recent history tail. If no history source
+is provided, smoke runs use a small synthetic history snapshot from the test
+vars so artifact plumbing remains deterministic.
 
 Humans should only add:
 
