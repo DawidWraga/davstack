@@ -38,10 +38,11 @@ submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeo
         many --file ⇒ run in parallel · --detach: print bare id(s), don't wait
         --parallel-mode asap|all-together (default asap): asap prints each
           index line as its job finishes; all-together waits, submission order
-        --compact-mode: treat the input as a short task title, require
-          --history-file <path> or OPEN_AGENTS_HISTORY_FILE, run a Cursor
-          composer-2.5 spec-writer over the last 50000 token-like history
-          units, then submit the generated spec to the chosen executor. The
+        --compact-mode: treat the input as a short task title, find history via
+          --history-file <path>, OPEN_AGENTS_HISTORY_FILE, or the current
+          Claude Code transcript when CLAUDE_CODE_SESSION_ID is set. It runs a
+          Cursor composer-2.5 spec-writer over the last 50000 token-like history
+          units, then submits the generated spec to the chosen executor. The
           generated spec should emphasize a dense <context> block, including
           relevant files/folders, project facts, original user query, and useful
           short quotes from the conversation.

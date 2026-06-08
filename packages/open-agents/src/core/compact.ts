@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 export interface CompactHistory {
   path: string;
@@ -18,6 +19,38 @@ export function tokenTail(text: string, maxTokens: number): string {
     if (!/^\s+$/.test(parts[start])) tokens += 1;
   }
   return parts.slice(start).join('').trim();
+}
+
+export function findClaudeTranscriptBySession(
+  sessionId: string,
+  homeDir = homedir(),
+): string | null {
+  if (!sessionId.trim()) return null;
+  const projectsDir = join(homeDir, '.claude', 'projects');
+  if (!existsSync(projectsDir)) return null;
+  for (const entry of readdirSync(projectsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = join(projectsDir, entry.name, `${sessionId}.jsonl`);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+export function resolveCompactHistoryFile(input?: {
+  historyFile?: string;
+  env?: NodeJS.ProcessEnv;
+  homeDir?: string;
+}): string | null {
+  const env = input?.env ?? process.env;
+  const explicit = input?.historyFile || env.OPEN_AGENTS_HISTORY_FILE;
+  if (explicit) return resolve(explicit);
+
+  const transcriptPath = env.CLAUDE_CODE_TRANSCRIPT_PATH;
+  if (transcriptPath) return resolve(transcriptPath);
+
+  const sessionId = env.CLAUDE_CODE_SESSION_ID;
+  if (!sessionId) return null;
+  return findClaudeTranscriptBySession(sessionId, input?.homeDir);
 }
 
 export function loadCompactHistory(path: string, tailTokens: number): CompactHistory {

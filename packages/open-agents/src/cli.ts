@@ -19,7 +19,11 @@ import { agyAdapter } from './adapters/agy.js';
 import { cursorAdapter } from './adapters/cursor.js';
 import { geminiAdapter } from './adapters/gemini.js';
 import type { AgentAdapter, Tier } from './adapters/types.js';
-import { buildCompactSpecWriterTask, loadCompactHistory } from './core/compact.js';
+import {
+  buildCompactSpecWriterTask,
+  loadCompactHistory,
+  resolveCompactHistoryFile,
+} from './core/compact.js';
 import { readDeliverable, renderJobResult } from './core/deliverable.js';
 import {
   createJob,
@@ -142,10 +146,10 @@ const SHELL_HOSTILE = /[\n"'`$();|&<>]/;
 const COMPACT_TAIL_TOKENS = 50000;
 
 function compactHistoryFile(flags: Flags): string {
-  const historyFile = flags.historyFile || process.env.OPEN_AGENTS_HISTORY_FILE;
+  const historyFile = resolveCompactHistoryFile({ historyFile: flags.historyFile });
   if (!historyFile) {
     throw new Error(
-      'open-agents submit --compact-mode requires --history-file <path> or OPEN_AGENTS_HISTORY_FILE',
+      'open-agents submit --compact-mode needs history context. Pass --history-file <path>, set OPEN_AGENTS_HISTORY_FILE, or run from a Claude Code session with CLAUDE_CODE_SESSION_ID.',
     );
   }
   return historyFile;
@@ -546,7 +550,8 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
              index line the moment its job finishes; all-together = submit order.
            --compact-mode: treat the input as a very short task title and ask
              a spec-writer agent to turn recent history into the executor spec.
-             Requires --history-file <path> or OPEN_AGENTS_HISTORY_FILE.
+             Uses --history-file <path>, OPEN_AGENTS_HISTORY_FILE, or the
+             current Claude Code transcript when CLAUDE_CODE_SESSION_ID is set.
              Uses the last 50000 token-like units from the history file.
   wait                         wait for ALL running jobs in this repo
   wait   "<id…>" | <id…>       wait for ALL of these
