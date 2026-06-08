@@ -12,4 +12,6 @@ server/dist
 public/dist
 .turbo
 coverage
+.folder-meta.generated.md
 /temp
+paper.md
