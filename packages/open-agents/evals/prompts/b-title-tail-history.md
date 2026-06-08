@@ -1,7 +1,7 @@
 # Variant B: Title + Tail + History Pointer
 
-Task: prepare fixture {{fixture}} for scenario {{scenario}}.
+Task: {{goal}}
 
 Recent history tail budget: {{tailChars}} chars.
 
-Full history pointer: not wired in this smoke slice.
+Full history pointer: {{historyPointer}}

@@ -51,6 +51,18 @@ function run(cmd, args, options = {}) {
   return result.stdout || '';
 }
 
+function runWithRetry(cmd, args, options = {}, retries = 5, delayMs = 1500) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return run(cmd, args, options);
+    } catch (error) {
+      if (attempt === retries) throw error;
+      // Sync sleep using Node child process timeout execution
+      spawnSync('node', ['-e', `setTimeout(() => {}, ${delayMs + Math.random() * 1000})`]);
+    }
+  }
+}
+
 export function loadFixture(fixtureId) {
   const manifestPath = join(evalRoot, 'fixtures', `${fixtureId}.json`);
   return {
@@ -71,26 +83,26 @@ export function prepareFixture(options) {
   mkdirSync(runsDir, { recursive: true });
 
   if (!existsSync(mirrorPath)) {
-    run('git', ['clone', '--mirror', manifest.repo, mirrorPath], { capture: options.quiet });
+    runWithRetry('git', ['clone', '--mirror', manifest.repo, mirrorPath], { capture: options.quiet });
   } else {
-    run('git', ['fetch', '--prune'], { cwd: mirrorPath, capture: options.quiet });
+    runWithRetry('git', ['fetch', '--prune'], { cwd: mirrorPath, capture: options.quiet });
   }
 
   if (options.fresh && existsSync(checkoutPath)) {
     rmSync(checkoutPath, { recursive: true, force: true });
   }
   if (!existsSync(checkoutPath)) {
-    run('git', ['clone', mirrorPath, checkoutPath], { capture: options.quiet });
+    runWithRetry('git', ['clone', mirrorPath, checkoutPath], { capture: options.quiet });
   }
 
-  run('git', ['checkout', '--force', manifest.commit], {
+  runWithRetry('git', ['checkout', '--force', manifest.commit], {
     cwd: checkoutPath,
     capture: options.quiet,
   });
-  run('git', ['reset', '--hard', manifest.commit], { cwd: checkoutPath, capture: options.quiet });
-  run('git', ['clean', '-ffd'], { cwd: checkoutPath, capture: options.quiet });
+  runWithRetry('git', ['reset', '--hard', manifest.commit], { cwd: checkoutPath, capture: options.quiet });
+  runWithRetry('git', ['clean', '-ffd'], { cwd: checkoutPath, capture: options.quiet });
 
-  const actualCommit = run('git', ['rev-parse', 'HEAD'], {
+  const actualCommit = runWithRetry('git', ['rev-parse', 'HEAD'], {
     cwd: checkoutPath,
     capture: true,
   }).trim();

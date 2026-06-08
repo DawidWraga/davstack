@@ -84,7 +84,9 @@ export function resolveGeminiEntry(): string | null {
   const appData = process.env.APPDATA;
   if (!appData) return null;
   const idx = join(appData, 'npm', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
-  return existsSync(idx) ? idx : null;
+  if (existsSync(idx)) return idx;
+  const bundleIdx = join(appData, 'npm', 'node_modules', '@google', 'gemini-cli', 'bundle', 'gemini.js');
+  return existsSync(bundleIdx) ? bundleIdx : null;
 }
 
 export function resolveBin(): { bin: string; prelaunchArgs: string[]; shell: boolean } {
