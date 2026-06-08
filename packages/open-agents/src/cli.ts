@@ -174,6 +174,7 @@ async function generateCompactSpec(input: {
   const id = genId();
   const adapter = cursorAdapter;
   const model = cursorAdapter.defaultModel();
+  const specWriterTaskPath = join(jobsDir(input.repoPath), `${id}.spec.md`);
   createJob({
     id,
     repoPath: input.repoPath,
@@ -181,21 +182,27 @@ async function generateCompactSpec(input: {
     model,
     background: true,
   });
+  try {
+    writeFileSync(specWriterTaskPath, specWriterTask.trim() + '\n', 'utf8');
+  } catch {
+    /* best-effort */
+  }
+
+  const specWriterWrapper = [
+    'Read the compact-mode spec-writer task from this file:',
+    '',
+    specWriterTaskPath,
+    '',
+    'The file contains the short task, repository path, history pointer, and recent history tail.',
+    'Use it as the authoritative task source and produce only the generated executor spec.',
+  ].join('\n');
+
   updateJob(input.repoPath, id, {
-    fullPrompt: specWriterProfile.buildPrompt(specWriterTask),
+    fullPrompt: specWriterProfile.buildPrompt(specWriterWrapper),
     edit: false,
     model,
     timeoutSec: input.timeoutSec,
   });
-  try {
-    writeFileSync(
-      join(jobsDir(input.repoPath), `${id}.spec.md`),
-      specWriterTask.trim() + '\n',
-      'utf8',
-    );
-  } catch {
-    /* best-effort */
-  }
 
   process.stderr.write(
     `open-agents: compact-mode spec writer running (${adapter.name}, ${model}, ${history.tailTokens} history tokens) ...\n`,

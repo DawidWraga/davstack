@@ -94,13 +94,21 @@ ${input.targetProfile}
 Full history pointer:
 ${input.historyPath}
 
-Write a detailed execution spec for the executor agent. Preserve the user's
+Write a compact execution spec for the executor agent. Preserve the user's
 latest intent, scope, constraints, preferences, and non-goals. Do not solve the
 task yourself. Do not invent requirements that are not supported by the short
 task or history tail.
 
-Strongly prioritize the <context> block. It should contain dense bullet points
-with anything from the history that could help the executor succeed, including:
+Keep the generated spec super concise and brief. Prefer concise bullets over
+prose. Do not enumerate every remembered detail; include only what changes the
+executor's behavior. The full history pointer is available, so if context is
+uncertain or too detailed to summarize cleanly, point the executor to inspect
+the relevant part of the history instead of copying it into the spec.
+
+Strongly prioritize the <context> block, but keep it distilled. The executor
+should receive a clean brief, not the transcript or full history tail. Include
+dense bullet points with only the history details that could help the executor
+succeed, including:
 
 - relevant files, folders, packages, commands, flags, and artifact paths;
 - the user's original query and short direct quotes when they clarify intent;
@@ -108,6 +116,11 @@ with anything from the history that could help the executor succeed, including:
 - decisions already made in the conversation;
 - constraints, non-goals, risks, and caveats;
 - details that may look incidental but could matter during implementation.
+
+Do not paste the full history, full recent tail, or long conversation excerpts
+into the generated spec. Use short direct quotes only when they clarify intent.
+Omit irrelevant turns, dead ends, and stale decisions that the user's latest
+messages supersede.
 
 Do not add an <acceptance> block unless the history explicitly asks for one.
 For compact handoffs, a rich <context> block is more important than a formal
