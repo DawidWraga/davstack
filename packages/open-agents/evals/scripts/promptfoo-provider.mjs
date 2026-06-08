@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { prepareFixture } from './prepare-fixture.mjs';
+import { rmSync } from 'node:fs';
 
 const [, , prompt = '', optionsJson = '{}', contextJson = '{}'] = process.argv;
 
@@ -16,6 +17,7 @@ const vars = context.vars || {};
 const options = parseJson(optionsJson, {});
 const fixture = vars.fixture || options.fixture || 'nextbase-supabase-starter';
 const scenario = vars.scenario || 'fixture-prepare-smoke';
+const keepRun = vars.keepRun === true || options.keepRun === true;
 const variant = /Variant B/.test(prompt)
   ? 'b-title-tail-history'
   : /Variant C/.test(prompt)
@@ -31,6 +33,9 @@ try {
     fresh: true,
     quiet: true,
   });
+  if (!keepRun && prepared.ok) {
+    rmSync(prepared.runPath, { recursive: true, force: true });
+  }
   console.log(
     JSON.stringify({
       ok: prepared.ok,
@@ -40,6 +45,7 @@ try {
       promptChars: prompt.length,
       checkoutPath: prepared.checkoutPath,
       commit: prepared.actualCommit,
+      retained: keepRun,
     }),
   );
 } catch (error) {

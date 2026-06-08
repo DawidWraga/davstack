@@ -101,6 +101,7 @@ export function prepareFixture(options) {
     repo: manifest.repo,
     commit: manifest.commit,
     actualCommit,
+    runPath: runsDir,
     checkoutPath,
     mirrorPath,
   };
