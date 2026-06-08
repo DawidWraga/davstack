@@ -21,29 +21,24 @@ Preferred layout:
 
 ```text
 .davstack/evals/runs/<run-id>/
+  report.md
   promptfoo-results.json
   run.json
-  manual-review.json
-  score.md
-  history/
-    related-history.jsonl
-    recent-tail.txt
-    source-pointer.txt
-  inputs/
-    variant-a.md
-    variant-b.md
-    variant-c.md
-  outputs/
-    variant-a.md
-    variant-b.md
-    variant-c.md
-  jobs/
-    variant-a.job.json
-    variant-b.job.json
-    variant-c.job.json
-  artifacts/
-    citation-checks.json
-    diff-summary.json
+  cases/
+    a-main-agent-spec/
+      history.jsonl
+      input.md
+      output.md
+      job.json
+      scores.json
+      manual-review.json
+    b-title-tail-history/
+      history.jsonl
+      input.md
+      output.md
+      job.json
+      scores.json
+      manual-review.json
 ```
 
 Promptfoo should own the primary machine-readable result file:
@@ -59,22 +54,27 @@ For a manual comparison run, store:
 
 ```text
 promptfoo-results.json
-manual-review.json
-score.md
-history/related-history.jsonl
-history/recent-tail.txt
-inputs/variant-a.md
-inputs/variant-b.md
-outputs/variant-a.md
-outputs/variant-b.md
-jobs/variant-a.job.json
-jobs/variant-b.job.json
+report.md
+run.json
+cases/a-main-agent-spec/history.jsonl
+cases/a-main-agent-spec/input.md
+cases/a-main-agent-spec/output.md
+cases/a-main-agent-spec/job.json
+cases/a-main-agent-spec/scores.json
+cases/a-main-agent-spec/manual-review.json
+cases/b-title-tail-history/history.jsonl
+cases/b-title-tail-history/input.md
+cases/b-title-tail-history/output.md
+cases/b-title-tail-history/job.json
+cases/b-title-tail-history/scores.json
+cases/b-title-tail-history/manual-review.json
 ```
 
-The fixture checkout can live beside `artifacts/` while the run is being scored:
+The fixture checkout can live inside the run folder while the run is being
+scored:
 
 ```text
-.davstack/evals/runs/<run-id>/shared-nextbase-supabase-starter/
+.davstack/evals/runs/<run-id>/<case-id>-nextbase-supabase-starter/
 ```
 
 That checkout is noisy, but useful for clickable citation verification. Once a
@@ -120,7 +120,8 @@ Do not commit:
 
 ## Next Automation Step
 
-The Promptfoo provider should write this artifact bundle automatically:
+The Promptfoo provider should write this artifact bundle automatically for each
+case:
 
 - copy final prompt/spec for each variant;
 - copy any history/context files used by that variant;
@@ -131,8 +132,8 @@ The Promptfoo provider should write this artifact bundle automatically:
 - write or update `manual-review.json` with blank human-review fields.
 
 Promptfoo should produce `promptfoo-results.json`. A tiny post-process script can
-then merge in manual review fields from `manual-review.json` and render
-`score.md` for humans.
+then merge in per-case `manual-review.json` files and render run-level
+`report.md` for humans.
 
 ## Promptfoo-Native Scoring
 
@@ -148,7 +149,7 @@ Use Promptfoo metrics or named assertions for objective dimensions where
 possible. Keep manual scores separate and additive:
 
 ```text
-manual-review.json
+cases/<case-id>/manual-review.json
 ```
 
 Manual review should add only human judgment:

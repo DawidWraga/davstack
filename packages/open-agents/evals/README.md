@@ -35,6 +35,22 @@ The package script writes Promptfoo JSON to:
 .davstack/evals/runs/smoke/promptfoo-results.json
 ```
 
+Provider artifacts are grouped by case:
+
+```text
+.davstack/evals/runs/smoke/
+  promptfoo-results.json
+  run.json
+  cases/
+    a-main-agent-spec/
+      input.md
+      output.md
+      history.jsonl
+      job.json
+      scores.json
+      manual-review.json
+```
+
 For a named run:
 
 ```sh
@@ -83,9 +99,11 @@ Promptfoo should generate:
 
 The eval provider should generate/copy:
 
-- open-agents job JSON;
-- open-agents result markdown;
-- final prompt/spec per variant;
+- `cases/<case-id>/job.json`;
+- `cases/<case-id>/output.md`;
+- `cases/<case-id>/input.md`;
+- `cases/<case-id>/history.jsonl`;
+- `cases/<case-id>/scores.json`;
 - objective checks that Promptfoo can assert on, such as citation count and
   valid citation ranges.
 
