@@ -1,5 +1,11 @@
 # @davstack/open-agents
 
+## 1.2.4
+
+### Patch Changes
+
+- Add compact handoff mode for `explore` and `fast-edit`, including transcript-backed spec writing, Claude Code transcript auto-detection, file-backed compact spec-writer prompts on Windows, and clearer compact-mode progress output.
+
 ## 1.2.3
 
 ### Patch Changes
