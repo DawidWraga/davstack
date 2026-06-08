@@ -14,11 +14,21 @@ Ignored local eval artifacts live under:
 .davstack/evals/runs/<run-id>/artifacts/
 ```
 
+Promptfoo should own the primary machine-readable result file:
+
+```text
+.davstack/evals/runs/<run-id>/promptfoo-results.json
+```
+
+Run evals with `--output` so Promptfoo writes that file directly instead of us
+inventing a separate score format.
+
 For a manual comparison run, store:
 
 ```text
 score.md
 scores.json
+promptfoo-results.json
 variant-a-input.md
 variant-a-output.md
 variant-a-job.json
@@ -64,5 +74,34 @@ The Promptfoo provider should write this artifact bundle automatically:
 - copy open-agents result;
 - copy job JSON;
 - run citation-range validation;
-- write `scores.json` with objective metrics;
-- leave manual score fields blank for review.
+- return objective metrics to Promptfoo so Promptfoo can score/assert them;
+- write or update `manual-review.json` with blank human-review fields.
+
+Promptfoo should produce `promptfoo-results.json`. A tiny post-process script can
+then merge in manual review fields from `manual-review.json` and render
+`score.md` for humans.
+
+## Promptfoo-Native Scoring
+
+Use Promptfoo assertions for objective checks:
+
+- result contains at least one `path:Lx-Ly` citation;
+- citation-range validation returned zero invalid ranges;
+- result mentions the target domain term, such as `private_items`;
+- result has no `filesChanged`;
+- provider exit status is success.
+
+Use Promptfoo metrics or named assertions for objective dimensions where
+possible. Keep manual scores separate and additive:
+
+```text
+manual-review.json
+```
+
+Manual review should add only human judgment:
+
+- coverage;
+- usefulness;
+- hallucination risk;
+- would-use-again;
+- notes.
