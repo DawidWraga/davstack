@@ -1,0 +1,12 @@
+{
+  "id": "nextbase-supabase-starter",
+  "repo": "https://github.com/imbhargav5/nextbase-nextjs-supabase-starter.git",
+  "commit": "1c71bece81a15dd855196d2c1c5479271ea9f990",
+  "description": "Pinned Next.js/Supabase starter fixture for open-agents handoff evals.",
+  "setup": ["pnpm install --frozen-lockfile"],
+  "verify": ["pnpm typecheck", "pnpm test"],
+  "notes": [
+    "First spike fixture. Keep cloned repos and run artifacts out of git.",
+    "Promptfoo artifact layout is still provisional; this manifest only pins source identity."
+  ]
+}

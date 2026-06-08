@@ -13,5 +13,6 @@ public/dist
 .turbo
 coverage
 .folder-meta.generated.md
+.davstack/evals/
 /temp
 paper.md

@@ -1,0 +1,20 @@
+description: Open-agents handoff fixture smoke eval
+
+prompts:
+  - file://prompts/a-main-agent-spec.md
+  - file://prompts/b-title-tail-history.md
+  - file://prompts/c-spec-writer-title-tail-history.md
+
+providers:
+  - 'exec: node ./scripts/promptfoo-provider.mjs'
+
+tests:
+  - vars:
+      fixture: nextbase-supabase-starter
+      scenario: fixture-prepare-smoke
+      tailChars: 50000
+    assert:
+      - type: contains
+        value: '"ok":true'
+      - type: contains
+        value: '"fixture":"nextbase-supabase-starter"'
