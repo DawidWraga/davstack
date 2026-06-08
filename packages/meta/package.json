@@ -1,0 +1,44 @@
+{
+  "name": "@davstack/meta",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Generate concise folder metadata for agents.",
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
+    "test": "pnpm -w exec vitest run --project meta"
+  },
+  "bin": {
+    "davstack-meta": "./bin/davstack-meta.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli-spec": {
+      "types": "./dist/cli-spec.d.ts",
+      "default": "./dist/cli-spec.js"
+    }
+  },
+  "files": [
+    "bin/**",
+    "dist/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@davstack/cli-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

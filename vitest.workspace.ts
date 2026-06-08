@@ -50,6 +50,21 @@ export default defineWorkspace([
 		},
 	},
 	{
+		resolve: {
+			alias: {
+				vitest: vitestAlias,
+				'@davstack/cli-utils': path.join(here, 'packages/cli-utils/src/cli.ts'),
+			},
+		},
+		test: {
+			name: 'meta',
+			root: './packages/meta',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+		},
+	},
+	{
 		resolve: { alias: { vitest: vitestAlias } },
 		test: {
 			name: 'tui',
