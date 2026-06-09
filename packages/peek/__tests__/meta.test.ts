@@ -72,6 +72,44 @@ describe('scanFolderPeek', () => {
     `);
   });
 
+  test('summarizes TypeScript class methods', async () => {
+    const root = await makeTempFolder();
+    await writeFile(
+      path.join(root, 'widget.ts'),
+      `export class Widget {
+  constructor(
+    private readonly name: string,
+  ) {}
+
+  static async create(): Promise<Widget> {
+    return new Widget('demo')
+  }
+
+  private boot(): void {
+    this.createTask()
+  }
+
+  stats(): { total: number } {
+    return { total: 1 }
+  }
+}
+`,
+    );
+
+    await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
+      "<folder path=".">
+      <file path="widget.ts" lines="17">
+      [ln 1-17] class Widget
+      [ln 2-4] method constructor
+      [ln 6-8] method create
+      [ln 10-12] method boot
+      [ln 14-16] method stats
+      </file>
+      </folder>
+      "
+    `);
+  });
+
   test('skips generated metadata and default ignored folders', async () => {
     const root = await makeTempFolder();
     await writeFile(path.join(root, GENERATED_PEEK_FILE), '# stale generated file\n');

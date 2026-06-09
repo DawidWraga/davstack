@@ -271,6 +271,9 @@ function extractTypeScriptSymbols(text: string): string[] {
         start: range.start,
         value: `${formatLineRange(range)} ${label} ${match[1]}`,
       });
+      if (label === 'class') {
+        items.push(...extractTypeScriptClassMethods(source, match.index ?? 0));
+      }
     }
   }
   items.push(...extractTypeScriptTestCalls(source));
@@ -293,6 +296,75 @@ function extractTypeScriptTestCalls(text: string): Array<{ start: number; value:
   }
 
   return items;
+}
+
+function extractTypeScriptClassMethods(
+  text: string,
+  classIndex: number,
+): Array<{ start: number; value: string }> {
+  const openingBrace = text.indexOf('{', classIndex);
+  if (openingBrace === -1) return [];
+  const closingBrace = findMatchingBrace(text, openingBrace);
+  if (closingBrace === -1) return [];
+
+  const classBody = text.slice(openingBrace + 1, closingBrace);
+  const bodyOffset = openingBrace + 1;
+  const items: Array<{ start: number; value: string }> = [];
+  const methodPattern =
+    /^([ \t]+)(?:(?:public|private|protected|static|async|override|readonly|get|set)\s+)*([A-Za-z_$][\w$]*)\s*\(/gm;
+  const matches = Array.from(classBody.matchAll(methodPattern));
+  const memberIndent = Math.min(...matches.map((match) => match[1]?.length ?? 0));
+
+  for (const match of matches) {
+    if ((match[1]?.length ?? 0) !== memberIndent) continue;
+    const name = match[2];
+    if (!name || ['if', 'for', 'while', 'switch', 'catch'].includes(name)) continue;
+    const index = bodyOffset + (match.index ?? 0);
+    const blockRange = lineRangeForTypeScriptMethod(text, index, closingBrace);
+    items.push({
+      start: blockRange.start,
+      value: `${formatLineRange(blockRange)} method ${name}`,
+    });
+  }
+
+  return items;
+}
+
+function lineRangeForTypeScriptMethod(
+  text: string,
+  index: number,
+  classClosingBrace: number,
+): { start: number; end: number } {
+  const start = lineNumberAt(text, index);
+  const openingParen = text.indexOf('(', index);
+  if (openingParen === -1 || openingParen > classClosingBrace) return { start, end: start };
+
+  const closingParen = findMatchingParen(text, openingParen);
+  if (closingParen === -1 || closingParen > classClosingBrace) return { start, end: start };
+
+  const openingBrace = findMethodBodyOpeningBrace(text, closingParen, classClosingBrace);
+  if (openingBrace === -1 || openingBrace > classClosingBrace) {
+    return { start, end: lineNumberAt(text, closingParen) };
+  }
+
+  const closingBrace = findMatchingBrace(text, openingBrace);
+  if (closingBrace === -1 || closingBrace > classClosingBrace) {
+    return { start, end: lineNumberAt(text, closingParen) };
+  }
+
+  return { start, end: lineNumberAt(text, closingBrace) };
+}
+
+function findMethodBodyOpeningBrace(
+  text: string,
+  closingParen: number,
+  classClosingBrace: number,
+): number {
+  const lineEnd = text.indexOf('\n', closingParen);
+  const searchEnd = lineEnd === -1 ? classClosingBrace : Math.min(lineEnd, classClosingBrace);
+  const sameLineBrace = text.lastIndexOf('{', searchEnd);
+  if (sameLineBrace > closingParen) return sameLineBrace;
+  return text.indexOf('{', closingParen);
 }
 
 function extractPythonSymbols(text: string): string[] {
