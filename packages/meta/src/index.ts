@@ -16,6 +16,13 @@ type FileSummary = {
   items: string[];
 };
 
+type FolderSummary = {
+  path: string;
+  files: FileSummary[];
+  folders: FolderSummary[];
+  omittedFiles: string[];
+};
+
 const SKIP_DIRS = new Set([
   '.git',
   '.next',
@@ -29,15 +36,9 @@ const SKIP_FILES = new Set([GENERATED_META_FILE]);
 
 export async function scanFolderMetadata(folder: string, options: ScanOptions = {}): Promise<string> {
   const root = path.resolve(folder);
-  const summaries = await collectFileSummaries(root, root, options.deep === true);
+  const summary = await collectFolderSummary(root, root, options.deep === true);
 
-  const lines = ['# Folder Metadata', '', '<folder path=".">'];
-  for (const summary of summaries) {
-    lines.push(`<file path="${escapeAttribute(summary.path)}" kind="${summary.kind}">`);
-    for (const item of summary.items) lines.push(`- ${item}`);
-    lines.push('</file>');
-  }
-  lines.push('</folder>', '');
+  const lines = ['# Folder Metadata', '', ...renderFolderSummary(summary), ''];
   return lines.join('\n');
 }
 
@@ -64,13 +65,15 @@ export async function viewFolderMetadata(folder: string, options: ScanOptions = 
   return (await generateFolderMetadata(root, options)).content;
 }
 
-async function collectFileSummaries(
+async function collectFolderSummary(
   root: string,
   dir: string,
   deep: boolean,
-): Promise<FileSummary[]> {
+): Promise<FolderSummary> {
   const entries = await readdir(dir, { withFileTypes: true });
-  const summaries: FileSummary[] = [];
+  const files: FileSummary[] = [];
+  const folders: FolderSummary[] = [];
+  const omittedFiles: string[] = [];
 
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     const fullPath = path.join(dir, entry.name);
@@ -78,33 +81,76 @@ async function collectFileSummaries(
 
     if (entry.isDirectory()) {
       if (!deep || shouldSkipDirectory(entry.name)) continue;
-      summaries.push(...(await collectFileSummaries(root, fullPath, deep)));
+      folders.push(await collectFolderSummary(root, fullPath, deep));
       continue;
     }
     if (!entry.isFile() || shouldSkipFile(entry.name)) continue;
 
     const summary = await summarizeFile(root, fullPath);
-    if (summary) summaries.push(summary);
+    if (summary) {
+      files.push(summary);
+    } else {
+      omittedFiles.push(entry.name);
+    }
   }
 
-  return summaries.sort((a, b) => a.path.localeCompare(b.path));
+  return {
+    path: formatFolderPath(root, dir),
+    files: files.sort((a, b) => a.path.localeCompare(b.path)),
+    folders: folders.sort((a, b) => a.path.localeCompare(b.path)),
+    omittedFiles: omittedFiles.sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+function formatFolderPath(root: string, dir: string): string {
+  const relativePath = toPosix(path.relative(root, dir));
+  return relativePath ? `/${relativePath}` : '.';
+}
+
+function renderFolderSummary(summary: FolderSummary): string[] {
+  const lines = [`<folder path="${escapeAttribute(summary.path)}">`];
+
+  for (const file of summary.files) {
+    lines.push(`<file path="${escapeAttribute(path.basename(file.path))}">`);
+    for (const item of file.items) lines.push(`- ${item}`);
+    lines.push('</file>');
+  }
+
+  if (summary.omittedFiles.length > 0) {
+    lines.push('<omitted_files>');
+    for (const omittedFile of summary.omittedFiles) {
+      lines.push(`- ${escapeText(omittedFile)}`);
+    }
+    lines.push('</omitted_files>');
+  }
+
+  for (const folder of summary.folders) lines.push(...renderFolderSummary(folder));
+
+  lines.push('</folder>');
+  return lines;
 }
 
 async function summarizeFile(root: string, fullPath: string): Promise<FileSummary | null> {
   const extension = path.extname(fullPath);
   const relativePath = toPosix(path.relative(root, fullPath));
-  const text = await readFile(fullPath, 'utf8');
 
   if (extension === '.md' || extension === '.mdx') {
+    const text = await readFile(fullPath, 'utf8');
     return { path: relativePath, kind: 'markdown', items: extractMarkdownHeadings(text) };
   }
-  if (['.ts', '.tsx', '.mts', '.cts'].includes(extension) && !fullPath.endsWith('.d.ts')) {
+  if (isTypeScriptLikeFile(extension, fullPath)) {
+    const text = await readFile(fullPath, 'utf8');
     return { path: relativePath, kind: 'typescript', items: extractTypeScriptSymbols(text) };
   }
   if (extension === '.py') {
+    const text = await readFile(fullPath, 'utf8');
     return { path: relativePath, kind: 'python', items: extractPythonSymbols(text) };
   }
   return null;
+}
+
+function isTypeScriptLikeFile(extension: string, fullPath: string): boolean {
+  return ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs'].includes(extension) && !fullPath.endsWith('.d.ts');
 }
 
 function extractMarkdownHeadings(text: string): string[] {
@@ -176,6 +222,10 @@ function toPosix(value: string): string {
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function escapeText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 }
 
 async function isGitIgnored(root: string, fullPath: string): Promise<boolean> {

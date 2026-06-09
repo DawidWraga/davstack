@@ -34,16 +34,16 @@ describe('scanFolderMetadata', () => {
       "# Folder Metadata
 
       <folder path=".">
-      <file path="notes.md" kind="markdown">
+      <file path="notes.md">
       - h1 Overview
       - h2 Details
       </file>
-      <file path="sample.py" kind="python">
+      <file path="sample.py">
       - const CONSTANT
       - class Worker
       - function run
       </file>
-      <file path="tools.ts" kind="typescript">
+      <file path="tools.ts">
       - class LocalThing
       - interface Config
       - type Mode
@@ -83,6 +83,60 @@ describe('scanFolderMetadata', () => {
     expect(metadata).not.toContain('ignored.ts');
     expect(metadata).not.toContain('const ignored');
   });
+
+  test('summarizes js, mjs, and mdx files with existing extractors', async () => {
+    const root = await makeTempFolder();
+    await writeFile(path.join(root, 'component.mdx'), '# Component\n');
+    await writeFile(path.join(root, 'script.js'), 'export function boot() {}\n');
+    await writeFile(path.join(root, 'module.mjs'), 'export const mode = "esm"\n');
+
+    const metadata = await scanFolderMetadata(root);
+
+    expect(metadata).toContain('<file path="component.mdx">');
+    expect(metadata).toContain('- h1 Component');
+    expect(metadata).toContain('<file path="script.js">');
+    expect(metadata).toContain('- function boot');
+    expect(metadata).toContain('<file path="module.mjs">');
+    expect(metadata).toContain('- const mode');
+    expect(metadata).not.toContain('omitted_files');
+  });
+
+  test('wraps deep child folders and reports omitted files per folder', async () => {
+    const root = await makeTempFolder();
+    await mkdir(path.join(root, 'child', 'grandchild'), { recursive: true });
+    await writeFile(path.join(root, 'root.ts'), 'export const rootValue = true\n');
+    await writeFile(path.join(root, 'asset.png'), 'not code\n');
+    await writeFile(path.join(root, 'child', 'child.py'), 'def child_function():\n    pass\n');
+    await writeFile(path.join(root, 'child', 'data.json'), '{"hidden":true}\n');
+    await writeFile(path.join(root, 'child', 'grandchild', 'notes.md'), '# Nested\n');
+
+    await expect(scanFolderMetadata(root, { deep: true })).resolves.toMatchInlineSnapshot(`
+      "# Folder Metadata
+
+      <folder path=".">
+      <file path="root.ts">
+      - const rootValue
+      </file>
+      <omitted_files>
+      - asset.png
+      </omitted_files>
+      <folder path="/child">
+      <file path="child.py">
+      - function child_function
+      </file>
+      <omitted_files>
+      - data.json
+      </omitted_files>
+      <folder path="/child/grandchild">
+      <file path="notes.md">
+      - h1 Nested
+      </file>
+      </folder>
+      </folder>
+      </folder>
+      "
+    `);
+  });
 });
 
 describe('generated folder metadata', () => {
@@ -94,7 +148,7 @@ describe('generated folder metadata', () => {
 
     expect(result.path).toBe(path.join(root, GENERATED_META_FILE));
     await expect(readFile(result.path, 'utf8')).resolves.toBe(result.content);
-    expect(result.content).toContain('<file path="README.md" kind="markdown">');
+    expect(result.content).toContain('<file path="README.md">');
   });
 
   test('view prints existing metadata, generating it when missing', async () => {
@@ -123,7 +177,8 @@ describe('generated folder metadata', () => {
     expect(shallow).toContain('rootValue');
     expect(shallow).not.toContain('childValue');
     expect(deep).toContain('rootValue');
-    expect(deep).toContain('child/child.ts');
+    expect(deep).toContain('<folder path="/child">');
+    expect(deep).toContain('<file path="child.ts">');
     expect(deep).toContain('childValue');
   });
 });
