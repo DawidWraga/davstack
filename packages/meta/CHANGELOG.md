@@ -1,5 +1,11 @@
 # @davstack/meta
 
+## 0.1.3
+
+### Patch Changes
+
+- Format code symbol references with repo-relative file paths and `[ln start-end]` line ranges.
+
 ## 0.1.2
 
 ### Patch Changes

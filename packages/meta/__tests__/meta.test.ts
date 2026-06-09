@@ -39,16 +39,16 @@ describe('scanFolderMetadata', () => {
       - h2 Details
       </file>
       <file path="sample.py">
-      - const CONSTANT line 1
-      - class Worker line 3
-      - function run line 6
+      - [ln 1] const CONSTANT
+      - [ln 3-4] class Worker
+      - [ln 6-7] function run
       </file>
       <file path="tools.ts">
-      - class LocalThing line 5
-      - interface Config line 1
-      - type Mode line 2
-      - const value line 3
-      - function build line 4
+      - [ln 5] class LocalThing
+      - [ln 1] interface Config
+      - [ln 2] type Mode
+      - [ln 3] const value
+      - [ln 4] function build
       </file>
       </folder>
       "
@@ -87,17 +87,17 @@ describe('scanFolderMetadata', () => {
   test('summarizes js, mjs, and mdx files with existing extractors', async () => {
     const root = await makeTempFolder();
     await writeFile(path.join(root, 'component.mdx'), '# Component\n');
-    await writeFile(path.join(root, 'script.js'), 'export function boot() {}\n');
-    await writeFile(path.join(root, 'module.mjs'), 'export const mode = "esm"\n');
+    await writeFile(path.join(root, 'script.js'), 'export function boot() {\n  return true\n}\n');
+    await writeFile(path.join(root, 'module.mjs'), 'export const mode = {\n  format: "esm"\n}\n');
 
     const metadata = await scanFolderMetadata(root);
 
     expect(metadata).toContain('<file path="component.mdx">');
     expect(metadata).toContain('- h1 Component');
     expect(metadata).toContain('<file path="script.js">');
-    expect(metadata).toContain('- function boot line 1');
+    expect(metadata).toContain('- [ln 1-3] function boot');
     expect(metadata).toContain('<file path="module.mjs">');
-    expect(metadata).toContain('- const mode line 1');
+    expect(metadata).toContain('- [ln 1-3] const mode');
     expect(metadata).not.toContain('omitted_files');
   });
 
@@ -115,14 +115,14 @@ describe('scanFolderMetadata', () => {
 
       <folder path=".">
       <file path="root.ts">
-      - const rootValue line 1
+      - [ln 1] const rootValue
       </file>
       <folder path="/child">
-      <file path="child.py">
-      - function child_function line 1
+      <file path="child/child.py">
+      - [ln 1-2] function child_function
       </file>
       <folder path="/child/grandchild">
-      <file path="notes.md">
+      <file path="child/grandchild/notes.md">
       - h1 Nested
       </file>
       </folder>
@@ -178,7 +178,7 @@ describe('generated folder metadata', () => {
     expect(shallow).not.toContain('childValue');
     expect(deep).toContain('rootValue');
     expect(deep).toContain('<folder path="/child">');
-    expect(deep).toContain('<file path="child.ts">');
+    expect(deep).toContain('<file path="child/child.ts">');
     expect(deep).toContain('childValue');
   });
 });

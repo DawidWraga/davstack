@@ -36,7 +36,8 @@ const SKIP_FILES = new Set([GENERATED_META_FILE]);
 
 export async function scanFolderMetadata(folder: string, options: ScanOptions = {}): Promise<string> {
   const root = path.resolve(folder);
-  const summary = await collectFolderSummary(root, root, options.deep === true);
+  const repoRoot = await findRepoRoot(root);
+  const summary = await collectFolderSummary(root, repoRoot, root, options.deep === true);
 
   const lines = ['# Folder Metadata', '', ...renderFolderSummary(summary), ''];
   return lines.join('\n');
@@ -67,6 +68,7 @@ export async function viewFolderMetadata(folder: string, options: ScanOptions = 
 
 async function collectFolderSummary(
   root: string,
+  repoRoot: string,
   dir: string,
   deep: boolean,
 ): Promise<FolderSummary> {
@@ -81,12 +83,12 @@ async function collectFolderSummary(
 
     if (entry.isDirectory()) {
       if (!deep || shouldSkipDirectory(entry.name)) continue;
-      folders.push(await collectFolderSummary(root, fullPath, deep));
+      folders.push(await collectFolderSummary(root, repoRoot, fullPath, deep));
       continue;
     }
     if (!entry.isFile() || shouldSkipFile(entry.name)) continue;
 
-    const summary = await summarizeFile(root, fullPath);
+    const summary = await summarizeFile(root, repoRoot, fullPath);
     if (summary) {
       files.push(summary);
     } else {
@@ -111,7 +113,7 @@ function renderFolderSummary(summary: FolderSummary): string[] {
   const lines = [`<folder path="${escapeAttribute(summary.path)}">`];
 
   for (const file of summary.files) {
-    lines.push(`<file path="${escapeAttribute(path.basename(file.path))}">`);
+    lines.push(`<file path="${escapeAttribute(file.path)}">`);
     for (const item of file.items) lines.push(`- ${item}`);
     lines.push('</file>');
   }
@@ -130,9 +132,9 @@ function renderFolderSummary(summary: FolderSummary): string[] {
   return lines;
 }
 
-async function summarizeFile(root: string, fullPath: string): Promise<FileSummary | null> {
+async function summarizeFile(root: string, repoRoot: string, fullPath: string): Promise<FileSummary | null> {
   const extension = path.extname(fullPath);
-  const relativePath = toPosix(path.relative(root, fullPath));
+  const relativePath = formatFilePath(root, repoRoot, fullPath);
 
   if (extension === '.md' || extension === '.mdx') {
     const text = await readFile(fullPath, 'utf8');
@@ -177,7 +179,8 @@ function extractTypeScriptSymbols(text: string): string[] {
 
   for (const [pattern, label] of patterns) {
     for (const match of source.matchAll(pattern)) {
-      items.push(`${label} ${match[1]} line ${lineNumberAt(source, match.index ?? 0)}`);
+      const range = lineRangeForTypeScriptSymbol(source, match.index ?? 0);
+      items.push(`${formatLineRange(range)} ${label} ${match[1]}`);
     }
   }
   return unique(items);
@@ -190,16 +193,16 @@ function extractPythonSymbols(text: string): string[] {
     const lineNumber = index + 1;
     let match = /^class\s+([A-Za-z_]\w*)\s*[:(]/.exec(line);
     if (match) {
-      items.push(`class ${match[1]} line ${lineNumber}`);
+      items.push(`${formatLineRange(lineRangeForPythonBlock(lines, index))} class ${match[1]}`);
       continue;
     }
     match = /^(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/.exec(line);
     if (match) {
-      items.push(`function ${match[1]} line ${lineNumber}`);
+      items.push(`${formatLineRange(lineRangeForPythonBlock(lines, index))} function ${match[1]}`);
       continue;
     }
     match = /^([A-Z][A-Z0-9_]*)\s*[:=]/.exec(line);
-    if (match) items.push(`const ${match[1]} line ${lineNumber}`);
+    if (match) items.push(`${formatLineRange({ start: lineNumber, end: lineNumber })} const ${match[1]}`);
   }
   return unique(items);
 }
@@ -230,6 +233,77 @@ function lineNumberAt(text: string, index: number): number {
   return lineNumber;
 }
 
+function lineRangeForTypeScriptSymbol(text: string, index: number): { start: number; end: number } {
+  const start = lineNumberAt(text, index);
+  const lineEnd = text.indexOf('\n', index);
+  const declarationEnd = lineEnd === -1 ? text.length : lineEnd;
+  const openingBrace = text.indexOf('{', index);
+
+  if (openingBrace !== -1 && openingBrace < declarationEnd) {
+    const closingBrace = findMatchingBrace(text, openingBrace);
+    if (closingBrace !== -1) return { start, end: lineNumberAt(text, closingBrace) };
+  }
+
+  const semicolon = text.indexOf(';', index);
+  if (semicolon !== -1 && semicolon < declarationEnd) {
+    return { start, end: lineNumberAt(text, semicolon) };
+  }
+
+  return { start, end: start };
+}
+
+function findMatchingBrace(text: string, openingBrace: number): number {
+  let depth = 0;
+  for (let index = openingBrace; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function lineRangeForPythonBlock(
+  lines: string[],
+  startIndex: number,
+): { start: number; end: number } {
+  const startIndent = indentationLength(lines[startIndex] ?? '');
+  let endIndex = startIndex;
+
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '') {
+      endIndex = index;
+      continue;
+    }
+    if (indentationLength(line) <= startIndent) break;
+    endIndex = index;
+  }
+
+  while (endIndex > startIndex && (lines[endIndex] ?? '').trim() === '') endIndex -= 1;
+  return { start: startIndex + 1, end: endIndex + 1 };
+}
+
+function indentationLength(line: string): number {
+  return line.match(/^\s*/)?.[0].length ?? 0;
+}
+
+function formatLineRange(range: { start: number; end: number }): string {
+  return range.start === range.end ? `[ln ${range.start}]` : `[ln ${range.start}-${range.end}]`;
+}
+
+function formatFilePath(root: string, repoRoot: string, fullPath: string): string {
+  const base = isInsidePath(repoRoot, fullPath) ? repoRoot : root;
+  return toPosix(path.relative(base, fullPath));
+}
+
+function isInsidePath(parent: string, child: string): boolean {
+  const relativePath = path.relative(parent, child);
+  return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
 function toPosix(value: string): string {
   return value.split(path.sep).join('/');
 }
@@ -253,5 +327,14 @@ async function isGitIgnored(root: string, fullPath: string): Promise<boolean> {
     const code = (error as { code?: number | string }).code;
     if (code === 1 || code === 128 || code === 'ENOENT') return false;
     return false;
+  }
+}
+
+async function findRepoRoot(root: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', root, 'rev-parse', '--show-toplevel']);
+    return path.resolve(stdout.trim());
+  } catch {
+    return root;
   }
 }
