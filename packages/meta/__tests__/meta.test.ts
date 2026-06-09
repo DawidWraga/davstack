@@ -34,22 +34,22 @@ describe('scanFolderMetadata', () => {
       "# Folder Metadata
 
       <folder path=".">
-      	<file path="notes.md">
-      		- h1 Overview
-      		- h2 Details
-      	</file>
-      	<file path="sample.py">
-      		- [ln 1] const CONSTANT
-      		- [ln 3-4] class Worker
-      		- [ln 6-7] function run
-      	</file>
-      	<file path="tools.ts">
-      		- [ln 5] class LocalThing
-      		- [ln 1] interface Config
-      		- [ln 2] type Mode
-      		- [ln 3] const value
-      		- [ln 4] function build
-      	</file>
+      <file path="notes.md">
+      - h1 Overview
+      - h2 Details
+      </file>
+      <file path="sample.py">
+      [ln 1] const CONSTANT
+      [ln 3-4] class Worker
+      [ln 6-7] function run
+      </file>
+      <file path="tools.ts">
+      [ln 5] class LocalThing
+      [ln 1] interface Config
+      [ln 2] type Mode
+      [ln 3] const value
+      [ln 4] function build
+      </file>
       </folder>
       "
     `);
@@ -95,9 +95,9 @@ describe('scanFolderMetadata', () => {
     expect(metadata).toContain('<file path="component.mdx">');
     expect(metadata).toContain('- h1 Component');
     expect(metadata).toContain('<file path="script.js">');
-    expect(metadata).toContain('- [ln 1-3] function boot');
+    expect(metadata).toContain('[ln 1-3] function boot');
     expect(metadata).toContain('<file path="module.mjs">');
-    expect(metadata).toContain('- [ln 1-3] const mode');
+    expect(metadata).toContain('[ln 1-3] const mode');
     expect(metadata).not.toContain('omitted_files');
   });
 
@@ -114,25 +114,25 @@ describe('scanFolderMetadata', () => {
       "# Folder Metadata
 
       <folder path=".">
-      	<file path="root.ts">
-      		- [ln 1] const rootValue
+      <file path="root.ts">
+      [ln 1] const rootValue
+      </file>
+      <folder path="child">
+      	<file path="child/child.py">
+      	[ln 1-2] function child_function
       	</file>
-      	<folder path="child">
-      		<file path="child/child.py">
-      			- [ln 1-2] function child_function
+      	<folder path="child/grandchild">
+      		<file path="child/grandchild/notes.md">
+      		- h1 Nested
       		</file>
-      		<folder path="child/grandchild">
-      			<file path="child/grandchild/notes.md">
-      				- h1 Nested
-      			</file>
-      		</folder>
-      		<omitted_files>
-      			- data.json
-      		</omitted_files>
       	</folder>
       	<omitted_files>
-      		- asset.png
+      	- data.json
       	</omitted_files>
+      </folder>
+      <omitted_files>
+      - asset.png
+      </omitted_files>
       </folder>
       "
     `);
@@ -149,11 +149,11 @@ describe('scanFolderMetadata', () => {
       "# Folder Metadata
 
       <folder path="apps/web">
-      	<folder path="apps/web/src">
-      		<file path="apps/web/src/widget.ts">
-      			- [ln 1] class Widget
-      		</file>
-      	</folder>
+      <folder path="apps/web/src">
+      	<file path="apps/web/src/widget.ts">
+      	[ln 1] class Widget
+      	</file>
+      </folder>
       </folder>
       "
     `);

@@ -111,14 +111,16 @@ function formatFolderPath(root: string, repoRoot: string, dir: string): string {
 }
 
 function renderFolderSummary(summary: FolderSummary, depth = 0): string[] {
-  const indent = '\t'.repeat(depth);
-  const childIndent = '\t'.repeat(depth + 1);
-  const itemIndent = '\t'.repeat(depth + 2);
+  const indent = '\t'.repeat(Math.max(0, depth - 1));
+  const childIndent = '\t'.repeat(depth);
   const lines = [`${indent}<folder path="${escapeAttribute(summary.path)}">`];
 
   for (const file of summary.files) {
     lines.push(`${childIndent}<file path="${escapeAttribute(file.path)}">`);
-    for (const item of file.items) lines.push(`${itemIndent}- ${item}`);
+    for (const item of file.items) {
+      const prefix = item.startsWith('[ln ') ? '' : '- ';
+      lines.push(`${childIndent}${prefix}${item}`);
+    }
     lines.push(`${childIndent}</file>`);
   }
 
@@ -127,7 +129,7 @@ function renderFolderSummary(summary: FolderSummary, depth = 0): string[] {
   if (summary.omittedFiles.length > 0) {
     lines.push(`${childIndent}<omitted_files>`);
     for (const omittedFile of summary.omittedFiles) {
-      lines.push(`${itemIndent}- ${escapeText(omittedFile)}`);
+      lines.push(`${childIndent}- ${escapeText(omittedFile)}`);
     }
     lines.push(`${childIndent}</omitted_files>`);
   }

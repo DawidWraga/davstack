@@ -1,5 +1,11 @@
 # @davstack/meta
 
+## 0.1.4
+
+### Patch Changes
+
+- Refine folder metadata indentation and render code symbol line references without list prefixes.
+
 ## 0.1.3
 
 ### Patch Changes
