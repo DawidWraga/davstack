@@ -117,11 +117,11 @@ describe('scanFolderMetadata', () => {
       <file path="root.ts">
       - [ln 1] const rootValue
       </file>
-      <folder path="/child">
+      <folder path="child">
       <file path="child/child.py">
       - [ln 1-2] function child_function
       </file>
-      <folder path="/child/grandchild">
+      <folder path="child/grandchild">
       <file path="child/grandchild/notes.md">
       - h1 Nested
       </file>
@@ -133,6 +133,27 @@ describe('scanFolderMetadata', () => {
       <omitted_files>
       - asset.png
       </omitted_files>
+      </folder>
+      "
+    `);
+  });
+
+  test('uses git repo relative paths when scanning a nested folder', async () => {
+    const root = await makeTempFolder();
+    await execFileAsync('git', ['init'], { cwd: root });
+    const scanRoot = path.join(root, 'apps', 'web');
+    await mkdir(path.join(scanRoot, 'src'), { recursive: true });
+    await writeFile(path.join(scanRoot, 'src', 'widget.ts'), 'export class Widget {}\n');
+
+    await expect(scanFolderMetadata(scanRoot, { deep: true })).resolves.toMatchInlineSnapshot(`
+      "# Folder Metadata
+
+      <folder path="apps/web">
+      <folder path="apps/web/src">
+      <file path="apps/web/src/widget.ts">
+      - [ln 1] class Widget
+      </file>
+      </folder>
       </folder>
       "
     `);
@@ -177,7 +198,7 @@ describe('generated folder metadata', () => {
     expect(shallow).toContain('rootValue');
     expect(shallow).not.toContain('childValue');
     expect(deep).toContain('rootValue');
-    expect(deep).toContain('<folder path="/child">');
+    expect(deep).toContain('<folder path="child">');
     expect(deep).toContain('<file path="child/child.ts">');
     expect(deep).toContain('childValue');
   });

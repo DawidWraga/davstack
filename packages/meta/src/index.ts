@@ -97,16 +97,17 @@ async function collectFolderSummary(
   }
 
   return {
-    path: formatFolderPath(root, dir),
+    path: formatFolderPath(root, repoRoot, dir),
     files: files.sort((a, b) => a.path.localeCompare(b.path)),
     folders: folders.sort((a, b) => a.path.localeCompare(b.path)),
     omittedFiles: omittedFiles.sort((a, b) => a.localeCompare(b)),
   };
 }
 
-function formatFolderPath(root: string, dir: string): string {
-  const relativePath = toPosix(path.relative(root, dir));
-  return relativePath ? `/${relativePath}` : '.';
+function formatFolderPath(root: string, repoRoot: string, dir: string): string {
+  const base = isInsidePath(repoRoot, dir) ? repoRoot : root;
+  const relativePath = toPosix(path.relative(base, dir));
+  return relativePath || '.';
 }
 
 function renderFolderSummary(summary: FolderSummary): string[] {

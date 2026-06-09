@@ -41,7 +41,7 @@ describe('davstack-meta CLI', () => {
     expect(code).toBe(0);
     const output = log.mock.calls.map(([value]) => String(value)).join('\n');
     expect(output).toContain('h1 Root');
-    expect(output).toContain('<folder path="/child">');
+    expect(output).toContain('<folder path="child">');
     expect(output).toContain('<file path="child/child.ts">');
     expect(output).toContain('childValue');
   });
