@@ -1,10 +1,10 @@
-# @davstack/meta
+# @davstack/peek
 
-Generate concise, agent-friendly folder metadata.
+Print concise, agent-friendly folder summaries.
 
 ```sh
-davstack-meta gen .
-davstack-meta view . --deep
+npx @davstack/peek .
+npx @davstack/peek packages/context-compactor --agent
 ```
 
 The first version uses conservative text scanning and safe default ignores for

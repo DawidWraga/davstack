@@ -3,15 +3,15 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-export const GENERATED_META_FILE = '.folder-meta.generated.md';
+export const GENERATED_PEEK_FILE = '.folder-peek.generated.md';
 const execFileAsync = promisify(execFile);
 
 export type ScanOptions = {
   deep?: boolean;
-  preset?: MetaOutputPresetName;
+  preset?: PeekOutputPresetName;
   indent?: boolean;
-  filePaths?: MetaFilePathMode;
-  file_paths?: MetaFilePathMode;
+  filePaths?: PeekFilePathMode;
+  file_paths?: PeekFilePathMode;
 };
 
 type FileSummary = {
@@ -20,16 +20,16 @@ type FileSummary = {
   items: string[];
 };
 
-export type MetaFilePathMode = 'concise' | 'full';
-export type MetaOutputPresetName = 'agent' | 'human';
+export type PeekFilePathMode = 'concise' | 'full';
+export type PeekOutputPresetName = 'agent' | 'human';
 
-export type MetaOutputConfig = {
+export type PeekOutputConfig = {
   deep: boolean;
   indent: boolean;
-  filePaths: MetaFilePathMode;
+  filePaths: PeekFilePathMode;
 };
 
-export const META_OUTPUT_PRESETS: Record<MetaOutputPresetName, MetaOutputConfig> = {
+export const PEEK_OUTPUT_PRESETS: Record<PeekOutputPresetName, PeekOutputConfig> = {
   human: {
     deep: true,
     indent: true,
@@ -58,9 +58,9 @@ const SKIP_DIRS = new Set([
   'node_modules',
 ]);
 
-const SKIP_FILES = new Set([GENERATED_META_FILE]);
+const SKIP_FILES = new Set([GENERATED_PEEK_FILE]);
 
-export async function scanFolderMetadata(folder: string, options: ScanOptions = {}): Promise<string> {
+export async function scanFolderPeek(folder: string, options: ScanOptions = {}): Promise<string> {
   const root = path.resolve(folder);
   const repoRoot = await findRepoRoot(root);
   const outputConfig = resolveOutputConfig(options);
@@ -69,27 +69,27 @@ export async function scanFolderMetadata(folder: string, options: ScanOptions = 
   return `${renderFolderSummary(summary, outputConfig)}\n`;
 }
 
-export async function generateFolderMetadata(
+export async function generateFolderPeek(
   folder: string,
   options: ScanOptions = {},
 ): Promise<{ path: string; content: string }> {
   const root = path.resolve(folder);
-  const content = await scanFolderMetadata(root, options);
-  const outPath = path.join(root, GENERATED_META_FILE);
+  const content = await scanFolderPeek(root, options);
+  const outPath = path.join(root, GENERATED_PEEK_FILE);
   await mkdir(root, { recursive: true });
   await writeFile(outPath, content, 'utf8');
   return { path: outPath, content };
 }
 
-export async function viewFolderMetadata(folder: string, options: ScanOptions = {}): Promise<string> {
+export async function peekFolder(folder: string, options: ScanOptions = {}): Promise<string> {
   const root = path.resolve(folder);
-  const generatedPath = path.join(root, GENERATED_META_FILE);
+  const generatedPath = path.join(root, GENERATED_PEEK_FILE);
   try {
     if (!options.deep && !hasOutputOverrides(options)) return await readFile(generatedPath, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
-  return (await generateFolderMetadata(root, options)).content;
+  return (await generateFolderPeek(root, options)).content;
 }
 
 async function collectFolderSummary(
@@ -97,7 +97,7 @@ async function collectFolderSummary(
   repoRoot: string,
   dir: string,
   deep: boolean,
-  outputConfig: MetaOutputConfig,
+  outputConfig: PeekOutputConfig,
 ): Promise<FolderSummary> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files: FileSummary[] = [];
@@ -139,7 +139,7 @@ function formatFolderPath(root: string, repoRoot: string, dir: string): string {
 
 function renderFolderSummary(
   summary: FolderSummary,
-  outputConfig: MetaOutputConfig,
+  outputConfig: PeekOutputConfig,
   depth = 0,
 ): string {
   const indent = outputConfig.indent ? '\t'.repeat(Math.max(0, depth - 1)) : '';
@@ -175,7 +175,7 @@ async function summarizeFile(
   root: string,
   repoRoot: string,
   fullPath: string,
-  outputConfig: MetaOutputConfig,
+  outputConfig: PeekOutputConfig,
 ): Promise<FileSummary | null> {
   const extension = path.extname(fullPath);
   const relativePath = formatFilePath(root, repoRoot, fullPath, outputConfig.filePaths);
@@ -395,17 +395,17 @@ function formatFilePath(
   root: string,
   repoRoot: string,
   fullPath: string,
-  filePaths: MetaFilePathMode,
+  filePaths: PeekFilePathMode,
 ): string {
   if (filePaths === 'concise') return `/${path.basename(fullPath)}`;
   const base = isInsidePath(repoRoot, fullPath) ? repoRoot : root;
   return toPosix(path.relative(base, fullPath));
 }
 
-function resolveOutputConfig(options: ScanOptions): MetaOutputConfig {
+function resolveOutputConfig(options: ScanOptions): PeekOutputConfig {
   const presetName = options.preset ?? 'human';
-  const preset = META_OUTPUT_PRESETS[presetName];
-  if (!preset) throw new Error(`Unknown metadata output preset: ${presetName}`);
+  const preset = PEEK_OUTPUT_PRESETS[presetName];
+  if (!preset) throw new Error(`Unknown peek output preset: ${presetName}`);
 
   return {
     deep: options.deep ?? preset.deep,
@@ -414,9 +414,9 @@ function resolveOutputConfig(options: ScanOptions): MetaOutputConfig {
   };
 }
 
-function normalizeFilePathMode(value: MetaFilePathMode): MetaFilePathMode {
+function normalizeFilePathMode(value: PeekFilePathMode): PeekFilePathMode {
   if (value === 'concise' || value === 'full') return value;
-  throw new Error(`Unknown metadata file path mode: ${String(value)}`);
+  throw new Error(`Unknown peek file path mode: ${String(value)}`);
 }
 
 function hasOutputOverrides(options: ScanOptions): boolean {

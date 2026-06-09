@@ -99,11 +99,14 @@ importers:
         specifier: ^5.0.0
         version: 5.3.3
 
-  packages/meta:
+  packages/open-agents:
     dependencies:
       '@davstack/cli-utils':
         specifier: workspace:*
         version: link:../cli-utils
+      '@davstack/context-compactor':
+        specifier: workspace:*
+        version: link:../context-compactor
     devDependencies:
       '@types/node':
         specifier: ^25.9.1
@@ -115,14 +118,11 @@ importers:
         specifier: ^5.0.0
         version: 5.3.3
 
-  packages/open-agents:
+  packages/peek:
     dependencies:
       '@davstack/cli-utils':
         specifier: workspace:*
         version: link:../cli-utils
-      '@davstack/context-compactor':
-        specifier: workspace:*
-        version: link:../context-compactor
     devDependencies:
       '@types/node':
         specifier: ^25.9.1

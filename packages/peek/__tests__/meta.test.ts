@@ -5,19 +5,19 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, test } from 'vitest';
 import {
-  GENERATED_META_FILE,
-  generateFolderMetadata,
-  scanFolderMetadata,
-  viewFolderMetadata,
+  GENERATED_PEEK_FILE,
+  generateFolderPeek,
+  peekFolder,
+  scanFolderPeek,
 } from '../src/index.js';
 
 const execFileAsync = promisify(execFile);
 
 async function makeTempFolder() {
-  return await mkdtemp(path.join(os.tmpdir(), 'davstack-meta-'));
+  return await mkdtemp(path.join(os.tmpdir(), 'davstack-peek-'));
 }
 
-describe('scanFolderMetadata', () => {
+describe('scanFolderPeek', () => {
   test('summarizes markdown headings and top-level code symbols in deterministic order', async () => {
     const root = await makeTempFolder();
     await writeFile(path.join(root, 'notes.md'), '# Overview\n\n## Details\n');
@@ -30,7 +30,7 @@ describe('scanFolderMetadata', () => {
       'export interface Config {}\nexport type Mode = "fast"\nexport const value = 1\nexport function build() {}\nclass LocalThing {}\n',
     );
 
-    await expect(scanFolderMetadata(root)).resolves.toMatchInlineSnapshot(`
+    await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
       <file path="notes.md">
       - h1 Overview
@@ -55,16 +55,16 @@ describe('scanFolderMetadata', () => {
 
   test('skips generated metadata and default ignored folders', async () => {
     const root = await makeTempFolder();
-    await writeFile(path.join(root, GENERATED_META_FILE), '# stale generated file\n');
+    await writeFile(path.join(root, GENERATED_PEEK_FILE), '# stale generated file\n');
     await mkdir(path.join(root, 'node_modules'), { recursive: true });
     await writeFile(path.join(root, 'node_modules', 'ignored.ts'), 'export const ignored = true\n');
     await writeFile(path.join(root, 'visible.ts'), 'export const visible = true\n');
 
-    const metadata = await scanFolderMetadata(root, { deep: true });
+    const metadata = await scanFolderPeek(root, { deep: true });
 
     expect(metadata).toContain('path="visible.ts"');
     expect(metadata).toContain('const visible');
-    expect(metadata).not.toContain(GENERATED_META_FILE);
+    expect(metadata).not.toContain(GENERATED_PEEK_FILE);
     expect(metadata).not.toContain('ignored');
   });
 
@@ -75,7 +75,7 @@ describe('scanFolderMetadata', () => {
     await writeFile(path.join(root, 'ignored.ts'), 'export const ignored = true\n');
     await writeFile(path.join(root, 'visible.ts'), 'export const visible = true\n');
 
-    const metadata = await scanFolderMetadata(root);
+    const metadata = await scanFolderPeek(root);
 
     expect(metadata).toContain('visible.ts');
     expect(metadata).not.toContain('ignored.ts');
@@ -88,7 +88,7 @@ describe('scanFolderMetadata', () => {
     await writeFile(path.join(root, 'script.js'), 'export function boot() {\n  return true\n}\n');
     await writeFile(path.join(root, 'module.mjs'), 'export const mode = {\n  format: "esm"\n}\n');
 
-    const metadata = await scanFolderMetadata(root);
+    const metadata = await scanFolderPeek(root);
 
     expect(metadata).toContain('<file path="component.mdx">');
     expect(metadata).toContain('- h1 Component');
@@ -117,7 +117,7 @@ describe('detectContentType', () => {
 `,
     );
 
-    await expect(scanFolderMetadata(root)).resolves.toMatchInlineSnapshot(`
+    await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
       <file path="detect.test.ts">
       [ln 2-11] describe('detectContentType')
@@ -138,7 +138,7 @@ describe('detectContentType', () => {
     await writeFile(path.join(root, 'child', 'data.json'), '{"hidden":true}\n');
     await writeFile(path.join(root, 'child', 'grandchild', 'notes.md'), '# Nested\n');
 
-    await expect(scanFolderMetadata(root, { deep: true })).resolves.toMatchInlineSnapshot(`
+    await expect(scanFolderPeek(root, { deep: true })).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
       <file path="root.ts">
       [ln 1] const rootValue
@@ -171,7 +171,7 @@ describe('detectContentType', () => {
     await mkdir(path.join(scanRoot, 'src'), { recursive: true });
     await writeFile(path.join(scanRoot, 'src', 'widget.ts'), 'export class Widget {}\n');
 
-    await expect(scanFolderMetadata(scanRoot, { deep: true })).resolves.toMatchInlineSnapshot(`
+    await expect(scanFolderPeek(scanRoot, { deep: true })).resolves.toMatchInlineSnapshot(`
       "<folder path="apps/web">
       <folder path="apps/web/src">
       	<file path="apps/web/src/widget.ts">
@@ -190,7 +190,7 @@ describe('detectContentType', () => {
     await mkdir(path.join(scanRoot, '__tests__'), { recursive: true });
     await writeFile(path.join(scanRoot, '__tests__', 'log.test.ts'), 'export const SAMPLE = true\n');
 
-    await expect(scanFolderMetadata(scanRoot, { deep: true, preset: 'agent' })).resolves.toMatchInlineSnapshot(`
+    await expect(scanFolderPeek(scanRoot, { deep: true, preset: 'agent' })).resolves.toMatchInlineSnapshot(`
       "<folder path="packages/context-compactor">
       <folder path="packages/context-compactor/__tests__">
       <file path="/log.test.ts">
@@ -205,46 +205,46 @@ describe('detectContentType', () => {
   test('explicit output options override preset defaults', async () => {
     const root = await makeTempFolder();
     await execFileAsync('git', ['init'], { cwd: root });
-    const scanRoot = path.join(root, 'packages', 'meta');
+    const scanRoot = path.join(root, 'packages', 'peek');
     await mkdir(path.join(scanRoot, 'src'), { recursive: true });
     await writeFile(path.join(scanRoot, 'src', 'index.ts'), 'export function scan() {}\n');
 
-    const metadata = await scanFolderMetadata(scanRoot, {
+    const metadata = await scanFolderPeek(scanRoot, {
       deep: true,
       preset: 'agent',
       indent: true,
       filePaths: 'full',
     });
 
-    expect(metadata).toContain('<file path="packages/meta/src/index.ts">');
-    expect(metadata).toContain('\t<file path="packages/meta/src/index.ts">');
+    expect(metadata).toContain('<file path="packages/peek/src/index.ts">');
+    expect(metadata).toContain('\t<file path="packages/peek/src/index.ts">');
   });
 });
 
-describe('generated folder metadata', () => {
-  test('gen writes the generated metadata file in the scanned folder', async () => {
+describe('generated folder peek', () => {
+  test('generate writes the generated peek file in the scanned folder', async () => {
     const root = await makeTempFolder();
     await writeFile(path.join(root, 'README.md'), '# Root\n');
 
-    const result = await generateFolderMetadata(root);
+    const result = await generateFolderPeek(root);
 
-    expect(result.path).toBe(path.join(root, GENERATED_META_FILE));
+    expect(result.path).toBe(path.join(root, GENERATED_PEEK_FILE));
     await expect(readFile(result.path, 'utf8')).resolves.toBe(result.content);
     expect(result.content).toContain('<file path="README.md">');
   });
 
-  test('view prints existing metadata, generating it when missing', async () => {
+  test('peek prints existing output, generating it when missing', async () => {
     const root = await makeTempFolder();
-    await writeFile(path.join(root, GENERATED_META_FILE), '# Existing\n');
+    await writeFile(path.join(root, GENERATED_PEEK_FILE), '# Existing\n');
 
-    await expect(viewFolderMetadata(root)).resolves.toBe('# Existing\n');
+    await expect(peekFolder(root)).resolves.toBe('# Existing\n');
 
     const missing = await makeTempFolder();
     await writeFile(path.join(missing, 'README.md'), '# Created\n');
 
-    const generated = await viewFolderMetadata(missing);
+    const generated = await peekFolder(missing);
     expect(generated).toContain('h1 Created');
-    await expect(readFile(path.join(missing, GENERATED_META_FILE), 'utf8')).resolves.toBe(generated);
+    await expect(readFile(path.join(missing, GENERATED_PEEK_FILE), 'utf8')).resolves.toBe(generated);
   });
 
   test('default scans are deep while explicit deep false stays shallow', async () => {
@@ -253,8 +253,8 @@ describe('generated folder metadata', () => {
     await writeFile(path.join(root, 'root.ts'), 'export const rootValue = true\n');
     await writeFile(path.join(root, 'child', 'child.ts'), 'export const childValue = true\n');
 
-    const deep = await scanFolderMetadata(root);
-    const shallow = await scanFolderMetadata(root, { deep: false });
+    const deep = await scanFolderPeek(root);
+    const shallow = await scanFolderPeek(root, { deep: false });
 
     expect(shallow).toContain('rootValue');
     expect(shallow).not.toContain('childValue');

@@ -8,7 +8,7 @@ const entry = path.join(here, '..', 'dist', 'cli.js')
 const child = spawn(process.execPath, [entry, ...process.argv.slice(2)], { stdio: 'inherit' })
 
 child.on('error', (err) => {
-  console.error('davstack-meta: launcher error:', err)
+  console.error('peek: launcher error:', err)
   process.exit(1)
 })
 child.on('exit', (code, signal) => {

@@ -1,16 +1,16 @@
 {
-  "name": "@davstack/meta",
-  "version": "0.1.6",
+  "name": "@davstack/peek",
+  "version": "0.1.0",
   "license": "MIT",
   "type": "module",
-  "description": "Generate concise folder metadata for agents.",
+  "description": "Peek at concise, agent-friendly folder summaries.",
   "scripts": {
     "build": "tsup",
     "prepublishOnly": "tsup",
-    "test": "pnpm -w exec vitest run --project meta"
+    "test": "pnpm -w exec vitest run --project peek"
   },
   "bin": {
-    "davstack-meta": "./bin/davstack-meta.mjs"
+    "peek": "./bin/davstack-peek.mjs"
   },
   "exports": {
     ".": {

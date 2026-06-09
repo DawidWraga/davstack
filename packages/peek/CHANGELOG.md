@@ -1,4 +1,10 @@
-# @davstack/meta
+# @davstack/peek
+
+## 0.1.0
+
+### Minor Changes
+
+- Rename the package from `@davstack/meta` to `@davstack/peek` and make the CLI print a folder peek with `peek <path>` instead of requiring the `view` subcommand.
 
 ## 0.1.6
 

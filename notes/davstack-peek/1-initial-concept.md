@@ -1,7 +1,7 @@
-# Davstack Meta Initial Concept
+# Davstack Peek Initial Concept
 
-Idea: add a small package/CLI, probably `@davstack/meta`, that generates concise
-folder-level metadata files for agents.
+Idea: add a small package/CLI, `@davstack/peek`, that prints concise
+folder-level peek files for agents.
 
 ## Motivation
 
@@ -12,21 +12,21 @@ act like a compact table of contents for source and docs.
 ## Possible CLI
 
 ```text
-npx @davstack/meta gen ./path-to-folder
-npx @davstack/meta view ./path-to-folder
-npx @davstack/meta view ./path-to-folder --deep
+npx @davstack/peek ./path-to-folder
+npx @davstack/peek ./path-to-folder --agent
+npx @davstack/peek ./path-to-folder --human
 ```
 
 ## `gen`
 
 `gen` scans a folder and writes a concise generated markdown file in that
-folder, likely something like `.folder-meta.generated.md`.
+folder, likely something like `.folder-peek.generated.md`.
 
 Initial scope:
 
 - Include markdown, TypeScript, and Python files.
 - Skip files ignored by git.
-- Skip generated metadata files themselves.
+- Skip generated peek files themselves.
 - Prefer concise structural summaries over content summaries.
 
 For markdown:
@@ -44,12 +44,12 @@ For Python:
 
 - Include functions, classes, constants, and module docstring where useful.
 
-## `view`
+## Peek
 
-`view` prints existing metadata for a folder. If the metadata file does not
+The CLI prints existing peek output for a folder. If the peek file does not
 exist, it can generate it on the spot.
 
-`--deep` could recursively include child folder metadata, either by generating
+`--deep` could recursively include child folder output, either by generating
 missing child files or by doing a direct recursive scan.
 
 ## Output Shape
@@ -74,7 +74,7 @@ There may be two useful output levels:
 
 ## Git Hygiene
 
-Generated metadata files should probably be gitignored by default. The package
+Generated peek files should probably be gitignored by default. The package
 could also provide a recommended `.gitignore` entry.
 
 ## Agent Workflow
@@ -82,9 +82,9 @@ could also provide a recommended `.gitignore` entry.
 An agent can run:
 
 ```text
-npx @davstack/meta view packages/open-agents/src --deep
+npx @davstack/peek packages/open-agents/src --deep
 ```
 
-Then use the metadata as a cheap routing map before opening source files. This
+Then use the output as a cheap routing map before opening source files. This
 could pair well with open-agent handoff testing because history/context pointers
 are more useful when agents can cheaply inspect repo structure too.

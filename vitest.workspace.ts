@@ -67,8 +67,8 @@ export default defineWorkspace([
 			},
 		},
 		test: {
-			name: 'meta',
-			root: './packages/meta',
+			name: 'peek',
+			root: './packages/peek',
 			environment: 'node',
 			include: ['__tests__/**/*.test.ts'],
 			exclude: ['**/node_modules/**'],
