@@ -42,11 +42,30 @@ describe('scanFolderPeek', () => {
       [ln 6-7] function run
       </file>
       <file path="tools.ts" lines="5">
-      [ln 5] class LocalThing
       [ln 1] interface Config
       [ln 2] type Mode
       [ln 3] const value
       [ln 4] function build
+      [ln 5] class LocalThing
+      </file>
+      </folder>
+      "
+    `);
+  });
+
+  test('orders TypeScript symbols by source line', async () => {
+    const root = await makeTempFolder();
+    await writeFile(
+      path.join(root, 'ordered.ts'),
+      'export function first() {}\nexport type Middle = string\nexport class Last {}\n',
+    );
+
+    await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
+      "<folder path=".">
+      <file path="ordered.ts" lines="3">
+      [ln 1] function first
+      [ln 2] type Middle
+      [ln 3] class Last
       </file>
       </folder>
       "

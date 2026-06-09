@@ -251,7 +251,7 @@ function extractMarkdownHeadings(text: string): string[] {
 }
 
 function extractTypeScriptSymbols(text: string): string[] {
-  const items: string[] = [];
+  const items: Array<{ start: number; value: string }> = [];
   const source = stripBlockComments(text);
   const patterns: Array<[RegExp, string]> = [
     [/^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/gm, 'class'],
@@ -267,15 +267,18 @@ function extractTypeScriptSymbols(text: string): string[] {
   for (const [pattern, label] of patterns) {
     for (const match of source.matchAll(pattern)) {
       const range = lineRangeForTypeScriptSymbol(source, match.index ?? 0);
-      items.push(`${formatLineRange(range)} ${label} ${match[1]}`);
+      items.push({
+        start: range.start,
+        value: `${formatLineRange(range)} ${label} ${match[1]}`,
+      });
     }
   }
   items.push(...extractTypeScriptTestCalls(source));
-  return unique(items);
+  return uniqueSortedItems(items);
 }
 
-function extractTypeScriptTestCalls(text: string): string[] {
-  const items: string[] = [];
+function extractTypeScriptTestCalls(text: string): Array<{ start: number; value: string }> {
+  const items: Array<{ start: number; value: string }> = [];
   const pattern = /^\s*(describe|test|it)\s*\(\s*(['"`])((?:\\.|(?!\2)[\s\S])*?)\2/gm;
 
   for (const match of text.matchAll(pattern)) {
@@ -283,7 +286,10 @@ function extractTypeScriptTestCalls(text: string): string[] {
     const quote = match[2];
     const title = match[3];
     const range = lineRangeForCallExpression(text, match.index ?? 0);
-    items.push(`${formatLineRange(range)} ${callName}(${quote}${title}${quote})`);
+    items.push({
+      start: range.start,
+      value: `${formatLineRange(range)} ${callName}(${quote}${title}${quote})`,
+    });
   }
 
   return items;
@@ -326,6 +332,18 @@ function stripBlockComments(text: string): string {
 
 function unique(items: string[]): string[] {
   return Array.from(new Set(items));
+}
+
+function uniqueSortedItems(items: Array<{ start: number; value: string }>): string[] {
+  const seen = new Set<string>();
+  return items
+    .sort((a, b) => a.start - b.start || a.value.localeCompare(b.value))
+    .filter((item) => {
+      if (seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    })
+    .map((item) => item.value);
 }
 
 function createLimiter(maxConcurrent: number): <T>(task: () => Promise<T>) => Promise<T> {
