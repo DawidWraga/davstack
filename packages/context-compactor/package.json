@@ -1,0 +1,37 @@
+{
+  "name": "@davstack/context-compactor",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Deterministic, TS-native context compaction for LLM agents: structure-aware reduction of tool outputs (JSON/code/logs) with retrieval pointers. No ML, no proxy.",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsup",
+    "test": "pnpm -w exec vitest run --project context-compactor"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@toon-format/toon": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

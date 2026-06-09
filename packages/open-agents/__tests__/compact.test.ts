@@ -5,6 +5,9 @@ import { join } from 'node:path';
 import {
   findClaudeTranscriptBySession,
   findCodexTranscriptBySession,
+  loadCompactHistory,
+  parseCompactMessages,
+  renderCompactMessages,
   resolveCompactHistoryFile,
   tokenTail,
 } from '../src/core/compact.js';
@@ -26,6 +29,43 @@ describe('compact mode helpers', () => {
     expect(flags.compactMode).toBe(true);
     expect(flags.historyFile).toBe('C:/history.jsonl');
     expect(positional).toEqual(['short task']);
+  });
+
+  test('loads real JSONL messages for Headroom compression', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'compact-messages-'));
+    try {
+      const history = join(dir, 'history.jsonl');
+      writeFileSync(
+        history,
+        [
+          JSON.stringify({ message: { role: 'user', content: 'keep user intent' } }),
+          JSON.stringify({ message: { role: 'assistant', content: 'assistant response' } }),
+        ].join('\n') + '\n',
+      );
+
+      const loaded = loadCompactHistory(history, 100);
+
+      expect(loaded.messages).toEqual([
+        { role: 'user', content: 'keep user intent' },
+        { role: 'assistant', content: 'assistant response' },
+      ]);
+      expect(loaded.tail).toContain('user: keep user intent');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('renders parsed compact messages without changing roles', () => {
+    const messages = parseCompactMessages(
+      [
+        JSON.stringify({ role: 'user', content: 'do not compress this as tool output' }),
+        JSON.stringify({ role: 'assistant', content: [{ type: 'text', text: 'ok' }] }),
+      ].join('\n'),
+    );
+
+    expect(renderCompactMessages(messages)).toBe(
+      'user: do not compress this as tool output\n\nassistant: ok',
+    );
   });
 
   test('resolves explicit and env history paths before Claude session lookup', () => {

@@ -1,12 +1,14 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import type { HeadroomMessage } from './headroom.js';
 
 export interface CompactHistory {
   path: string;
   text: string;
   tail: string;
   tailTokens: number;
+  messages: HeadroomMessage[];
 }
 
 export function tokenTail(text: string, maxTokens: number): string {
@@ -19,6 +21,91 @@ export function tokenTail(text: string, maxTokens: number): string {
     if (!/^\s+$/.test(parts[start])) tokens += 1;
   }
   return parts.slice(start).join('').trim();
+}
+
+function tokenLikeCount(text: string): number {
+  return (text.match(/[A-Za-z0-9_]+|[^\sA-Za-z0-9_]/g) || []).length;
+}
+
+function textFromContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (content == null) return '';
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (!part || typeof part !== 'object') return '';
+        const item = part as Record<string, unknown>;
+        if (typeof item.text === 'string') return item.text;
+        if (typeof item.content === 'string') return item.content;
+        return JSON.stringify(item);
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+  return JSON.stringify(content);
+}
+
+function compactMessageText(message: HeadroomMessage): string {
+  const role = typeof message.role === 'string' ? message.role : 'message';
+  const content = textFromContent(message.content);
+  return `${role}: ${content || JSON.stringify(message)}`;
+}
+
+export function renderCompactMessages(messages: HeadroomMessage[]): string {
+  return messages.map(compactMessageText).join('\n\n').trim();
+}
+
+function isMessage(value: unknown): value is HeadroomMessage {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.role === 'string' && 'content' in item;
+}
+
+function extractMessage(row: unknown): HeadroomMessage | null {
+  if (isMessage(row)) return row;
+  if (!row || typeof row !== 'object') return null;
+  const item = row as Record<string, unknown>;
+  if (isMessage(item.message)) return item.message;
+  if (
+    typeof item.type === 'string' &&
+    ['system', 'user', 'assistant', 'tool'].includes(item.type) &&
+    'content' in item
+  ) {
+    return { ...item, role: item.type };
+  }
+  return null;
+}
+
+export function parseCompactMessages(text: string): HeadroomMessage[] {
+  const messages: HeadroomMessage[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const message = extractMessage(JSON.parse(line));
+      if (message) messages.push(message);
+    } catch {
+      return [];
+    }
+  }
+  return messages;
+}
+
+export function tailCompactMessages(
+  messages: HeadroomMessage[],
+  maxTokens: number,
+): HeadroomMessage[] {
+  if (!Number.isFinite(maxTokens) || maxTokens <= 0) return [];
+  const out: HeadroomMessage[] = [];
+  let tokens = 0;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const messageTokens = tokenLikeCount(compactMessageText(messages[i]));
+    if (out.length && tokens + messageTokens > maxTokens) break;
+    out.unshift(messages[i]);
+    tokens += messageTokens;
+    if (tokens >= maxTokens) break;
+  }
+  return out;
 }
 
 export function findClaudeTranscriptBySession(
@@ -148,11 +235,13 @@ export function loadCompactHistory(path: string, tailTokens: number): CompactHis
     throw new Error(`compact history file not found: ${resolved}`);
   }
   const text = readFileSync(resolved, 'utf8');
+  const messages = tailCompactMessages(parseCompactMessages(text), tailTokens);
   return {
     path: resolved,
     text,
-    tail: tokenTail(text, tailTokens),
+    tail: messages.length ? renderCompactMessages(messages) : tokenTail(text, tailTokens),
     tailTokens,
+    messages,
   };
 }
 

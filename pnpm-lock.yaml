@@ -52,6 +52,22 @@ importers:
         specifier: ^5.0.0
         version: 5.3.3
 
+  packages/context-compactor:
+    dependencies:
+      '@toon-format/toon':
+        specifier: ^2.3.0
+        version: 2.3.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(tsx@4.22.3)(typescript@5.3.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.3.3
+
   packages/init:
     dependencies:
       '@inquirer/prompts':
@@ -104,6 +120,9 @@ importers:
       '@davstack/cli-utils':
         specifier: workspace:*
         version: link:../cli-utils
+      '@davstack/context-compactor':
+        specifier: workspace:*
+        version: link:../context-compactor
     devDependencies:
       '@types/node':
         specifier: ^25.9.1
@@ -3852,6 +3871,10 @@ packages:
       '@testing-library/dom': '>=7.21.4'
     dependencies:
       '@testing-library/dom': 9.3.4
+    dev: false
+
+  /@toon-format/toon@2.3.0:
+    resolution: {integrity: sha512-/Ew9etdRQKVMnm9fDaCG0JjyAOK/O7T0M97oum1aW4W+UR8ZhVVPBanIV7oWgHBiGlnVxV9M55PWQCHofDV07w==}
     dev: false
 
   /@tybys/wasm-util@0.10.2:
@@ -9331,7 +9354,7 @@ packages:
     dependencies:
       browserslist: 4.22.1
       escalade: 3.1.1
-      picocolors: 1.0.0
+      picocolors: 1.1.1
     dev: true
 
   /update-browserslist-db@1.0.13(browserslist@4.23.0):
@@ -9342,7 +9365,7 @@ packages:
     dependencies:
       browserslist: 4.23.0
       escalade: 3.1.1
-      picocolors: 1.0.0
+      picocolors: 1.1.1
     dev: true
 
   /uri-js@4.4.1:

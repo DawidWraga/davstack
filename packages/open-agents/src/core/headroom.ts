@@ -23,6 +23,21 @@ export interface HeadroomStats {
   raw: unknown;
 }
 
+export type HeadroomMessage = Record<string, unknown> & {
+  role?: string;
+  content?: unknown;
+};
+
+export interface HeadroomCompressionResult {
+  messages: HeadroomMessage[];
+  tokensBefore: number;
+  tokensAfter: number;
+  tokensSaved: number;
+  compressionRatio: number;
+  transformsApplied: string[];
+  raw: unknown;
+}
+
 interface HeadroomStatsResponse {
   requests?: {
     total?: number;
@@ -32,6 +47,20 @@ interface HeadroomStatsResponse {
     output?: number;
     saved?: number;
   };
+}
+
+interface HeadroomCompressionResponse {
+  messages?: HeadroomMessage[];
+  tokens_before?: number;
+  tokens_after?: number;
+  tokens_saved?: number;
+  compression_ratio?: number;
+  transforms_applied?: string[];
+  tokensBefore?: number;
+  tokensAfter?: number;
+  tokensSaved?: number;
+  compressionRatio?: number;
+  transformsApplied?: string[];
 }
 
 const DEFAULT_URL = 'http://127.0.0.1:8787';
@@ -75,6 +104,23 @@ async function fetchJson(url: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<u
   const t = setTimeout(() => ac.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: ac.signal });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`.trim());
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function postJson(url: string, body: unknown, timeoutMs = 15_000): Promise<unknown> {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`.trim());
     return await res.json();
   } finally {
@@ -146,6 +192,31 @@ export async function readHeadroomStats(url: string): Promise<HeadroomStats | nu
   } catch {
     return null;
   }
+}
+
+export async function compressHeadroomMessages(input: {
+  url: string;
+  messages: HeadroomMessage[];
+  model?: string;
+  tokenBudget?: number;
+}): Promise<HeadroomCompressionResult> {
+  const raw = await postJson(`${cleanUrl(input.url)}/v1/compress`, {
+    model: input.model || 'gpt-4o',
+    tokenBudget: input.tokenBudget,
+    messages: input.messages,
+  });
+  const result = raw as HeadroomCompressionResponse;
+  return {
+    messages: Array.isArray(result.messages) ? result.messages : input.messages,
+    tokensBefore: numberOrZero(result.tokens_before ?? result.tokensBefore),
+    tokensAfter: numberOrZero(result.tokens_after ?? result.tokensAfter),
+    tokensSaved: numberOrZero(result.tokens_saved ?? result.tokensSaved),
+    compressionRatio: numberOrZero(result.compression_ratio ?? result.compressionRatio),
+    transformsApplied: Array.isArray(result.transforms_applied ?? result.transformsApplied)
+      ? ((result.transforms_applied ?? result.transformsApplied) as string[])
+      : [],
+    raw,
+  };
 }
 
 export function formatHeadroomDelta(before: HeadroomStats | null, after: HeadroomStats | null): string | null {

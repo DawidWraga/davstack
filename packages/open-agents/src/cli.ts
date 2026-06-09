@@ -23,6 +23,7 @@ import type { AgentAdapter, Tier } from './adapters/types.js';
 import {
   buildCompactSpecWriterTask,
   loadCompactHistory,
+  renderCompactMessages,
   resolveCompactHistoryFile,
 } from './core/compact.js';
 import { readDeliverable, renderJobResult } from './core/deliverable.js';
@@ -36,6 +37,7 @@ import {
 import { jobsDir } from './core/paths.js';
 import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.js';
 import {
+  compressHeadroomMessages,
   detectHeadroom,
   formatHeadroomDelta,
   readHeadroomStats,
@@ -190,17 +192,38 @@ async function generateCompactSpec(input: {
   logHeadroomStats?: boolean;
 }): Promise<string> {
   const history = loadCompactHistory(input.historyFile, input.tailTokens);
+  const adapter = cursorAdapter;
+  const model = cursorAdapter.defaultModel();
+  let historyTail = history.tail;
+  if (input.headroomUrl && history.messages.length) {
+    try {
+      const compressed = await compressHeadroomMessages({
+        url: input.headroomUrl,
+        messages: history.messages,
+        model: model,
+        tokenBudget: input.tailTokens,
+      });
+      historyTail = renderCompactMessages(compressed.messages);
+      if (compressed.tokensSaved > 0) {
+        process.stderr.write(
+          `open-agents: headroom compressed history ${Math.round(compressed.tokensBefore).toLocaleString()} -> ${Math.round(compressed.tokensAfter).toLocaleString()} tokens (${Math.round(compressed.tokensSaved).toLocaleString()} saved)\n`,
+        );
+      }
+    } catch (err) {
+      process.stderr.write(
+        `open-agents: headroom history compression failed; using raw history tail (${(err as Error).message})\n`,
+      );
+    }
+  }
   const specWriterTask = buildCompactSpecWriterTask({
     task: input.task,
     repoPath: input.repoPath,
     targetProfile: input.targetProfile.name,
     historyPath: history.path,
-    historyTail: history.tail,
+    historyTail,
     tailTokens: input.tailTokens,
   });
   const id = genId();
-  const adapter = cursorAdapter;
-  const model = cursorAdapter.defaultModel();
   const specWriterTaskPath = join(jobsDir(input.repoPath), `${id}.spec.md`);
   createJob({
     id,

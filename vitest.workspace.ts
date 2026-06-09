@@ -50,6 +50,16 @@ export default defineWorkspace([
 		},
 	},
 	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
+			name: 'context-compactor',
+			root: './packages/context-compactor',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+		},
+	},
+	{
 		resolve: {
 			alias: {
 				vitest: vitestAlias,
