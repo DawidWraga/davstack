@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -36,6 +36,78 @@ export function findClaudeTranscriptBySession(
   return null;
 }
 
+function walkFiles(dir: string, predicate: (path: string) => boolean, limit = 5000): string[] {
+  const out: string[] = [];
+  const visit = (current: string) => {
+    if (out.length >= limit) return;
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (out.length >= limit) return;
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) visit(full);
+      else if (entry.isFile() && predicate(full)) out.push(full);
+    }
+  };
+  if (existsSync(dir)) visit(dir);
+  return out;
+}
+
+function newest(paths: string[]): string | null {
+  return (
+    paths
+      .map((path) => {
+        try {
+          return { path, mtimeMs: statSync(path).mtimeMs };
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is { path: string; mtimeMs: number } => x !== null)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.path ?? null
+  );
+}
+
+export function findCodexTranscriptBySession(
+  sessionId: string,
+  homeDir = homedir(),
+): string | null {
+  if (!sessionId.trim()) return null;
+  const sessionsDir = join(homeDir, '.codex', 'sessions');
+  return newest(
+    walkFiles(
+      sessionsDir,
+      (path) => path.endsWith('.jsonl') && path.includes(sessionId),
+    ),
+  );
+}
+
+export function findLatestCodexHistory(homeDir = homedir()): string | null {
+  const codexDir = join(homeDir, '.codex');
+  const history = join(codexDir, 'history.jsonl');
+  if (existsSync(history)) return history;
+  return newest(walkFiles(join(codexDir, 'sessions'), (path) => path.endsWith('.jsonl')));
+}
+
+export function findLatestCursorAgentHistory(homeDir = homedir()): string | null {
+  const explicitRoots = [
+    join(homeDir, 'AppData', 'Roaming', 'Cursor'),
+    join(homeDir, 'AppData', 'Local', 'cursor-agent'),
+    join(homeDir, '.cursor-agent'),
+  ];
+  for (const root of explicitRoots) {
+    const hit = newest(
+      walkFiles(root, (path) => /(?:history|session|transcript|conversation).*\.jsonl$/i.test(path), 2000),
+    );
+    if (hit) return hit;
+  }
+  return null;
+}
+
 export function resolveCompactHistoryFile(input?: {
   historyFile?: string;
   env?: NodeJS.ProcessEnv;
@@ -49,8 +121,25 @@ export function resolveCompactHistoryFile(input?: {
   if (transcriptPath) return resolve(transcriptPath);
 
   const sessionId = env.CLAUDE_CODE_SESSION_ID;
-  if (!sessionId) return null;
-  return findClaudeTranscriptBySession(sessionId, input?.homeDir);
+  if (sessionId) return findClaudeTranscriptBySession(sessionId, input?.homeDir);
+
+  const codexTranscriptPath = env.CODEX_TRANSCRIPT_PATH || env.CODEX_SESSION_FILE;
+  if (codexTranscriptPath) return resolve(codexTranscriptPath);
+
+  const codexThreadId = env.CODEX_THREAD_ID || env.CODEX_SESSION_ID;
+  if (codexThreadId) {
+    const codexTranscript = findCodexTranscriptBySession(codexThreadId, input?.homeDir);
+    if (codexTranscript) return codexTranscript;
+  }
+
+  const cursorTranscriptPath =
+    env.CURSOR_AGENT_TRANSCRIPT_PATH || env.CURSOR_AGENT_HISTORY_FILE || env.AGENT_HISTORY_FILE;
+  if (cursorTranscriptPath) return resolve(cursorTranscriptPath);
+
+  const cursorHistory = findLatestCursorAgentHistory(input?.homeDir);
+  if (cursorHistory) return cursorHistory;
+
+  return findLatestCodexHistory(input?.homeDir);
 }
 
 export function loadCompactHistory(path: string, tailTokens: number): CompactHistory {

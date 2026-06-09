@@ -2,7 +2,12 @@ import { describe, expect, test } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { findClaudeTranscriptBySession, resolveCompactHistoryFile, tokenTail } from '../src/core/compact.js';
+import {
+  findClaudeTranscriptBySession,
+  findCodexTranscriptBySession,
+  resolveCompactHistoryFile,
+  tokenTail,
+} from '../src/core/compact.js';
 import { parseFlags } from '../src/cli.js';
 
 describe('compact mode helpers', () => {
@@ -53,6 +58,41 @@ describe('compact mode helpers', () => {
           homeDir: home,
         }),
       ).toBe(transcript);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('finds Codex transcript by thread id', () => {
+    const home = mkdtempSync(join(tmpdir(), 'compact-codex-history-'));
+    try {
+      const threadId = '019eabb5-b1ba-7ba1-b84b-97efcca16393';
+      const sessionDir = join(home, '.codex', 'sessions', '2026', '06', '09');
+      mkdirSync(sessionDir, { recursive: true });
+      const transcript = join(sessionDir, `rollout-2026-06-09T10-27-52-${threadId}.jsonl`);
+      writeFileSync(transcript, '{}\n');
+
+      expect(findCodexTranscriptBySession(threadId, home)).toBe(transcript);
+      expect(
+        resolveCompactHistoryFile({
+          env: { CODEX_THREAD_ID: threadId },
+          homeDir: home,
+        }),
+      ).toBe(transcript);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('falls back to Codex history.jsonl when no active session env is present', () => {
+    const home = mkdtempSync(join(tmpdir(), 'compact-codex-history-'));
+    try {
+      const codexDir = join(home, '.codex');
+      mkdirSync(codexDir, { recursive: true });
+      const history = join(codexDir, 'history.jsonl');
+      writeFileSync(history, '{"text":"hello"}\n');
+
+      expect(resolveCompactHistoryFile({ env: {}, homeDir: home })).toBe(history);
     } finally {
       rmSync(home, { recursive: true, force: true });
     }
