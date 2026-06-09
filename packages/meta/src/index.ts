@@ -24,16 +24,19 @@ export type MetaFilePathMode = 'concise' | 'full';
 export type MetaOutputPresetName = 'agent' | 'human';
 
 export type MetaOutputConfig = {
+  deep: boolean;
   indent: boolean;
   filePaths: MetaFilePathMode;
 };
 
 export const META_OUTPUT_PRESETS: Record<MetaOutputPresetName, MetaOutputConfig> = {
   human: {
+    deep: true,
     indent: true,
     filePaths: 'full',
   },
   agent: {
+    deep: true,
     indent: false,
     filePaths: 'concise',
   },
@@ -61,10 +64,9 @@ export async function scanFolderMetadata(folder: string, options: ScanOptions = 
   const root = path.resolve(folder);
   const repoRoot = await findRepoRoot(root);
   const outputConfig = resolveOutputConfig(options);
-  const summary = await collectFolderSummary(root, repoRoot, root, options.deep === true, outputConfig);
+  const summary = await collectFolderSummary(root, repoRoot, root, outputConfig.deep, outputConfig);
 
-  const lines = ['# Folder Metadata', '', ...renderFolderSummary(summary, outputConfig), ''];
-  return lines.join('\n');
+  return `${renderFolderSummary(summary, outputConfig)}\n`;
 }
 
 export async function generateFolderMetadata(
@@ -139,7 +141,7 @@ function renderFolderSummary(
   summary: FolderSummary,
   outputConfig: MetaOutputConfig,
   depth = 0,
-): string[] {
+): string {
   const indent = outputConfig.indent ? '\t'.repeat(Math.max(0, depth - 1)) : '';
   const childIndent = outputConfig.indent ? '\t'.repeat(depth) : '';
   const lines = [`${indent}<folder path="${escapeAttribute(summary.path)}">`];
@@ -154,7 +156,7 @@ function renderFolderSummary(
   }
 
   for (const folder of summary.folders) {
-    lines.push(...renderFolderSummary(folder, outputConfig, depth + 1));
+    lines.push(renderFolderSummary(folder, outputConfig, depth + 1));
   }
 
   if (summary.omittedFiles.length > 0) {
@@ -166,7 +168,7 @@ function renderFolderSummary(
   }
 
   lines.push(`${indent}</folder>`);
-  return lines;
+  return lines.join('\n');
 }
 
 async function summarizeFile(
@@ -353,6 +355,7 @@ function resolveOutputConfig(options: ScanOptions): MetaOutputConfig {
   if (!preset) throw new Error(`Unknown metadata output preset: ${presetName}`);
 
   return {
+    deep: options.deep ?? preset.deep,
     indent: options.indent ?? preset.indent,
     filePaths: normalizeFilePathMode(options.filePaths ?? options.file_paths ?? preset.filePaths),
   };

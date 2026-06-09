@@ -31,9 +31,7 @@ describe('scanFolderMetadata', () => {
     );
 
     await expect(scanFolderMetadata(root)).resolves.toMatchInlineSnapshot(`
-      "# Folder Metadata
-
-      <folder path=".">
+      "<folder path=".">
       <file path="notes.md">
       - h1 Overview
       - h2 Details
@@ -111,9 +109,7 @@ describe('scanFolderMetadata', () => {
     await writeFile(path.join(root, 'child', 'grandchild', 'notes.md'), '# Nested\n');
 
     await expect(scanFolderMetadata(root, { deep: true })).resolves.toMatchInlineSnapshot(`
-      "# Folder Metadata
-
-      <folder path=".">
+      "<folder path=".">
       <file path="root.ts">
       [ln 1] const rootValue
       </file>
@@ -146,9 +142,7 @@ describe('scanFolderMetadata', () => {
     await writeFile(path.join(scanRoot, 'src', 'widget.ts'), 'export class Widget {}\n');
 
     await expect(scanFolderMetadata(scanRoot, { deep: true })).resolves.toMatchInlineSnapshot(`
-      "# Folder Metadata
-
-      <folder path="apps/web">
+      "<folder path="apps/web">
       <folder path="apps/web/src">
       	<file path="apps/web/src/widget.ts">
       	[ln 1] class Widget
@@ -167,9 +161,7 @@ describe('scanFolderMetadata', () => {
     await writeFile(path.join(scanRoot, '__tests__', 'log.test.ts'), 'export const SAMPLE = true\n');
 
     await expect(scanFolderMetadata(scanRoot, { deep: true, preset: 'agent' })).resolves.toMatchInlineSnapshot(`
-      "# Folder Metadata
-
-      <folder path="packages/context-compactor">
+      "<folder path="packages/context-compactor">
       <folder path="packages/context-compactor/__tests__">
       <file path="/log.test.ts">
       [ln 1] const SAMPLE
@@ -225,14 +217,14 @@ describe('generated folder metadata', () => {
     await expect(readFile(path.join(missing, GENERATED_META_FILE), 'utf8')).resolves.toBe(generated);
   });
 
-  test('deep scans child folders while the default view stays shallow', async () => {
+  test('default scans are deep while explicit deep false stays shallow', async () => {
     const root = await makeTempFolder();
     await mkdir(path.join(root, 'child'));
     await writeFile(path.join(root, 'root.ts'), 'export const rootValue = true\n');
     await writeFile(path.join(root, 'child', 'child.ts'), 'export const childValue = true\n');
 
-    const shallow = await scanFolderMetadata(root);
-    const deep = await scanFolderMetadata(root, { deep: true });
+    const deep = await scanFolderMetadata(root);
+    const shallow = await scanFolderMetadata(root, { deep: false });
 
     expect(shallow).toContain('rootValue');
     expect(shallow).not.toContain('childValue');

@@ -51,7 +51,6 @@ export const cliSpec: CliSpec = {
       flags: {
         deep: {
           type: 'boolean',
-          default: false,
           description: 'Recursively include child folders',
         },
         ...outputFlags,
@@ -68,7 +67,6 @@ export const cliSpec: CliSpec = {
       flags: {
         deep: {
           type: 'boolean',
-          default: false,
           description: 'Recursively include child folders',
         },
         ...outputFlags,

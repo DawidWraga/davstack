@@ -1,5 +1,12 @@
 # @davstack/meta
 
+## 0.1.5
+
+### Patch Changes
+
+- Add configurable output presets for human-readable and token-optimized folder metadata.
+- Make metadata presets scan deeply by default and remove the generated Markdown title.
+
 ## 0.1.4
 
 ### Patch Changes
