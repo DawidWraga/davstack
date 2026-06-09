@@ -302,11 +302,21 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const timeoutSec = Number.isFinite(flags.timeout)
     ? flags.timeout!
     : (config.defaultTimeoutSec ?? DEFAULT_TIMEOUT_SEC);
-  const headroomConfig = resolveHeadroomConfig({
-    config: config.headroom,
-    modeFlag: flags.headroom,
-    urlFlag: flags.headroomUrl,
-  });
+  // Headroom proxy DISABLED (2026-06-09). The local proxy at 127.0.0.1:8787
+  // added latency and saved ~0 tokens for our tool mix (Read/Glob/Grep/Write/
+  // Edit/Bash are all excluded; the one compressible path is ML token-pruning
+  // that is unusably slow on CPU and hits the 30s timeout). We are replacing it
+  // with a TS-native, deterministic context compactor. Forcing mode 'off' keeps
+  // the compact-mode flow working without any /health probe or OPENAI_BASE_URL.
+  // To re-enable the proxy temporarily, drop the `, mode: 'off'` override.
+  const headroomConfig = {
+    ...resolveHeadroomConfig({
+      config: config.headroom,
+      modeFlag: flags.headroom,
+      urlFlag: flags.headroomUrl,
+    }),
+    mode: 'off' as const,
+  };
   const headroom = await detectHeadroom({ adapterName: adapter.name, config: headroomConfig });
   if (headroom.active) {
     process.stderr.write(`open-agents: headroom active (${headroom.openAIBaseUrl})\n`);
