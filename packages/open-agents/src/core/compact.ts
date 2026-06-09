@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { compact } from '@davstack/context-compactor';
 import type { HeadroomMessage } from './headroom.js';
 
 export interface CompactHistory {
@@ -54,6 +55,51 @@ function compactMessageText(message: HeadroomMessage): string {
 
 export function renderCompactMessages(messages: HeadroomMessage[]): string {
   return messages.map(compactMessageText).join('\n\n').trim();
+}
+
+function compactText(text: string): string {
+  if (!text) return text;
+  try {
+    return compact(text).text;
+  } catch {
+    return text;
+  }
+}
+
+export function compactMessageContent(message: HeadroomMessage): HeadroomMessage {
+  const content = message.content;
+  if (typeof content === 'string') {
+    return { ...message, content: compactText(content) };
+  }
+  if (Array.isArray(content)) {
+    const blocks = content.map((part) => {
+      if (!part || typeof part !== 'object') return part;
+      const item = part as Record<string, unknown>;
+      if (typeof item.text === 'string') return { ...item, text: compactText(item.text) };
+      if (typeof item.content === 'string') return { ...item, content: compactText(item.content) };
+      return part;
+    });
+    return { ...message, content: blocks };
+  }
+  return { ...message };
+}
+
+export function compactMessages(messages: HeadroomMessage[]): {
+  messages: HeadroomMessage[];
+  tokensBefore: number;
+  tokensAfter: number;
+  tokensSaved: number;
+} {
+  const out: HeadroomMessage[] = [];
+  let tokensBefore = 0;
+  let tokensAfter = 0;
+  for (const message of messages) {
+    tokensBefore += tokenLikeCount(compactMessageText(message));
+    const compacted = compactMessageContent(message);
+    tokensAfter += tokenLikeCount(compactMessageText(compacted));
+    out.push(compacted);
+  }
+  return { messages: out, tokensBefore, tokensAfter, tokensSaved: tokensBefore - tokensAfter };
 }
 
 function isMessage(value: unknown): value is HeadroomMessage {
@@ -235,7 +281,9 @@ export function loadCompactHistory(path: string, tailTokens: number): CompactHis
     throw new Error(`compact history file not found: ${resolved}`);
   }
   const text = readFileSync(resolved, 'utf8');
-  const messages = tailCompactMessages(parseCompactMessages(text), tailTokens);
+  const parsed = parseCompactMessages(text);
+  const compacted = parsed.length ? compactMessages(parsed).messages : parsed;
+  const messages = tailCompactMessages(compacted, tailTokens);
   return {
     path: resolved,
     text,
