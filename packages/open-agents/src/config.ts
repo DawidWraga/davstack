@@ -12,7 +12,6 @@
 
 import { resolve } from 'node:path';
 import { findRepoRoot, findToolConfig } from '@davstack/cli-utils/config';
-import type { HeadroomConfig } from './core/headroom.js';
 
 export type AdapterName = 'cursor' | 'gemini' | 'agy';
 
@@ -24,7 +23,6 @@ export type OpenAgentsConfig = {
   defaultModel?: string;
   defaultAdapter?: AdapterName;
   defaultTimeoutSec?: number;
-  headroom?: HeadroomConfig;
   profiles?: {
     explore?: ProfileOverrides;
     edit?: ProfileOverrides;
@@ -71,26 +69,12 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<LoadedCon
       typeof raw.defaultTimeoutSec === 'number' && raw.defaultTimeoutSec > 0
         ? raw.defaultTimeoutSec
         : undefined,
-    headroom: normalizeHeadroomConfig(raw.headroom),
     profiles: raw.profiles && typeof raw.profiles === 'object' ? raw.profiles : undefined,
     _source: configPath,
     _repoRoot: repoRoot,
   };
 
   return merged;
-}
-
-function normalizeHeadroomConfig(raw: unknown): HeadroomConfig | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
-  const obj = raw as Record<string, unknown>;
-  const mode = obj.mode;
-  const normalizedMode =
-    mode === 'auto' || mode === 'off' || mode === 'require' ? mode : undefined;
-  return {
-    mode: normalizedMode,
-    url: typeof obj.url === 'string' ? obj.url : undefined,
-    logStats: typeof obj.logStats === 'boolean' ? obj.logStats : undefined,
-  };
 }
 
 function pathToFileUrl(p: string): string {

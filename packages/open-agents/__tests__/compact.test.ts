@@ -31,7 +31,7 @@ describe('compact mode helpers', () => {
     expect(positional).toEqual(['short task']);
   });
 
-  test('loads real JSONL messages for Headroom compression', () => {
+  test('loads real JSONL messages for compaction', () => {
     const dir = mkdtempSync(join(tmpdir(), 'compact-messages-'));
     try {
       const history = join(dir, 'history.jsonl');

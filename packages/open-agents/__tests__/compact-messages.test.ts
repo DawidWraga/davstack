@@ -4,7 +4,7 @@ import {
   compactMessages,
   renderCompactMessages,
 } from '../src/core/compact.js'
-import type { HeadroomMessage } from '../src/core/headroom.js'
+import type { CompactMessage } from '../src/core/compact.js'
 
 function bigJsonToolResult(): string {
   return JSON.stringify(
@@ -21,7 +21,7 @@ function bigJsonToolResult(): string {
 describe('compactMessageContent', () => {
   test('reduces a large JSON string content, preserves role and schema keys', () => {
     const original = bigJsonToolResult()
-    const message: HeadroomMessage = { role: 'tool', content: original }
+    const message: CompactMessage = { role: 'tool', content: original }
     const result = compactMessageContent(message)
 
     expect(result.role).toBe('tool')
@@ -34,7 +34,7 @@ describe('compactMessageContent', () => {
   })
 
   test('passes a small / plain message through unchanged', () => {
-    const message: HeadroomMessage = { role: 'user', content: 'fix the enum bug please' }
+    const message: CompactMessage = { role: 'user', content: 'fix the enum bug please' }
     const result = compactMessageContent(message)
     expect(result.role).toBe('user')
     expect(result.content).toBe('fix the enum bug please')
@@ -42,7 +42,7 @@ describe('compactMessageContent', () => {
 
   test('array content: text blocks compacted, non-text blocks preserved', () => {
     const big = bigJsonToolResult()
-    const message: HeadroomMessage = {
+    const message: CompactMessage = {
       role: 'assistant',
       content: [
         { type: 'text', text: big },
@@ -66,7 +66,7 @@ describe('compactMessageContent', () => {
 
 describe('compactMessages', () => {
   test('aggregates token estimates and reduces a big tool_result message', () => {
-    const messages: HeadroomMessage[] = [
+    const messages: CompactMessage[] = [
       { role: 'user', content: 'short ask' },
       { role: 'tool', content: bigJsonToolResult() },
     ]
@@ -79,7 +79,7 @@ describe('compactMessages', () => {
   })
 
   test('renderCompactMessages still works on compacted messages', () => {
-    const messages: HeadroomMessage[] = [
+    const messages: CompactMessage[] = [
       { role: 'user', content: 'do the thing' },
       { role: 'tool', content: bigJsonToolResult() },
     ]

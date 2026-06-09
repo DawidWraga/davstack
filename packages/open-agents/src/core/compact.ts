@@ -2,14 +2,18 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { compact } from '@davstack/context-compactor';
-import type { HeadroomMessage } from './headroom.js';
+
+export type CompactMessage = Record<string, unknown> & {
+  role?: string;
+  content?: unknown;
+};
 
 export interface CompactHistory {
   path: string;
   text: string;
   tail: string;
   tailTokens: number;
-  messages: HeadroomMessage[];
+  messages: CompactMessage[];
 }
 
 export function tokenTail(text: string, maxTokens: number): string {
@@ -47,13 +51,13 @@ function textFromContent(content: unknown): string {
   return JSON.stringify(content);
 }
 
-function compactMessageText(message: HeadroomMessage): string {
+function compactMessageText(message: CompactMessage): string {
   const role = typeof message.role === 'string' ? message.role : 'message';
   const content = textFromContent(message.content);
   return `${role}: ${content || JSON.stringify(message)}`;
 }
 
-export function renderCompactMessages(messages: HeadroomMessage[]): string {
+export function renderCompactMessages(messages: CompactMessage[]): string {
   return messages.map(compactMessageText).join('\n\n').trim();
 }
 
@@ -66,7 +70,7 @@ function compactText(text: string): string {
   }
 }
 
-export function compactMessageContent(message: HeadroomMessage): HeadroomMessage {
+export function compactMessageContent(message: CompactMessage): CompactMessage {
   const content = message.content;
   if (typeof content === 'string') {
     return { ...message, content: compactText(content) };
@@ -84,13 +88,13 @@ export function compactMessageContent(message: HeadroomMessage): HeadroomMessage
   return { ...message };
 }
 
-export function compactMessages(messages: HeadroomMessage[]): {
-  messages: HeadroomMessage[];
+export function compactMessages(messages: CompactMessage[]): {
+  messages: CompactMessage[];
   tokensBefore: number;
   tokensAfter: number;
   tokensSaved: number;
 } {
-  const out: HeadroomMessage[] = [];
+  const out: CompactMessage[] = [];
   let tokensBefore = 0;
   let tokensAfter = 0;
   for (const message of messages) {
@@ -102,13 +106,13 @@ export function compactMessages(messages: HeadroomMessage[]): {
   return { messages: out, tokensBefore, tokensAfter, tokensSaved: tokensBefore - tokensAfter };
 }
 
-function isMessage(value: unknown): value is HeadroomMessage {
+function isMessage(value: unknown): value is CompactMessage {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
   return typeof item.role === 'string' && 'content' in item;
 }
 
-function extractMessage(row: unknown): HeadroomMessage | null {
+function extractMessage(row: unknown): CompactMessage | null {
   if (isMessage(row)) return row;
   if (!row || typeof row !== 'object') return null;
   const item = row as Record<string, unknown>;
@@ -123,8 +127,8 @@ function extractMessage(row: unknown): HeadroomMessage | null {
   return null;
 }
 
-export function parseCompactMessages(text: string): HeadroomMessage[] {
-  const messages: HeadroomMessage[] = [];
+export function parseCompactMessages(text: string): CompactMessage[] {
+  const messages: CompactMessage[] = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
     try {
@@ -138,11 +142,11 @@ export function parseCompactMessages(text: string): HeadroomMessage[] {
 }
 
 export function tailCompactMessages(
-  messages: HeadroomMessage[],
+  messages: CompactMessage[],
   maxTokens: number,
-): HeadroomMessage[] {
+): CompactMessage[] {
   if (!Number.isFinite(maxTokens) || maxTokens <= 0) return [];
-  const out: HeadroomMessage[] = [];
+  const out: CompactMessage[] = [];
   let tokens = 0;
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const messageTokens = tokenLikeCount(compactMessageText(messages[i]));
