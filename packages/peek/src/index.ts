@@ -12,11 +12,14 @@ export type ScanOptions = {
   indent?: boolean;
   filePaths?: PeekFilePathMode;
   file_paths?: PeekFilePathMode;
+  includeLinesCount?: boolean;
+  include_lines_count?: boolean;
 };
 
 type FileSummary = {
   path: string;
   kind: 'markdown' | 'typescript' | 'python';
+  lines: number;
   items: string[];
 };
 
@@ -27,6 +30,7 @@ export type PeekOutputConfig = {
   deep: boolean;
   indent: boolean;
   filePaths: PeekFilePathMode;
+  includeLinesCount: boolean;
 };
 
 export const PEEK_OUTPUT_PRESETS: Record<PeekOutputPresetName, PeekOutputConfig> = {
@@ -34,11 +38,13 @@ export const PEEK_OUTPUT_PRESETS: Record<PeekOutputPresetName, PeekOutputConfig>
     deep: true,
     indent: true,
     filePaths: 'full',
+    includeLinesCount: true,
   },
   agent: {
     deep: true,
     indent: false,
     filePaths: 'concise',
+    includeLinesCount: true,
   },
 };
 
@@ -147,7 +153,8 @@ function renderFolderSummary(
   const lines = [`${indent}<folder path="${escapeAttribute(summary.path)}">`];
 
   for (const file of summary.files) {
-    lines.push(`${childIndent}<file path="${escapeAttribute(file.path)}">`);
+    const lineCount = outputConfig.includeLinesCount ? ` lines="${file.lines}"` : '';
+    lines.push(`${childIndent}<file path="${escapeAttribute(file.path)}"${lineCount}>`);
     for (const item of file.items) {
       const prefix = item.startsWith('[ln ') ? '' : '- ';
       lines.push(`${childIndent}${prefix}${item}`);
@@ -182,15 +189,30 @@ async function summarizeFile(
 
   if (extension === '.md' || extension === '.mdx') {
     const text = await readFile(fullPath, 'utf8');
-    return { path: relativePath, kind: 'markdown', items: extractMarkdownHeadings(text) };
+    return {
+      path: relativePath,
+      kind: 'markdown',
+      lines: countLines(text),
+      items: extractMarkdownHeadings(text),
+    };
   }
   if (isTypeScriptLikeFile(extension, fullPath)) {
     const text = await readFile(fullPath, 'utf8');
-    return { path: relativePath, kind: 'typescript', items: extractTypeScriptSymbols(text) };
+    return {
+      path: relativePath,
+      kind: 'typescript',
+      lines: countLines(text),
+      items: extractTypeScriptSymbols(text),
+    };
   }
   if (extension === '.py') {
     const text = await readFile(fullPath, 'utf8');
-    return { path: relativePath, kind: 'python', items: extractPythonSymbols(text) };
+    return {
+      path: relativePath,
+      kind: 'python',
+      lines: countLines(text),
+      items: extractPythonSymbols(text),
+    };
   }
   return null;
 }
@@ -411,6 +433,8 @@ function resolveOutputConfig(options: ScanOptions): PeekOutputConfig {
     deep: options.deep ?? preset.deep,
     indent: options.indent ?? preset.indent,
     filePaths: normalizeFilePathMode(options.filePaths ?? options.file_paths ?? preset.filePaths),
+    includeLinesCount:
+      options.includeLinesCount ?? options.include_lines_count ?? preset.includeLinesCount,
   };
 }
 
@@ -419,12 +443,20 @@ function normalizeFilePathMode(value: PeekFilePathMode): PeekFilePathMode {
   throw new Error(`Unknown peek file path mode: ${String(value)}`);
 }
 
+function countLines(text: string): number {
+  if (text.length === 0) return 0;
+  const newlineCount = text.match(/\r\n|\r|\n/g)?.length ?? 0;
+  return newlineCount + (/(?:\r\n|\r|\n)$/.test(text) ? 0 : 1);
+}
+
 function hasOutputOverrides(options: ScanOptions): boolean {
   return (
     options.preset !== undefined ||
     options.indent !== undefined ||
     options.filePaths !== undefined ||
-    options.file_paths !== undefined
+    options.file_paths !== undefined ||
+    options.includeLinesCount !== undefined ||
+    options.include_lines_count !== undefined
   );
 }
 

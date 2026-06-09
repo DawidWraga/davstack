@@ -1,5 +1,11 @@
 # @davstack/peek
 
+## 0.1.1
+
+### Patch Changes
+
+- Add default `lines="n"` attributes to file tags, with `--no-include-lines-count` to omit them.
+
 ## 0.1.0
 
 ### Minor Changes

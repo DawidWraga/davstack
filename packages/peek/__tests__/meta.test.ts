@@ -32,16 +32,16 @@ describe('scanFolderPeek', () => {
 
     await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
-      <file path="notes.md">
+      <file path="notes.md" lines="3">
       - h1 Overview
       - h2 Details
       </file>
-      <file path="sample.py">
+      <file path="sample.py" lines="7">
       [ln 1] const CONSTANT
       [ln 3-4] class Worker
       [ln 6-7] function run
       </file>
-      <file path="tools.ts">
+      <file path="tools.ts" lines="5">
       [ln 5] class LocalThing
       [ln 1] interface Config
       [ln 2] type Mode
@@ -90,11 +90,11 @@ describe('scanFolderPeek', () => {
 
     const metadata = await scanFolderPeek(root);
 
-    expect(metadata).toContain('<file path="component.mdx">');
+    expect(metadata).toContain('<file path="component.mdx" lines="1">');
     expect(metadata).toContain('- h1 Component');
-    expect(metadata).toContain('<file path="script.js">');
+    expect(metadata).toContain('<file path="script.js" lines="3">');
     expect(metadata).toContain('[ln 1-3] function boot');
-    expect(metadata).toContain('<file path="module.mjs">');
+    expect(metadata).toContain('<file path="module.mjs" lines="3">');
     expect(metadata).toContain('[ln 1-3] const mode');
     expect(metadata).not.toContain('omitted_files');
   });
@@ -119,7 +119,7 @@ describe('detectContentType', () => {
 
     await expect(scanFolderPeek(root)).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
-      <file path="detect.test.ts">
+      <file path="detect.test.ts" lines="11">
       [ln 2-11] describe('detectContentType')
       [ln 4-6] test("valid json object")
       [ln 7-10] it(\`keeps template titles real\`)
@@ -140,15 +140,15 @@ describe('detectContentType', () => {
 
     await expect(scanFolderPeek(root, { deep: true })).resolves.toMatchInlineSnapshot(`
       "<folder path=".">
-      <file path="root.ts">
+      <file path="root.ts" lines="1">
       [ln 1] const rootValue
       </file>
       <folder path="child">
-      	<file path="child/child.py">
+      	<file path="child/child.py" lines="2">
       	[ln 1-2] function child_function
       	</file>
       	<folder path="child/grandchild">
-      		<file path="child/grandchild/notes.md">
+      		<file path="child/grandchild/notes.md" lines="1">
       		- h1 Nested
       		</file>
       	</folder>
@@ -174,7 +174,7 @@ describe('detectContentType', () => {
     await expect(scanFolderPeek(scanRoot, { deep: true })).resolves.toMatchInlineSnapshot(`
       "<folder path="apps/web">
       <folder path="apps/web/src">
-      	<file path="apps/web/src/widget.ts">
+      	<file path="apps/web/src/widget.ts" lines="1">
       	[ln 1] class Widget
       	</file>
       </folder>
@@ -193,7 +193,7 @@ describe('detectContentType', () => {
     await expect(scanFolderPeek(scanRoot, { deep: true, preset: 'agent' })).resolves.toMatchInlineSnapshot(`
       "<folder path="packages/context-compactor">
       <folder path="packages/context-compactor/__tests__">
-      <file path="/log.test.ts">
+      <file path="/log.test.ts" lines="1">
       [ln 1] const SAMPLE
       </file>
       </folder>
@@ -216,8 +216,18 @@ describe('detectContentType', () => {
       filePaths: 'full',
     });
 
-    expect(metadata).toContain('<file path="packages/peek/src/index.ts">');
-    expect(metadata).toContain('\t<file path="packages/peek/src/index.ts">');
+    expect(metadata).toContain('<file path="packages/peek/src/index.ts" lines="1">');
+    expect(metadata).toContain('\t<file path="packages/peek/src/index.ts" lines="1">');
+  });
+
+  test('can omit line counts from file tags', async () => {
+    const root = await makeTempFolder();
+    await writeFile(path.join(root, 'visible.ts'), 'export const visible = true\n');
+
+    const metadata = await scanFolderPeek(root, { includeLinesCount: false });
+
+    expect(metadata).toContain('<file path="visible.ts">');
+    expect(metadata).not.toContain(' lines=');
   });
 });
 
@@ -230,7 +240,7 @@ describe('generated folder peek', () => {
 
     expect(result.path).toBe(path.join(root, GENERATED_PEEK_FILE));
     await expect(readFile(result.path, 'utf8')).resolves.toBe(result.content);
-    expect(result.content).toContain('<file path="README.md">');
+    expect(result.content).toContain('<file path="README.md" lines="1">');
   });
 
   test('peek prints existing output, generating it when missing', async () => {
@@ -260,7 +270,7 @@ describe('generated folder peek', () => {
     expect(shallow).not.toContain('childValue');
     expect(deep).toContain('rootValue');
     expect(deep).toContain('<folder path="child">');
-    expect(deep).toContain('<file path="child/child.ts">');
+    expect(deep).toContain('<file path="child/child.ts" lines="1">');
     expect(deep).toContain('childValue');
   });
 });

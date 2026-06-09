@@ -1,6 +1,6 @@
 {
   "name": "@davstack/peek",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "type": "module",
   "description": "Peek at concise, agent-friendly folder summaries.",
@@ -10,7 +10,7 @@
     "test": "pnpm -w exec vitest run --project peek"
   },
   "bin": {
-    "peek": "./bin/davstack-peek.mjs"
+    "peek": "bin/davstack-peek.mjs"
   },
   "exports": {
     ".": {

@@ -20,6 +20,10 @@ const outputFlags = {
     type: 'string',
     description: 'File path style: concise or full',
   },
+  'include-lines-count': {
+    type: 'boolean',
+    description: 'Include total line counts on file tags',
+  },
 } as const;
 
 function resolveCliScanOptions(flags: Record<string, unknown>): ScanOptions {
@@ -38,6 +42,7 @@ function resolveCliScanOptions(flags: Record<string, unknown>): ScanOptions {
     preset,
     indent: flags.indent as boolean | undefined,
     filePaths: filePaths as PeekFilePathMode | undefined,
+    includeLinesCount: flags['include-lines-count'] as boolean | undefined,
   };
 }
 

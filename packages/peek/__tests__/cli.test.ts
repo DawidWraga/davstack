@@ -27,7 +27,7 @@ describe('peek CLI', () => {
     const output = log.mock.calls.map(([value]) => String(value)).join('\n');
     expect(output).toContain('h1 Root');
     expect(output).toContain('<folder path="child">');
-    expect(output).toContain('<file path="child/child.ts">');
+    expect(output).toContain('<file path="child/child.ts" lines="1">');
     expect(output).toContain('childValue');
   });
 
@@ -43,11 +43,13 @@ describe('peek CLI', () => {
       '--agent',
       '--indent=true',
       '--file_paths=full',
+      '--no-include-lines-count',
     ]);
 
     expect(code).toBe(0);
     const output = log.mock.calls.map(([value]) => String(value)).join('\n');
     expect(output).toContain('\t<file path="child/child.ts">');
+    expect(output).not.toContain(' lines=');
   });
 
   test('rejects conflicting output presets', async () => {
