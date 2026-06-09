@@ -6,6 +6,7 @@
   "description": "Self-waiting Cursor-jobs primitive: delegate scoped explore (read-only) and fast-edit (mechanical) work to cursor-agent, harness-trackable, results persisted per job.",
   "scripts": {
     "build": "tsup",
+    "typecheck": "tsc --noEmit",
     "prepublishOnly": "tsup",
     "test": "pnpm -w exec vitest run --project open-agents",
     "eval": "node evals/scripts/run-promptfoo.mjs",
