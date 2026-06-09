@@ -27,6 +27,18 @@ export function formatHelp(commandPath: string[], spec: CliSpec): string {
   lines.push(`  ${usageBits.join(' ')}`);
   lines.push('');
 
+  if (node.examples && node.examples.length) {
+    lines.push('Examples:');
+    for (const example of node.examples) lines.push(`  ${example}`);
+    lines.push('');
+  }
+
+  if (node.defaults && node.defaults.length) {
+    lines.push('Defaults:');
+    for (const value of node.defaults) lines.push(`  ${value}`);
+    lines.push('');
+  }
+
   if (node.positionals && node.positionals.length) {
     lines.push('Positionals:');
     for (const p of node.positionals) lines.push(formatPositional(p));
@@ -61,8 +73,13 @@ function formatPositional(p: Positional): string {
 
 function formatFlag(name: string, def: FlagSpec): string {
   const bits: string[] = [];
-  bits.push(`--${name}`);
-  bits.push(`<${def.type}>`);
+  if (def.type === 'boolean') {
+    bits.push(`--${name} / --no-${name}`);
+  } else {
+    const valueHint = def.values?.length ? def.values.join('|') : def.type;
+    bits.push(`--${name}`);
+    bits.push(`<${valueHint}>`);
+  }
   const meta: string[] = [];
   if (def.default !== undefined) meta.push(`default: ${JSON.stringify(def.default)}`);
   if (def.env) meta.push(`env: ${def.env}`);

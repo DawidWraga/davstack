@@ -18,6 +18,7 @@ const outputFlags = {
   },
   file_paths: {
     type: 'string',
+    values: ['concise', 'full'],
     description: 'File path style: concise or full',
   },
   'include-lines-count': {
@@ -49,6 +50,16 @@ function resolveCliScanOptions(flags: Record<string, unknown>): ScanOptions {
 export const cliSpec: CliSpec = {
   name: 'peek',
   description: 'Print concise folder summaries for agents.',
+  examples: [
+    'peek .',
+    'peek packages/context-compactor --agent',
+    'peek . --human',
+    'peek . --file_paths=full --no-include-lines-count',
+  ],
+  defaults: [
+    '--human behavior: deep scan, indented output, full file paths, line counts',
+    '--agent behavior: deep scan, no indentation, concise file paths, line counts',
+  ],
   positionals: [{ name: 'path', required: true, description: 'Folder to peek at' }],
   flags: {
     deep: {

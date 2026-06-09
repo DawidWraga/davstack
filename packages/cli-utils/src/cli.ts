@@ -19,6 +19,7 @@ export type FlagSpec = {
   required?: boolean;
   description?: string;
   env?: string;
+  values?: readonly string[];
 };
 
 export type Positional = {
@@ -29,6 +30,8 @@ export type Positional = {
 
 export type CommandSpec = {
   description?: string;
+  examples?: string[];
+  defaults?: string[];
   positionals?: Positional[];
   flags?: Record<string, FlagSpec>;
   commands?: Record<string, CommandSpec>;

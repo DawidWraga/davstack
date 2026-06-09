@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -70,7 +70,15 @@ export async function scanFolderPeek(folder: string, options: ScanOptions = {}):
   const root = path.resolve(folder);
   const repoRoot = await findRepoRoot(root);
   const outputConfig = resolveOutputConfig(options);
-  const summary = await collectFolderSummary(root, repoRoot, root, outputConfig.deep, outputConfig);
+  const fileLimit = createLimiter(64);
+  const summary = await collectFolderSummary(
+    root,
+    repoRoot,
+    root,
+    outputConfig.deep,
+    outputConfig,
+    fileLimit,
+  );
 
   return `${renderFolderSummary(summary, outputConfig)}\n`;
 }
@@ -104,30 +112,43 @@ async function collectFolderSummary(
   dir: string,
   deep: boolean,
   outputConfig: PeekOutputConfig,
+  fileLimit: <T>(task: () => Promise<T>) => Promise<T>,
 ): Promise<FolderSummary> {
   const entries = await readdir(dir, { withFileTypes: true });
-  const files: FileSummary[] = [];
-  const folders: FolderSummary[] = [];
+  const fileTasks: Array<Promise<{ name: string; summary: FileSummary | null }>> = [];
+  const folderTasks: Array<Promise<FolderSummary>> = [];
   const omittedFiles: string[] = [];
+  const ignoredPaths = await checkIgnoredPaths(root, entries.map((entry) => path.join(dir, entry.name)));
 
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     const fullPath = path.join(dir, entry.name);
-    if (await isGitIgnored(root, fullPath)) continue;
+    if (ignoredPaths.has(toPosix(path.relative(root, fullPath)))) continue;
 
     if (entry.isDirectory()) {
       if (!deep || shouldSkipDirectory(entry.name)) continue;
-      folders.push(await collectFolderSummary(root, repoRoot, fullPath, deep, outputConfig));
+      folderTasks.push(collectFolderSummary(root, repoRoot, fullPath, deep, outputConfig, fileLimit));
       continue;
     }
     if (!entry.isFile() || shouldSkipFile(entry.name)) continue;
 
-    const summary = await summarizeFile(root, repoRoot, fullPath, outputConfig);
-    if (summary) {
-      files.push(summary);
-    } else {
-      omittedFiles.push(entry.name);
-    }
+    fileTasks.push(
+      fileLimit(async () => ({
+        name: entry.name,
+        summary: await summarizeFile(root, repoRoot, fullPath, outputConfig),
+      })),
+    );
   }
+
+  const fileResults = await Promise.all(fileTasks);
+  const files = fileResults
+    .map((result) => result.summary)
+    .filter((summary): summary is FileSummary => summary !== null);
+  omittedFiles.push(
+    ...fileResults
+      .filter((result) => result.summary === null)
+      .map((result) => result.name),
+  );
+  const folders = await Promise.all(folderTasks);
 
   return {
     path: formatFolderPath(root, repoRoot, dir),
@@ -307,6 +328,25 @@ function unique(items: string[]): string[] {
   return Array.from(new Set(items));
 }
 
+function createLimiter(maxConcurrent: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let active = 0;
+  const queue: Array<() => void> = [];
+
+  return async function limit<T>(task: () => Promise<T>): Promise<T> {
+    if (active >= maxConcurrent) {
+      await new Promise<void>((resolve) => queue.push(resolve));
+    }
+
+    active += 1;
+    try {
+      return await task();
+    } finally {
+      active -= 1;
+      queue.shift()?.();
+    }
+  };
+}
+
 function lineNumberAt(text: string, index: number): number {
   let lineNumber = 1;
   for (let offset = 0; offset < index; offset += 1) {
@@ -477,18 +517,34 @@ function escapeText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 }
 
-async function isGitIgnored(root: string, fullPath: string): Promise<boolean> {
-  const relativePath = toPosix(path.relative(root, fullPath));
-  if (!relativePath || relativePath.startsWith('..')) return false;
+async function checkIgnoredPaths(root: string, fullPaths: string[]): Promise<Set<string>> {
+  const relativePaths = fullPaths
+    .map((fullPath) => toPosix(path.relative(root, fullPath)))
+    .filter((relativePath) => relativePath && !relativePath.startsWith('..'));
 
-  try {
-    await execFileAsync('git', ['-C', root, 'check-ignore', '--quiet', '--', relativePath]);
-    return true;
-  } catch (error) {
-    const code = (error as { code?: number | string }).code;
-    if (code === 1 || code === 128 || code === 'ENOENT') return false;
-    return false;
-  }
+  if (relativePaths.length === 0) return new Set();
+
+  return await new Promise((resolve) => {
+    const child = spawn('git', ['-C', root, 'check-ignore', '--stdin'], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    let stdout = '';
+
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.on('error', () => resolve(new Set()));
+    child.on('close', (code) => {
+      if (code !== 0 && code !== 1) {
+        resolve(new Set());
+        return;
+      }
+      resolve(new Set(stdout.split(/\r?\n/).filter(Boolean)));
+    });
+
+    child.stdin.end(relativePaths.join('\n'));
+  });
 }
 
 async function findRepoRoot(root: string): Promise<string> {

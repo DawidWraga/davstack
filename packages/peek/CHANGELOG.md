@@ -1,5 +1,12 @@
 # @davstack/peek
 
+## 0.1.2
+
+### Patch Changes
+
+- Make `--help` more agent-friendly with examples, defaults, boolean negation forms, and file path value hints.
+- Speed up scans by batching git-ignore checks per directory and scanning child folders/files concurrently.
+
 ## 0.1.1
 
 ### Patch Changes

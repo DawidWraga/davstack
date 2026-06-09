@@ -1,5 +1,11 @@
 # @davstack/cli-utils
 
+## 1.3.2
+
+### Patch Changes
+
+- Improve generated CLI help with examples, defaults, boolean negation forms, and string value hints.
+
 ## 1.3.1
 
 ### Patch Changes

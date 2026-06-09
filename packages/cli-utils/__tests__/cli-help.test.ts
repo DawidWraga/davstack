@@ -23,6 +23,26 @@ test('formatHelp renders name, description, flags, defaults', () => {
   expect(out).toContain('5180');
   expect(out).toContain('Listen port');
   expect(out).toContain('--verbose');
+  expect(out).toContain('--no-verbose');
+});
+
+test('formatHelp renders examples, defaults, and string value hints', () => {
+  const spec: CliSpec = {
+    name: 'demo',
+    description: 'A demo tool',
+    examples: ['demo . --fast'],
+    defaults: ['fast mode is on'],
+    flags: {
+      mode: { type: 'string', values: ['fast', 'slow'], description: 'Run mode' },
+    },
+    run: () => 0,
+  };
+  const out = formatHelp([], spec);
+  expect(out).toContain('Examples:');
+  expect(out).toContain('demo . --fast');
+  expect(out).toContain('Defaults:');
+  expect(out).toContain('fast mode is on');
+  expect(out).toContain('--mode <fast|slow>');
 });
 
 test('formatHelp shows env-var fallback when configured', () => {
