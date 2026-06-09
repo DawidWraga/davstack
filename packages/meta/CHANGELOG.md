@@ -1,5 +1,11 @@
 # @davstack/meta
 
+## 0.1.2
+
+### Patch Changes
+
+- Add line numbers to code symbol references and render omitted files at the bottom of each folder block.
+
 ## 0.1.1
 
 ### Patch Changes

@@ -39,16 +39,16 @@ describe('scanFolderMetadata', () => {
       - h2 Details
       </file>
       <file path="sample.py">
-      - const CONSTANT
-      - class Worker
-      - function run
+      - const CONSTANT line 1
+      - class Worker line 3
+      - function run line 6
       </file>
       <file path="tools.ts">
-      - class LocalThing
-      - interface Config
-      - type Mode
-      - const value
-      - function build
+      - class LocalThing line 5
+      - interface Config line 1
+      - type Mode line 2
+      - const value line 3
+      - function build line 4
       </file>
       </folder>
       "
@@ -95,9 +95,9 @@ describe('scanFolderMetadata', () => {
     expect(metadata).toContain('<file path="component.mdx">');
     expect(metadata).toContain('- h1 Component');
     expect(metadata).toContain('<file path="script.js">');
-    expect(metadata).toContain('- function boot');
+    expect(metadata).toContain('- function boot line 1');
     expect(metadata).toContain('<file path="module.mjs">');
-    expect(metadata).toContain('- const mode');
+    expect(metadata).toContain('- const mode line 1');
     expect(metadata).not.toContain('omitted_files');
   });
 
@@ -115,24 +115,24 @@ describe('scanFolderMetadata', () => {
 
       <folder path=".">
       <file path="root.ts">
-      - const rootValue
+      - const rootValue line 1
       </file>
-      <omitted_files>
-      - asset.png
-      </omitted_files>
       <folder path="/child">
       <file path="child.py">
-      - function child_function
+      - function child_function line 1
       </file>
-      <omitted_files>
-      - data.json
-      </omitted_files>
       <folder path="/child/grandchild">
       <file path="notes.md">
       - h1 Nested
       </file>
       </folder>
+      <omitted_files>
+      - data.json
+      </omitted_files>
       </folder>
+      <omitted_files>
+      - asset.png
+      </omitted_files>
       </folder>
       "
     `);

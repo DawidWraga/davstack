@@ -116,6 +116,8 @@ function renderFolderSummary(summary: FolderSummary): string[] {
     lines.push('</file>');
   }
 
+  for (const folder of summary.folders) lines.push(...renderFolderSummary(folder));
+
   if (summary.omittedFiles.length > 0) {
     lines.push('<omitted_files>');
     for (const omittedFile of summary.omittedFiles) {
@@ -123,8 +125,6 @@ function renderFolderSummary(summary: FolderSummary): string[] {
     }
     lines.push('</omitted_files>');
   }
-
-  for (const folder of summary.folders) lines.push(...renderFolderSummary(folder));
 
   lines.push('</folder>');
   return lines;
@@ -176,26 +176,30 @@ function extractTypeScriptSymbols(text: string): string[] {
   ];
 
   for (const [pattern, label] of patterns) {
-    for (const match of source.matchAll(pattern)) items.push(`${label} ${match[1]}`);
+    for (const match of source.matchAll(pattern)) {
+      items.push(`${label} ${match[1]} line ${lineNumberAt(source, match.index ?? 0)}`);
+    }
   }
   return unique(items);
 }
 
 function extractPythonSymbols(text: string): string[] {
   const items: string[] = [];
-  for (const line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = index + 1;
     let match = /^class\s+([A-Za-z_]\w*)\s*[:(]/.exec(line);
     if (match) {
-      items.push(`class ${match[1]}`);
+      items.push(`class ${match[1]} line ${lineNumber}`);
       continue;
     }
     match = /^(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/.exec(line);
     if (match) {
-      items.push(`function ${match[1]}`);
+      items.push(`function ${match[1]} line ${lineNumber}`);
       continue;
     }
     match = /^([A-Z][A-Z0-9_]*)\s*[:=]/.exec(line);
-    if (match) items.push(`const ${match[1]}`);
+    if (match) items.push(`const ${match[1]} line ${lineNumber}`);
   }
   return unique(items);
 }
@@ -209,11 +213,21 @@ function shouldSkipFile(name: string): boolean {
 }
 
 function stripBlockComments(text: string): string {
-  return text.replace(/\/\*[\s\S]*?\*\//g, '');
+  return text.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replace(/[^\r\n]/g, ' '),
+  );
 }
 
 function unique(items: string[]): string[] {
   return Array.from(new Set(items));
+}
+
+function lineNumberAt(text: string, index: number): number {
+  let lineNumber = 1;
+  for (let offset = 0; offset < index; offset += 1) {
+    if (text.charCodeAt(offset) === 10) lineNumber += 1;
+  }
+  return lineNumber;
 }
 
 function toPosix(value: string): string {
