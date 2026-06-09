@@ -143,10 +143,12 @@ For the spec-writer hybrid variant, the provider also writes:
 - `cases/<case-id>/spec-writer-job.json` when the spec-writer agent actually
   runs.
 
-Set `tailTokens: 50000` plus either `historyText` or `historyPath` in Promptfoo
-vars/options to feed the spec writer a recent history tail. If no history source
-is provided, smoke runs use a small synthetic history snapshot from the test
-vars so artifact plumbing remains deterministic.
+Eval configs can set `tailTokens: 50000` plus either `historyText` or
+`historyPath` in Promptfoo vars/options to feed the spec writer a recent history
+tail. This is eval-only plumbing, not a package CLI flag; real `--compact-mode`
+always uses the built-in 50000-unit tail plus the resolved history file pointer.
+If no history source is provided, smoke runs use a small synthetic history
+snapshot from the test vars so artifact plumbing remains deterministic.
 
 Humans should only add:
 

@@ -161,7 +161,7 @@ function compactHistoryFile(flags: Flags): string {
   const historyFile = resolveCompactHistoryFile({ historyFile: flags.historyFile });
   if (!historyFile) {
     throw new Error(
-      'open-agents submit --compact-mode needs history context. Pass --history-file <path>, set OPEN_AGENTS_HISTORY_FILE, or run from a Claude Code session with CLAUDE_CODE_SESSION_ID.',
+      'open-agents submit --compact-mode needs history context. Pass --history-file <path>, set OPEN_AGENTS_HISTORY_FILE or CLAUDE_CODE_TRANSCRIPT_PATH, or run from a Claude Code session with CLAUDE_CODE_SESSION_ID.',
     );
   }
   return historyFile;
@@ -571,11 +571,17 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
              --no-wait): print bare id(s), don't wait, no inline output.
            --parallel-mode asap|all-together (default asap): asap prints each
              index line the moment its job finishes; all-together = submit order.
-           --compact-mode: treat the input as a very short task title and ask
-             a spec-writer agent to turn recent history into the executor spec.
-             Uses --history-file <path>, OPEN_AGENTS_HISTORY_FILE, or the
-             current Claude Code transcript when CLAUDE_CODE_SESSION_ID is set.
-             Uses the last 50000 token-like units from the history file.
+           --compact-mode: treat the input as a very short task title
+             (roughly 5-10 words) and ask a Cursor composer-2.5 spec-writer to
+             distill recent history into a concise executor spec. Do not paste
+             details, quotes, or file lists into the inline prompt when the
+             conversation already contains that context.
+             Uses --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
+             CLAUDE_CODE_TRANSCRIPT_PATH, or the current Claude Code transcript
+             when CLAUDE_CODE_SESSION_ID is set. Always gives the spec-writer
+             the last 50000 token-like units plus a pointer to the full history.
+             Progress output includes spec generation time and the generated
+             spec artifact path.
   wait                         wait for ALL running jobs in this repo
   wait   "<id…>" | <id…>       wait for ALL of these
   wait   --any <id…>           return when ≥1 done; prints which (loop = popcorn)

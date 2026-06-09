@@ -38,14 +38,19 @@ submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeo
         many --file ⇒ run in parallel · --detach: print bare id(s), don't wait
         --parallel-mode asap|all-together (default asap): asap prints each
           index line as its job finishes; all-together waits, submission order
-        --compact-mode: treat the input as a short task title, find history via
-          --history-file <path>, OPEN_AGENTS_HISTORY_FILE, or the current
-          Claude Code transcript when CLAUDE_CODE_SESSION_ID is set. It runs a
-          Cursor composer-2.5 spec-writer over the last 50000 token-like history
-          units, then submits the generated spec to the chosen executor. The
-          generated spec should emphasize a dense <context> block, including
-          relevant files/folders, project facts, original user query, and useful
-          short quotes from the conversation.
+        --compact-mode: treat the inline input as a very short task title
+          (roughly 5-10 words) and let a Cursor composer-2.5 spec-writer distill
+          recent conversation history into the executor spec. Do not paste
+          details, quotes, or file lists into the inline prompt when the current
+          conversation already has that context.
+          History resolves from --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
+          CLAUDE_CODE_TRANSCRIPT_PATH, or the current Claude Code transcript
+          when CLAUDE_CODE_SESSION_ID is set. Compact mode always gives the
+          spec-writer the last 50000 token-like history units plus a pointer to
+          the full history file. The generated spec is kept concise and points
+          back to the history file for uncertain detail instead of copying the
+          transcript. Progress output includes the spec generation duration and
+          a ~/... path to the generated spec artifact.
 wait                        wait for ALL running jobs (this repo)
 wait   "<id…>" | <id…>      wait for ALL of these
 wait   --any <id…>          return when ≥1 done; prints which (loop = popcorn)
