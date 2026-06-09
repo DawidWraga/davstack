@@ -1,5 +1,12 @@
 # @davstack/peek
 
+## 0.1.4
+
+### Patch Changes
+
+- Sort TypeScript symbols by source line so file summaries match source order.
+- Summarize TypeScript class methods with line ranges inside large class summaries.
+
 ## 0.1.3
 
 ### Patch Changes
