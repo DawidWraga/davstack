@@ -24,12 +24,13 @@ export function resultFilePath(repoPath: string, id: string): string {
 interface RunDeps {
   adapter: AgentAdapter;
   profile: Profile;
+  env?: Record<string, string>;
 }
 
 // Resolves (with 0) when the job reaches a terminal state. Used by the
 // detached runner (`__run`) and by a blocking foreground `submit`.
 export function runJob(
-  { adapter, profile }: RunDeps,
+  { adapter, profile, env }: RunDeps,
   repoPath: string,
   id: string,
 ): Promise<number> {
@@ -43,7 +44,7 @@ export function runJob(
       ...adapter.buildArgs({
         model: job.model,
         mode: profile.mode,
-        prompt: job.fullPrompt,
+        prompt: job.fullPrompt ?? job.prompt,
       }),
     ];
     const child = spawn(bin, args, {
@@ -51,8 +52,9 @@ export function runJob(
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       shell,
+      env: env ? { ...process.env, ...env } : process.env,
     });
-    updateJob(repoPath, id, { pid: child.pid });
+    if (typeof child.pid === 'number') updateJob(repoPath, id, { pid: child.pid });
 
     const log = createWriteStream(job.rawLogPath, { flags: 'a' });
     const events: any[] = [];

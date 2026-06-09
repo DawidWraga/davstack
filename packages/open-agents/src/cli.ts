@@ -35,6 +35,12 @@ import {
 } from './core/jobs.js';
 import { jobsDir } from './core/paths.js';
 import { DEFAULT_TIMEOUT_SEC, runJob } from './core/run.js';
+import {
+  detectHeadroom,
+  formatHeadroomDelta,
+  readHeadroomStats,
+  resolveHeadroomConfig,
+} from './core/headroom.js';
 import { editProfile } from './profiles/edit.js';
 import { exploreProfile } from './profiles/explore.js';
 import { specWriterProfile } from './profiles/spec-writer.js';
@@ -76,6 +82,8 @@ export interface Flags {
   adapter?: string;
   compactMode?: boolean;
   historyFile?: string;
+  headroom?: string;
+  headroomUrl?: string;
 }
 
 export function parseFlags(argv: string[]): { flags: Flags; positional: string[] } {
@@ -104,6 +112,8 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
     else if (a === '--parallel-mode') flags.parallelMode = val();
     else if (a === '--adapter' || a === '--provider') flags.adapter = val();
     else if (a === '--history-file') flags.historyFile = val();
+    else if (a === '--headroom') flags.headroom = val();
+    else if (a === '--headroom-url') flags.headroomUrl = val();
     else positional.push(argv[i]);
   }
   return { flags, positional };
@@ -144,7 +154,8 @@ function pickProfile(flags: Flags): Profile {
 
 // --- submit ----------------------------------------------------------------
 const SHELL_HOSTILE = /[\n"'`$();|&<>]/;
-const COMPACT_TAIL_TOKENS = 50000;
+const DEFAULT_COMPACT_TAIL_TOKENS = 50000;
+const HEADROOM_COMPACT_TAIL_TOKENS = 100000;
 
 function userPath(path: string): string {
   const home = homedir();
@@ -173,15 +184,19 @@ async function generateCompactSpec(input: {
   targetProfile: Profile;
   task: string;
   historyFile: string;
+  tailTokens: number;
+  headroomEnv?: Record<string, string>;
+  headroomUrl?: string;
+  logHeadroomStats?: boolean;
 }): Promise<string> {
-  const history = loadCompactHistory(input.historyFile, COMPACT_TAIL_TOKENS);
+  const history = loadCompactHistory(input.historyFile, input.tailTokens);
   const specWriterTask = buildCompactSpecWriterTask({
     task: input.task,
     repoPath: input.repoPath,
     targetProfile: input.targetProfile.name,
     historyPath: history.path,
     historyTail: history.tail,
-    tailTokens: COMPACT_TAIL_TOKENS,
+    tailTokens: input.tailTokens,
   });
   const id = genId();
   const adapter = cursorAdapter;
@@ -221,7 +236,15 @@ async function generateCompactSpec(input: {
   );
   const preToken = adapter.preSpawn(input.repoPath);
   const specStartedAt = Date.now();
-  await runJob({ adapter, profile: specWriterProfile }, input.repoPath, id);
+  const statsBefore =
+    input.headroomUrl && input.logHeadroomStats ? await readHeadroomStats(input.headroomUrl) : null;
+  await runJob(
+    { adapter, profile: specWriterProfile, env: input.headroomEnv },
+    input.repoPath,
+    id,
+  );
+  const statsAfter =
+    input.headroomUrl && input.logHeadroomStats ? await readHeadroomStats(input.headroomUrl) : null;
   const specElapsedSec = Math.round((Date.now() - specStartedAt) / 1000);
   adapter.postExit(input.repoPath, preToken);
   const job = readJob(input.repoPath, id);
@@ -235,6 +258,8 @@ async function generateCompactSpec(input: {
   process.stderr.write(
     `open-agents: compact-mode generated spec ${id} in ${specElapsedSec}s (${generated.length} chars) -> ${userPath(job.resultPath || '')}\n`,
   );
+  const delta = formatHeadroomDelta(statsBefore, statsAfter);
+  if (delta) process.stderr.write(`open-agents: headroom compact-mode stats: ${delta}\n`);
   return generated;
 }
 
@@ -254,6 +279,23 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const timeoutSec = Number.isFinite(flags.timeout)
     ? flags.timeout!
     : (config.defaultTimeoutSec ?? DEFAULT_TIMEOUT_SEC);
+  const headroomConfig = resolveHeadroomConfig({
+    config: config.headroom,
+    modeFlag: flags.headroom,
+    urlFlag: flags.headroomUrl,
+  });
+  const headroom = await detectHeadroom({ adapterName: adapter.name, config: headroomConfig });
+  if (headroom.active) {
+    process.stderr.write(`open-agents: headroom active (${headroom.openAIBaseUrl})\n`);
+  } else if (headroomConfig.mode !== 'off') {
+    process.stderr.write(
+      `open-agents: headroom unavailable; continuing without proxy` +
+        `${headroom.reason ? ` (${headroom.reason})` : ''}\n`,
+    );
+  }
+  const compactTailTokens = headroom.active
+    ? HEADROOM_COMPACT_TAIL_TOKENS
+    : DEFAULT_COMPACT_TAIL_TOKENS;
   const adapterAddendum = adapter.guardAddendum?.(profile.name, flags.tier) ?? '';
   const profileKey = profile.name as 'explore' | 'edit';
   const userExtension = config.profiles?.[profileKey]?.systemPromptExtension ?? '';
@@ -300,6 +342,10 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
           targetProfile: profile,
           task: body,
           historyFile,
+          tailTokens: compactTailTokens,
+          headroomEnv: headroom.env,
+          headroomUrl: headroom.active ? headroom.url : undefined,
+          logHeadroomStats: headroomConfig.logStats,
         }),
       ),
     );
@@ -324,7 +370,7 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
     return id;
   });
 
-  const deps = { adapter, profile };
+  const deps = { adapter, profile, env: headroom.env };
 
   if (flags.detach) {
     for (const id of ids) {
@@ -332,6 +378,7 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
         detached: true,
         stdio: 'ignore',
         windowsHide: true,
+        env: { ...process.env, ...headroom.env },
       }).unref();
     }
     process.stdout.write(ids.join('\n') + '\n');
@@ -577,11 +624,16 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
              details, quotes, or file lists into the inline prompt when the
              conversation already contains that context.
              Uses --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
-             CLAUDE_CODE_TRANSCRIPT_PATH, or the current Claude Code transcript
-             when CLAUDE_CODE_SESSION_ID is set. Always gives the spec-writer
-             the last 50000 token-like units plus a pointer to the full history.
+             CLAUDE_CODE_TRANSCRIPT_PATH, the current Claude Code transcript
+             when CLAUDE_CODE_SESSION_ID is set, CODEX_THREAD_ID sessions under
+             ~/.codex/sessions, or ~/.codex/history.jsonl. Gives the spec-writer
+             the last 50000 token-like units plus a pointer to the full history
+             (100000 when a local Headroom proxy is active).
              Progress output includes spec generation time and the generated
              spec artifact path.
+           --headroom auto|off|require (default auto): auto-probe Headroom at
+             http://127.0.0.1:8787 and set OPENAI_BASE_URL=<url>/v1 for cursor
+             jobs when healthy. --headroom-url overrides the proxy URL.
   wait                         wait for ALL running jobs in this repo
   wait   "<id…>" | <id…>       wait for ALL of these
   wait   --any <id…>           return when ≥1 done; prints which (loop = popcorn)

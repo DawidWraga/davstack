@@ -45,12 +45,21 @@ submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeo
           conversation already has that context.
           History resolves from --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
           CLAUDE_CODE_TRANSCRIPT_PATH, or the current Claude Code transcript
-          when CLAUDE_CODE_SESSION_ID is set. Compact mode always gives the
-          spec-writer the last 50000 token-like history units plus a pointer to
-          the full history file. The generated spec is kept concise and points
+          when CLAUDE_CODE_SESSION_ID is set. It also detects Codex sessions
+          from CODEX_THREAD_ID / ~/.codex/sessions and falls back to
+          ~/.codex/history.jsonl when no richer transcript is available.
+          Compact mode gives the spec-writer the last 50000 token-like history
+          units plus a pointer to the full history file, or 100000 when a local
+          Headroom proxy is healthy. The generated spec is kept concise and points
           back to the history file for uncertain detail instead of copying the
           transcript. Progress output includes the spec generation duration and
           a ~/... path to the generated spec artifact.
+        --headroom auto|off|require (default auto): probe the local Headroom
+          proxy and, when healthy, run the Cursor adapter with
+          OPENAI_BASE_URL=http://127.0.0.1:8787/v1. If the proxy is absent,
+          jobs continue normally with a concise stderr notice. Use
+          --headroom-url <url>, OPEN_AGENTS_HEADROOM_URL, or config
+          headroom.url for a non-default proxy.
 wait                        wait for ALL running jobs (this repo)
 wait   "<id…>" | <id…>      wait for ALL of these
 wait   --any <id…>          return when ≥1 done; prints which (loop = popcorn)
@@ -100,6 +109,26 @@ Exit codes: `0` ok · `1` job failed · `2` bad id/spec · `3` wait timeout.
 The bin launcher prefers `bun` (matches sibling davstack packages); set
 `OPEN_AGENTS_RUNTIME=node` to use `node --experimental-transform-types`
 instead. The source is pure `node:*` — either runtime works.
+
+## Optional Headroom proxy
+
+Headroom is optional. By default, `open-agents` briefly probes
+`http://127.0.0.1:8787/health`. If the proxy is healthy and the selected adapter
+is `cursor`, the spawned Cursor Agent process receives
+`OPENAI_BASE_URL=http://127.0.0.1:8787/v1`. If the proxy is not installed or not
+running, the job still runs directly.
+
+Controls:
+
+```bash
+OPEN_AGENTS_HEADROOM=off explore submit "short task"
+OPEN_AGENTS_HEADROOM=require fast-edit submit --compact-mode "fix parser"
+OPEN_AGENTS_HEADROOM_URL=http://127.0.0.1:8788 explore submit "inspect auth"
+```
+
+In compact mode, a healthy Headroom proxy raises the history tail budget from
+50000 to 100000 token-like units and prints a `/stats` delta from
+`requests.total` and `tokens.saved`.
 
 ## Job state
 

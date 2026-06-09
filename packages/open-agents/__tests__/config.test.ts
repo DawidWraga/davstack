@@ -46,12 +46,18 @@ describe('loadConfig — .davstack/config/open-agents.config.ts present', () => 
         defaultModel: 'composer-2-fast',
         defaultAdapter: 'cursor',
         defaultTimeoutSec: 900,
+        headroom: { mode: 'require', url: 'http://localhost:8788', logStats: false },
       }`,
     );
     const cfg = await loadConfig(sandbox);
     expect(cfg.defaultModel).toBe('composer-2-fast');
     expect(cfg.defaultAdapter).toBe('cursor');
     expect(cfg.defaultTimeoutSec).toBe(900);
+    expect(cfg.headroom).toEqual({
+      mode: 'require',
+      url: 'http://localhost:8788',
+      logStats: false,
+    });
     expect(cfg._source).toContain('open-agents.config.ts');
   });
 
@@ -80,6 +86,21 @@ describe('loadConfig — .davstack/config/open-agents.config.ts present', () => 
     );
     const cfg = await loadConfig(sandbox);
     expect(cfg.defaultModel).toBeUndefined();
+  });
+
+  test('drops invalid headroom fields', async () => {
+    writeFileSync(
+      join(sandbox, '.davstack', 'config', 'open-agents.config.ts'),
+      `export default {
+        headroom: { mode: 'sometimes', url: 42, logStats: 'yes' },
+      }`,
+    );
+    const cfg = await loadConfig(sandbox);
+    expect(cfg.headroom).toEqual({
+      mode: undefined,
+      url: undefined,
+      logStats: undefined,
+    });
   });
 
   test('preserves profiles object as-authored', async () => {
