@@ -1,5 +1,11 @@
 # @davstack/peek
 
+## 0.1.3
+
+### Patch Changes
+
+- Publish with an npm-resolvable `@davstack/cli-utils` dependency range.
+
 ## 0.1.2
 
 ### Patch Changes
