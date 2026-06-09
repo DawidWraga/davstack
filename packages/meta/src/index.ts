@@ -227,7 +227,23 @@ function extractTypeScriptSymbols(text: string): string[] {
       items.push(`${formatLineRange(range)} ${label} ${match[1]}`);
     }
   }
+  items.push(...extractTypeScriptTestCalls(source));
   return unique(items);
+}
+
+function extractTypeScriptTestCalls(text: string): string[] {
+  const items: string[] = [];
+  const pattern = /^\s*(describe|test|it)\s*\(\s*(['"`])((?:\\.|(?!\2)[\s\S])*?)\2/gm;
+
+  for (const match of text.matchAll(pattern)) {
+    const callName = match[1];
+    const quote = match[2];
+    const title = match[3];
+    const range = lineRangeForCallExpression(text, match.index ?? 0);
+    items.push(`${formatLineRange(range)} ${callName}(${quote}${title}${quote})`);
+  }
+
+  return items;
 }
 
 function extractPythonSymbols(text: string): string[] {
@@ -302,6 +318,43 @@ function findMatchingBrace(text: string, openingBrace: number): number {
     const char = text[index];
     if (char === '{') depth += 1;
     if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+function lineRangeForCallExpression(text: string, index: number): { start: number; end: number } {
+  const start = lineNumberAt(text, index);
+  const openingParen = text.indexOf('(', index);
+  if (openingParen === -1) return { start, end: start };
+
+  const closingParen = findMatchingParen(text, openingParen);
+  if (closingParen === -1) return { start, end: start };
+  return { start, end: lineNumberAt(text, closingParen) };
+}
+
+function findMatchingParen(text: string, openingParen: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (let index = openingParen; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote) {
+      if (char === '\\') {
+        index += 1;
+        continue;
+      }
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === '(') depth += 1;
+    if (char === ')') {
       depth -= 1;
       if (depth === 0) return index;
     }

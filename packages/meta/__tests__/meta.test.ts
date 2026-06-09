@@ -99,6 +99,36 @@ describe('scanFolderMetadata', () => {
     expect(metadata).not.toContain('omitted_files');
   });
 
+  test('summarizes vitest-style describe and test calls with literal titles', async () => {
+    const root = await makeTempFolder();
+    await writeFile(
+      path.join(root, 'detect.test.ts'),
+      `import { describe, expect, it, test } from 'vitest'
+
+describe('detectContentType', () => {
+  test("valid json object", () => {
+    expect(true).toBe(true)
+  })
+
+  it(\`keeps template titles real\`, () => {
+    expect(true).toBe(true)
+  })
+})
+`,
+    );
+
+    await expect(scanFolderMetadata(root)).resolves.toMatchInlineSnapshot(`
+      "<folder path=".">
+      <file path="detect.test.ts">
+      [ln 2-11] describe('detectContentType')
+      [ln 4-6] test("valid json object")
+      [ln 7-10] it(\`keeps template titles real\`)
+      </file>
+      </folder>
+      "
+    `);
+  });
+
   test('wraps deep child folders and reports omitted files per folder', async () => {
     const root = await makeTempFolder();
     await mkdir(path.join(root, 'child', 'grandchild'), { recursive: true });

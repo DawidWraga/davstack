@@ -1,5 +1,11 @@
 # @davstack/meta
 
+## 0.1.6
+
+### Patch Changes
+
+- Summarize test and describe calls in TypeScript-like files using their literal source titles.
+
 ## 0.1.5
 
 ### Patch Changes
