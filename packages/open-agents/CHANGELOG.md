@@ -1,5 +1,11 @@
 # @davstack/open-agents
 
+## 1.2.5
+
+### Patch Changes
+
+- 458c0ec: Add optional Headroom proxy routing plus Codex compact-history discovery.
+
 ## 1.2.4
 
 ### Patch Changes

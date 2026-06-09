@@ -1,5 +1,12 @@
 # @davstack/tui
 
+## 0.5.4
+
+### Patch Changes
+
+- Updated dependencies [458c0ec]
+  - @davstack/open-agents@1.2.5
+
 ## 0.5.3
 
 ### Patch Changes
