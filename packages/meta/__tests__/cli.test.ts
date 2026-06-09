@@ -45,4 +45,36 @@ describe('davstack-meta CLI', () => {
     expect(output).toContain('<file path="child/child.ts">');
     expect(output).toContain('childValue');
   });
+
+  test('view supports agent preset and explicit output overrides', async () => {
+    const root = await makeTempFolder();
+    await mkdir(path.join(root, 'child'));
+    await writeFile(path.join(root, 'child', 'child.ts'), 'export const childValue = true\n');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const code = await defineCli(cliSpec).run([
+      'view',
+      root,
+      '--deep',
+      '--agent',
+      '--indent=true',
+      '--file_paths=full',
+    ]);
+
+    expect(code).toBe(0);
+    const output = log.mock.calls.map(([value]) => String(value)).join('\n');
+    expect(output).toContain('\t<file path="child/child.ts">');
+  });
+
+  test('view rejects conflicting output presets', async () => {
+    const root = await makeTempFolder();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const code = await defineCli(cliSpec).run(['view', root, '--human', '--agent']);
+
+    expect(code).toBe(1);
+    expect(error.mock.calls.map(([value]) => String(value)).join('\n')).toContain(
+      'Use only one output preset',
+    );
+  });
 });

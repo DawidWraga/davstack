@@ -158,6 +158,45 @@ describe('scanFolderMetadata', () => {
       "
     `);
   });
+
+  test('agent preset uses concise file paths and removes indentation', async () => {
+    const root = await makeTempFolder();
+    await execFileAsync('git', ['init'], { cwd: root });
+    const scanRoot = path.join(root, 'packages', 'context-compactor');
+    await mkdir(path.join(scanRoot, '__tests__'), { recursive: true });
+    await writeFile(path.join(scanRoot, '__tests__', 'log.test.ts'), 'export const SAMPLE = true\n');
+
+    await expect(scanFolderMetadata(scanRoot, { deep: true, preset: 'agent' })).resolves.toMatchInlineSnapshot(`
+      "# Folder Metadata
+
+      <folder path="packages/context-compactor">
+      <folder path="packages/context-compactor/__tests__">
+      <file path="/log.test.ts">
+      [ln 1] const SAMPLE
+      </file>
+      </folder>
+      </folder>
+      "
+    `);
+  });
+
+  test('explicit output options override preset defaults', async () => {
+    const root = await makeTempFolder();
+    await execFileAsync('git', ['init'], { cwd: root });
+    const scanRoot = path.join(root, 'packages', 'meta');
+    await mkdir(path.join(scanRoot, 'src'), { recursive: true });
+    await writeFile(path.join(scanRoot, 'src', 'index.ts'), 'export function scan() {}\n');
+
+    const metadata = await scanFolderMetadata(scanRoot, {
+      deep: true,
+      preset: 'agent',
+      indent: true,
+      filePaths: 'full',
+    });
+
+    expect(metadata).toContain('<file path="packages/meta/src/index.ts">');
+    expect(metadata).toContain('\t<file path="packages/meta/src/index.ts">');
+  });
 });
 
 describe('generated folder metadata', () => {

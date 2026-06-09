@@ -8,12 +8,35 @@ const execFileAsync = promisify(execFile);
 
 export type ScanOptions = {
   deep?: boolean;
+  preset?: MetaOutputPresetName;
+  indent?: boolean;
+  filePaths?: MetaFilePathMode;
+  file_paths?: MetaFilePathMode;
 };
 
 type FileSummary = {
   path: string;
   kind: 'markdown' | 'typescript' | 'python';
   items: string[];
+};
+
+export type MetaFilePathMode = 'concise' | 'full';
+export type MetaOutputPresetName = 'agent' | 'human';
+
+export type MetaOutputConfig = {
+  indent: boolean;
+  filePaths: MetaFilePathMode;
+};
+
+export const META_OUTPUT_PRESETS: Record<MetaOutputPresetName, MetaOutputConfig> = {
+  human: {
+    indent: true,
+    filePaths: 'full',
+  },
+  agent: {
+    indent: false,
+    filePaths: 'concise',
+  },
 };
 
 type FolderSummary = {
@@ -37,9 +60,10 @@ const SKIP_FILES = new Set([GENERATED_META_FILE]);
 export async function scanFolderMetadata(folder: string, options: ScanOptions = {}): Promise<string> {
   const root = path.resolve(folder);
   const repoRoot = await findRepoRoot(root);
-  const summary = await collectFolderSummary(root, repoRoot, root, options.deep === true);
+  const outputConfig = resolveOutputConfig(options);
+  const summary = await collectFolderSummary(root, repoRoot, root, options.deep === true, outputConfig);
 
-  const lines = ['# Folder Metadata', '', ...renderFolderSummary(summary), ''];
+  const lines = ['# Folder Metadata', '', ...renderFolderSummary(summary, outputConfig), ''];
   return lines.join('\n');
 }
 
@@ -59,7 +83,7 @@ export async function viewFolderMetadata(folder: string, options: ScanOptions = 
   const root = path.resolve(folder);
   const generatedPath = path.join(root, GENERATED_META_FILE);
   try {
-    if (!options.deep) return await readFile(generatedPath, 'utf8');
+    if (!options.deep && !hasOutputOverrides(options)) return await readFile(generatedPath, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
@@ -71,6 +95,7 @@ async function collectFolderSummary(
   repoRoot: string,
   dir: string,
   deep: boolean,
+  outputConfig: MetaOutputConfig,
 ): Promise<FolderSummary> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files: FileSummary[] = [];
@@ -83,12 +108,12 @@ async function collectFolderSummary(
 
     if (entry.isDirectory()) {
       if (!deep || shouldSkipDirectory(entry.name)) continue;
-      folders.push(await collectFolderSummary(root, repoRoot, fullPath, deep));
+      folders.push(await collectFolderSummary(root, repoRoot, fullPath, deep, outputConfig));
       continue;
     }
     if (!entry.isFile() || shouldSkipFile(entry.name)) continue;
 
-    const summary = await summarizeFile(root, repoRoot, fullPath);
+    const summary = await summarizeFile(root, repoRoot, fullPath, outputConfig);
     if (summary) {
       files.push(summary);
     } else {
@@ -110,9 +135,13 @@ function formatFolderPath(root: string, repoRoot: string, dir: string): string {
   return relativePath || '.';
 }
 
-function renderFolderSummary(summary: FolderSummary, depth = 0): string[] {
-  const indent = '\t'.repeat(Math.max(0, depth - 1));
-  const childIndent = '\t'.repeat(depth);
+function renderFolderSummary(
+  summary: FolderSummary,
+  outputConfig: MetaOutputConfig,
+  depth = 0,
+): string[] {
+  const indent = outputConfig.indent ? '\t'.repeat(Math.max(0, depth - 1)) : '';
+  const childIndent = outputConfig.indent ? '\t'.repeat(depth) : '';
   const lines = [`${indent}<folder path="${escapeAttribute(summary.path)}">`];
 
   for (const file of summary.files) {
@@ -124,7 +153,9 @@ function renderFolderSummary(summary: FolderSummary, depth = 0): string[] {
     lines.push(`${childIndent}</file>`);
   }
 
-  for (const folder of summary.folders) lines.push(...renderFolderSummary(folder, depth + 1));
+  for (const folder of summary.folders) {
+    lines.push(...renderFolderSummary(folder, outputConfig, depth + 1));
+  }
 
   if (summary.omittedFiles.length > 0) {
     lines.push(`${childIndent}<omitted_files>`);
@@ -138,9 +169,14 @@ function renderFolderSummary(summary: FolderSummary, depth = 0): string[] {
   return lines;
 }
 
-async function summarizeFile(root: string, repoRoot: string, fullPath: string): Promise<FileSummary | null> {
+async function summarizeFile(
+  root: string,
+  repoRoot: string,
+  fullPath: string,
+  outputConfig: MetaOutputConfig,
+): Promise<FileSummary | null> {
   const extension = path.extname(fullPath);
-  const relativePath = formatFilePath(root, repoRoot, fullPath);
+  const relativePath = formatFilePath(root, repoRoot, fullPath, outputConfig.filePaths);
 
   if (extension === '.md' || extension === '.mdx') {
     const text = await readFile(fullPath, 'utf8');
@@ -300,9 +336,40 @@ function formatLineRange(range: { start: number; end: number }): string {
   return range.start === range.end ? `[ln ${range.start}]` : `[ln ${range.start}-${range.end}]`;
 }
 
-function formatFilePath(root: string, repoRoot: string, fullPath: string): string {
+function formatFilePath(
+  root: string,
+  repoRoot: string,
+  fullPath: string,
+  filePaths: MetaFilePathMode,
+): string {
+  if (filePaths === 'concise') return `/${path.basename(fullPath)}`;
   const base = isInsidePath(repoRoot, fullPath) ? repoRoot : root;
   return toPosix(path.relative(base, fullPath));
+}
+
+function resolveOutputConfig(options: ScanOptions): MetaOutputConfig {
+  const presetName = options.preset ?? 'human';
+  const preset = META_OUTPUT_PRESETS[presetName];
+  if (!preset) throw new Error(`Unknown metadata output preset: ${presetName}`);
+
+  return {
+    indent: options.indent ?? preset.indent,
+    filePaths: normalizeFilePathMode(options.filePaths ?? options.file_paths ?? preset.filePaths),
+  };
+}
+
+function normalizeFilePathMode(value: MetaFilePathMode): MetaFilePathMode {
+  if (value === 'concise' || value === 'full') return value;
+  throw new Error(`Unknown metadata file path mode: ${String(value)}`);
+}
+
+function hasOutputOverrides(options: ScanOptions): boolean {
+  return (
+    options.preset !== undefined ||
+    options.indent !== undefined ||
+    options.filePaths !== undefined ||
+    options.file_paths !== undefined
+  );
 }
 
 function isInsidePath(parent: string, child: string): boolean {
