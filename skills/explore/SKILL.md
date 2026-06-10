@@ -10,12 +10,12 @@ description: >-
 
 Scope tightly, then run (backgrounded — the harness notifies you):
 
-    npx explore submit --file ~/.davstack/specs/<slug>.md
+    explore submit --file ~/.davstack/specs/<slug>.md
 
 When the current conversation already contains the real context, prefer compact
 mode over writing a spec:
 
-    npx explore submit --compact-mode "audit supervisor handoffs"
+    explore submit --compact-mode "audit supervisor handoffs"
 
 Keep the inline compact prompt to roughly 5-10 words. Do not paste details,
 requirements, quotes, or file lists into it; the compact spec-writer reads the
@@ -25,7 +25,7 @@ history.
 
 For a **single scoped fact**, skip the spec file — inline it (no boilerplate):
 
-    npx explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
+    explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
 
 Many `--file` run in parallel from one command. Read the `result → <path>`
 file for the answer.
