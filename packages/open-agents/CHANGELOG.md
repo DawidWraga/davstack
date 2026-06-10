@@ -1,5 +1,16 @@
 # @davstack/open-agents
 
+## 1.3.0
+
+### Minor Changes
+
+- 81da911: Add `@davstack/context-compactor`: a TS-native, deterministic context-compaction package with structure-aware handlers (JSON, code, log, diff, text) and TOON output for arrays of uniform objects. open-agents now compacts spec-writer handoff history through it before generation, replacing the removed Headroom proxy integration.
+
+### Patch Changes
+
+- Updated dependencies [81da911]
+  - @davstack/context-compactor@0.2.0
+
 ## 1.2.5
 
 ### Patch Changes
