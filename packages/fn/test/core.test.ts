@@ -62,39 +62,44 @@ describe('Core `createFn` API', () => {
 		});
 	});
 
-	// MARK: Safe Call -> myFn.safeCall({})
-	describe('.safeCall()', () => {
-		test('should return { data, error: null } on success', async () => {
-			const { data, error } = await testFn.safeCall({
+	// MARK: Direct Call thrown-error coverage
+	describe('direct call thrown errors', () => {
+		test('should return data on success', async () => {
+			const data = await testFn({
 				input: { title: 'Test' },
 			});
-			expect(error).toBeNull();
 			expect(data).toEqual({ id: 'chat_123', title: 'Test' });
 		});
 
-		test('should RETURN an INVALID_INPUT error for invalid input', async () => {
-			const { data, error } = await testFn.safeCall({
-				input: { title: 123 } as any,
-			});
-			expect(data).toBeNull();
+		test('should THROW an INVALID_INPUT error for invalid input', async () => {
+			let error: any;
+			try {
+				await testFn({ input: { title: 123 } as any });
+			} catch (e) {
+				error = e;
+			}
 			expect(error).toBeInstanceOf(FnError);
 			expect((error as FnError).code).toBe('INVALID_INPUT');
 		});
 
-		test('should RETURN an INVALID_OUTPUT error for invalid output', async () => {
-			const { data, error } = await testFn.safeCall({
-				input: { title: 'invalid-output' },
-			});
-			expect(data).toBeNull();
+		test('should THROW an INVALID_OUTPUT error for invalid output', async () => {
+			let error: any;
+			try {
+				await testFn({ input: { title: 'invalid-output' } });
+			} catch (e) {
+				error = e;
+			}
 			expect(error).toBeInstanceOf(FnError);
 			expect((error as FnError).code).toBe('INVALID_OUTPUT');
 		});
 
-		test('should RETURN an INTERNAL_SERVER_ERROR for handler errors', async () => {
-			const { data, error } = await testFn.safeCall({
-				input: { title: 'throw' },
-			});
-			expect(data).toBeNull();
+		test('should THROW an INTERNAL_SERVER_ERROR for handler errors', async () => {
+			let error: any;
+			try {
+				await testFn({ input: { title: 'throw' } });
+			} catch (e) {
+				error = e;
+			}
 			expect(error).toBeInstanceOf(FnError);
 			expect((error as FnError).code).toBe('INTERNAL_SERVER_ERROR');
 		});
@@ -158,16 +163,15 @@ describe('FormData Handling', () => {
 		},
 	});
 
-	test('should handle FormData input in .safeCall()', async () => {
+	test('should handle FormData input with defaults in direct call', async () => {
 		const formData = new FormData();
 		formData.append('name', 'John Doe');
 		formData.append('age', '30');
 
-		const { data, error } = await processForm.safeCall({
+		const data = await processForm({
 			input: formData as any,
 		});
 
-		expect(error).toBeNull();
 		expect(data).toBe('Name: John Doe, Age: 30, Admin: false');
 	});
 
@@ -182,16 +186,18 @@ describe('FormData Handling', () => {
 		expect(result).toBe('Name: Jane Doe, Age: 25, Admin: true');
 	});
 
-	test('should return INVALID_INPUT for malformed FormData in .safeCall()', async () => {
+	test('should throw INVALID_INPUT for malformed FormData in direct call', async () => {
 		const formData = new FormData();
 		formData.append('name', 'Missing Age');
 		// 'age' is missing, which is required by the schema.
 
-		const { data, error } = await processForm.safeCall({
-			input: formData as any,
-		});
+		let error: any;
+		try {
+			await processForm({ input: formData as any });
+		} catch (e) {
+			error = e;
+		}
 
-		expect(data).toBeNull();
 		expect(error).toBeInstanceOf(FnError);
 		if (error instanceof FnError) {
 			expect(error.code).toBe('INVALID_INPUT');
@@ -219,11 +225,10 @@ describe('FormData Handling', () => {
 		formData.append('items[0].id', '101');
 		formData.append('items[1].id', '102');
 
-		const { data, error } = await processNestedForm.safeCall({
+		const data = await processNestedForm({
 			input: formData as any,
 		});
 
-		expect(error).toBeNull();
 		console.dir(data, { depth: null });
 		expect(data).not.toBe('User: Nested User, Items: 101,102');
 	});

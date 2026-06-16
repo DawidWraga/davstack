@@ -58,13 +58,6 @@ export type FnDef<
 	middleware?: Middleware<any>[];
 };
 
-/**
- * The standard result wrapper for safe calls.
- */
-export type Result<T> =
-	| { data: T; error: null }
-	| { data: null; error: FnError | Error };
-
 export type OptionallyRequiredField<
 	K extends string,
 	Condition,
@@ -132,11 +125,7 @@ export type Fn<
 	// Maybe outputSchema
 	(TOutputSchema extends undefined
 		? { outputSchema?: undefined }
-		: { outputSchema: TOutputSchema }) & {
-		safeCall: (
-			args: FnArgs<InferInput<TInputSchema>, TContext>
-		) => Promise<Result<InferOutput<TOutputSchema, THandler>>>;
-	} & ((
+		: { outputSchema: TOutputSchema }) & ((
 		args: FnArgs<InferInput<TInputSchema>, TContext>
 	) => Promise<InferOutput<TOutputSchema, THandler>>);
 
@@ -308,20 +297,6 @@ const withThrowingErrorHandler = createMiddleware(
 	}
 );
 
-/**
- * Middleware that formats the final result into a { data, error } object.
- */
-const withSafeResultFormatter = createMiddleware(
-	async ({ ctx, input, def, next }) => {
-		try {
-			const data = await next(ctx, input); // pass input through
-			return { data, error: null };
-		} catch (error) {
-			return { data: null, error: error as FnError };
-		}
-	}
-);
-
 // #endregion
 
 // #region --- createFn ---
@@ -373,27 +348,9 @@ export function createFn<
 		});
 	};
 
-	// The pipeline for the non-throwing, safe call.
-	const safeCall = async (
-		args: FnArgs<TInput, TContext>
-	): Promise<Result<TOutput>> => {
-		const safeCallMiddleware: Middleware<any>[] = [
-			withSafeResultFormatter, // 1. (Outer) Formats the final result.
-			withThrowingErrorHandler, // 2. Catches and enhances any errors.
-			withInputValidation, // 3. Validates input schema.
-			...(def.middleware || []), // 4. Executes user-defined middleware.
-			withOutputValidation, // 5. (Inner) Validates output schema.
-		];
-
-		return executeMiddleware<Result<TOutput>>({
-			def: { ...def, middleware: safeCallMiddleware } as AnyFnDef,
-			args: getArgs(args),
-		});
-	};
-
 	const { name, ...defWithoutName } = def;
 
-	const result = Object.assign(directCall, defWithoutName, { safeCall });
+	const result = Object.assign(directCall, defWithoutName);
 
 	Object.defineProperty(result, 'name', {
 		value: def.name,
