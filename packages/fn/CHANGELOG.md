@@ -1,4 +1,4 @@
-# @davstack/service
+# @davstack/fn
 
 ## 0.1.6
 

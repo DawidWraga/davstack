@@ -1,220 +1,188 @@
-# Davstack Service
+# @davstack/fn
 
-Davstack Service is simple and flexible library for building backend services with TypeScript.
+A tiny, transport-agnostic convention for server functions. Define your business logic
+once as a plain, **directly-callable** async function with input/output validation and
+middleware — then call it from anywhere (a route handler, a server action, a script, or
+another fn). Attach a transport (tRPC, oRPC, HTTP) at the edge with a thin adapter, never
+in the core.
 
-### Why Use Davstack Service?
-
-- 🏠 Simple and familiar syntax - middleware, input and outputs inspired by trpc procedures
-- 🧩 Flexible - Works well with next js server actions as well as trpc
-- ✅ Typescript first - inferred input/output types and middleware
-
-### Installation
+The core has **zero runtime dependencies** and never throws abstraction at you: a fn is
+just a function you call with `{ input, ctx }`.
 
 ```bash
-npm install zod @davstack/service
+npm install @davstack/fn zod
 ```
 
-Visit the [DavStack Service Docs](https://davstack.com/service/overview) for more information and examples, such as this [trpc usage example](https://davstack.com/service/trpc-usage-example).
+> `zod` is a peer dependency (v3 or v4). Schemas are optional.
 
-## Demo Usage
-
-- The service definition replaces tRPC procedures, but the syntax is very similar.
-- Once the service is integrated into tRPC routers, the API is the same as any other tRPC router.
-
-## Composing Services example
+## Quick start
 
 ```ts
-// api/services/invoice.ts
-import { authedService, publicService } from '@/lib/service';
-
-// Service composed from range of other services:
-
-export const mailAiGeneratedInvoice = authedService
-	.input(z.object({ to: z.string(), projectId: z.string() }))
-	.query(async ({ ctx, input }) => {
-		await checkSufficientCredits(ctx, { amount: 10 });
-
-		const pdf = await generatePdf(ctx, { html: project.invoiceHtml });
-
-		await sendEmail(ctx, {
-			to: input.to,
-			subject: 'Invoice',
-			body: 'Please find attached your invoice',
-			attachments: [{ filename: 'invoice.pdf', content: pdf }],
-		});
-
-		await deductCredits(ctx, { amount: 10 });
-
-		return 'Invoice sent';
-	});
-
-export const generatePdf = authedService
-	.input(z.object({ html: z.string() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return pdf;
-	});
-
-export const sendEmail = authedService
-	.input(z.object({ to: z.string(), subject: z.string(), body: z.string() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return 'Email sent';
-	});
-
-export const checkSufficientCredits = authedService
-	.input(z.object({ amount: z.number() }))
-	.query(async ({ ctx, input }) => {
-		// complex business logic here
-		return 'Sufficient funds';
-	});
-
-// ... etc
-```
-
-Integrate your services with tRPC with 0 boilerplate. Works just like any other tRPC router.
-
-```ts
-// api/router.ts
-
-import * as invoiceServices from '@/api/services/invoice';
-import { createTRPCRouter } from '@/lib/trpc';
-import {
-	createTrpcProcedureFromService,
-	createTrpcRouterFromServices,
-} from '@davstack/service';
-
-export const appRouter = createTRPCRouter({
-	invoice: createTrpcRouterFromServices(invoiceServices),
-});
-```
-
-### Middleware Example
-
-Define your services with reusable middleware in a separate file, and export them for reuse.
-
-```ts
-// lib/service.ts
-import { service } from '@davstack/service';
-import { db } from '@/lib/db';
-
-// Define the context types for your services
-export type PublicServiceCtx = {
-	user: { id: string; role: string } | undefined;
-	db: typeof db;
-};
-export type AuthedServiceCtx = Required<PublicServiceCtx>;
-
-// export your services
-export const publicService = service<PublicServiceCtx>();
-
-export const authedService = service<AuthedServiceCtx>().use(
-	async ({ ctx, next }) => {
-		// Only allows authenticate users to access this service
-		if (!ctx.user) {
-			throw new Error('Unauthorized');
-		}
-		return next(ctx);
-	}
-);
-
-export function createServiceCtx() {
-	const user = auth();
-	return { user, db };
-}
-```
-
-Import the public / authed service builders from the service
-
-```ts
-// api/services/some-service.ts
-import { publicService, authedService } from '@/lib/service';
-
-export const getSomePublicData = publicService.query(async ({ ctx }) => {
-	return 'Public data';
-});
-
-export const getSomeUserData = authedService.query(async ({ ctx }) => {
-	// will throw an error if ctx.user is undefined
-	return 'Protected data';
-});
-```
-
-Specify the input and output schemas for your service for validation and type safety, and use the ctx/input arguments to access the service context and input data.
-
-```ts
-// api/services/task-services.ts
-import { service } from '@davstack/service';
+import { createFn, FnError } from '@davstack/fn';
 import { z } from 'zod';
 
-const getTasks = service()
-	.input(z.object({ projectId: z.string() }))
-	.query(async ({ ctx, input }) => {
-		return ctx.db.tasks.findMany({ where: { projectId: input.projectId } });
-	});
+export const createChat = createFn({
+	name: 'createChat',
+	inputSchema: z.object({ title: z.string() }),
+	handler: async ({ input, ctx }) => {
+		return ctx.db.chat.create({ data: { title: input.title } });
+	},
+});
+
+// Call it directly — same `{ input, ctx }` shape as the handler.
+const chat = await createChat({ input: { title: 'Hello' }, ctx: { db } });
 ```
 
-### Direct Service Usage
+A fn validates its input (applying zod defaults/transforms), runs its middleware, runs the
+handler, then validates its output if an `outputSchema` is set. On any failure it **throws an
+`FnError`** (see [Errors](#errors)).
 
-Unlike tRPC procedures, services can be called directly from anywhere in your backend, including within other services.
+## Definition shape
 
-```typescript
-const ctx = createServiceCtx(); // or get ctx from parent service
-const tasks = await getTasks(ctx, { projectId: '...' });
+```ts
+createFn({
+	name: 'sendWelcomeText',       // required — used in error traces & adapters
+	description: '...',            // optional
+	tags: ['sms', 'credits'],     // optional
+	inputSchema: z.object({ ... }),   // optional
+	outputSchema: z.object({ ... }),  // optional — validated on the way out
+	middleware: [/* fn-specific middleware */], // optional
+	handler: async ({ input, ctx }) => { ... },
+});
 ```
 
-This allows you to build complex service logic by composing multiple services together.
+`input` is typed from `inputSchema` (or `void` if omitted). The handler's return type (or
+`outputSchema`) becomes the call's resolved type.
 
-```typescript
-const getProjectDetails = service()
-	.input(z.object({ projectId: z.string() }))
-	.output(
-		z.object({
-			id: z.string(),
-			name: z.string(),
-			tasks: getTasks.outputSchema,
-		})
-	)
-	.query(async ({ ctx, input }) => {
-		const project = await getProject(ctx, { projectId: input.projectId });
-		const tasks = await getTasks(ctx, { projectId: input.projectId });
-		return { ...project, tasks };
-	});
+## Shared context & base middleware — `initCreateFn`
+
+Declare your context type once and pre-attach base middleware with `initCreateFn`. Everything
+built from it inherits that context type and middleware.
+
+```ts
+import { initCreateFn, createMiddleware, FnError } from '@davstack/fn';
+
+type PublicCtx = { db: Db; user?: { id: string } };
+type AuthedCtx = Required<PublicCtx>;
+
+const authMiddleware = createMiddleware<AuthedCtx>(async ({ ctx, next }) => {
+	if (!ctx.user?.id) throw new FnError({ code: 'UNAUTHORIZED' });
+	return next(); // short-circuits if you don't call it
+});
+
+export const createPublicFn = initCreateFn<PublicCtx>();
+export const createAuthedFn = initCreateFn<AuthedCtx>([authMiddleware]);
 ```
 
-### tRPC Integration
+Now `createAuthedFn(...)` produces fns whose `ctx` is typed `AuthedCtx`, with `authMiddleware`
+always running first.
 
-Seamlessly integrate with tRPC to create type-safe API endpoints.
+## Middleware
+
+Middleware is an onion (Express/tRPC-style `next` chain). Each receives
+`{ ctx, input, def, next }` and can run code before/after `next`, swap the context or input
+(`next(newCtx, newInput)`), wrap it in `try/catch`, or short-circuit by not calling it.
+
+```ts
+const timing = createMiddleware(async ({ def, next }) => {
+	const start = performance.now();
+	const result = await next();
+	console.log(`${def.name} took ${performance.now() - start}ms`);
+	return result;
+});
+```
+
+## Composition
+
+Because fns are just callables, compose them by calling one inside another's handler — pass
+the same `ctx` through. Error traces accumulate across the call path (see below).
+
+```ts
+export const sendWelcomeText = createAuthedFn({
+	name: 'sendWelcomeText',
+	inputSchema: z.object({ chatId: z.string() }),
+	handler: async ({ input, ctx }) => {
+		await checkCredits({ input: { actionType: 'welcome' }, ctx });
+		const text = await generateWelcomeText({ ctx });
+		return sendSms({ input: { chatId: input.chatId, message: text }, ctx });
+	},
+});
+```
+
+## Errors
+
+Failures throw an `FnError` — a typed error with a tRPC-style `code`, structured `meta`, and a
+`functionTrace` that accumulates the fn names along the call path (so a deep failure tells you
+*which business operations* were in play, not just a file:line stack).
+
+```ts
+import { FnError, isFnError } from '@davstack/fn';
+
+throw new FnError({ code: 'INSUFFICIENT_CREDITS', message: 'Not enough credits' });
+```
+
+Validation failures throw automatically with `code: 'INVALID_INPUT'` / `'INVALID_OUTPUT'` and
+the zod error in `meta.zodErrors`.
+
+### Want a result instead of a throw?
+
+There's no `.safeCall`. Wrap the direct call with [`tryCatch`](../try-catch) from the
+companion package:
+
+```ts
+import { tryCatch } from '@davstack/try-catch';
+import type { FnError } from '@davstack/fn';
+
+const { data, error } = await tryCatch<Chat, FnError>(() =>
+	createChat({ input: { title: 'Hello' }, ctx })
+);
+if (error) return handle(error); // typed FnError
+use(data);                       // narrowed to non-null
+```
+
+Use the thunk form (`() => fn(...)`) so a synchronous throw is caught too.
+
+## Transport adapters
+
+The core knows nothing about transports. Attach one at the edge:
+
+- **tRPC** — [`@davstack/fn-trpc`](../fn-trpc) turns a fn into a tRPC procedure via
+  `initProcedureFactory`.
 
 ```ts
 import { initTRPC } from '@trpc/server';
-import { createTrpcRouterFromServices } from '@davstack/service';
-import * as taskServices from './services/tasks';
-import * as projectServices from './services/projects';
-import { sendFeedback } from './services/send-feedback';
+import { initProcedureFactory } from '@davstack/fn-trpc';
 
-const t = initTRPC();
+const t = initTRPC.create();
+const fromFn = initProcedureFactory(t.procedure);
 
-const appRouter = t.router({
-	tasks: createTrpcRouterFromServices(taskServices),
-	projects: createTrpcRouterFromServices(projectServices),
-	// or create a single procedure from a service
-	sendFeedback: createTrpcProcedureFromService(sendFeedback),
+export const appRouter = t.router({
+	createChat: fromFn(createChat, 'mutation'),
 });
 ```
 
-NOTE: it is recommended to use the `* as yourServicesName` syntax. Otherwise, ctrl+click on the tRPC client handler will navigate you to the app router file, instead of the specific service definition.
+- **oRPC** — [`@davstack/fn-orpc`](../fn-orpc) turns a fn into an oRPC procedure via
+  `initProcedureFactory` (no query/mutation arg — chain `.route()` for OpenAPI).
 
-### Acknowledgements
+```ts
+import { os } from '@orpc/server';
+import { initProcedureFactory } from '@davstack/fn-orpc';
 
-Davstack Store has been heavily inspired by [tRPC](https://trpc.io/), a fantastic library for building type-safe APIs. A big shout-out to the tRPC team for their amazing work.
+const fromFn = initProcedureFactory(os);
 
-Nick-Lucas, a tRPC contributor, inspired the creation of Davstack Service with his [github comment](https://github.com/trpc/trpc/discussions/4839#discussioncomment-8224476). He suggested "making controllers minimal" and "to separate your business logic from the API logic", which is exactly what Davstack Service aims to do.
+export const router = {
+	createChat: fromFn(createChat),
+};
+```
 
-### Contributing
+## Companion packages
 
-Contributions are welcome! Please read our [contributing guide](link-to-contributing-guide) for details on our code of conduct and the submission process.
+| Package | What it does |
+| --- | --- |
+| [`@davstack/try-catch`](../try-catch) | `tryCatch(promiseOrThunk)` → `{ data, error }` (zero-dep) |
+| [`@davstack/fn-trpc`](../fn-trpc) | tRPC adapter (`initProcedureFactory`) |
+| [`@davstack/fn-orpc`](../fn-orpc) | oRPC adapter (`initProcedureFactory`) |
 
-### License
+## License
 
-This project is licensed under the [MIT License](link-to-license). See the LICENSE file for details.
+MIT
