@@ -84,4 +84,18 @@ export default defineWorkspace([
 			exclude: ['**/node_modules/**'],
 		},
 	},
+	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
+			name: 'fn',
+			root: './packages/fn',
+			environment: 'node',
+			include: ['test/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+			typecheck: {
+				enabled: true,
+				include: ['test/**/*.test.ts'],
+			},
+		},
+	},
 ]);
