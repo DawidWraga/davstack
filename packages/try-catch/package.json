@@ -1,0 +1,34 @@
+{
+	"name": "@davstack/try-catch",
+	"version": "0.1.0",
+	"license": "MIT",
+	"type": "module",
+	"description": "Tiny zero-dependency helper that wraps a promise or thunk into a { data, error } result — no try/catch boilerplate.",
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "tsup",
+		"test": "pnpm -w exec vitest run --project try-catch"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist/**",
+		"README.md"
+	],
+	"engines": {
+		"node": ">=18"
+	},
+	"devDependencies": {
+		"@types/node": "^25.9.1",
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
