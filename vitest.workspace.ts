@@ -87,6 +87,16 @@ export default defineWorkspace([
 	{
 		resolve: { alias: { vitest: vitestAlias } },
 		test: {
+			name: 'try-catch',
+			root: './packages/try-catch',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+		},
+	},
+	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
 			name: 'fn',
 			root: './packages/fn',
 			environment: 'node',
@@ -95,6 +105,46 @@ export default defineWorkspace([
 			typecheck: {
 				enabled: true,
 				include: ['test/**/*.test.ts'],
+			},
+		},
+	},
+	{
+		resolve: {
+			alias: {
+				vitest: vitestAlias,
+				// fn isn't built during tests, so resolve @davstack/fn to source.
+				'@davstack/fn': path.join(here, 'packages/fn/src/index.ts'),
+			},
+		},
+		test: {
+			name: 'fn-trpc',
+			root: './packages/fn-trpc',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+			typecheck: {
+				enabled: true,
+				include: ['__tests__/**/*.test.ts'],
+			},
+		},
+	},
+	{
+		resolve: {
+			alias: {
+				vitest: vitestAlias,
+				// fn isn't built during tests, so resolve @davstack/fn to source.
+				'@davstack/fn': path.join(here, 'packages/fn/src/index.ts'),
+			},
+		},
+		test: {
+			name: 'fn-orpc',
+			root: './packages/fn-orpc',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+			typecheck: {
+				enabled: true,
+				include: ['__tests__/**/*.test.ts'],
 			},
 		},
 	},
