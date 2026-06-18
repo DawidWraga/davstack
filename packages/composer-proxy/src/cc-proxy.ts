@@ -88,6 +88,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, config: CcProxy
 		const buf = await readBody(req);
 		const body = parseJson(buf) as AnthropicMessagesRequest;
 		const isComposer = body?.model === config.composerModelId;
+		trace(`POST /v1/messages  model=${body?.model}  →  ${isComposer ? 'COMPOSER 🟢' : 'passthrough → Anthropic'}`);
 		if (isComposer) return handleComposer(res, body, config);
 		return passthrough(req, res, buf, config);
 	}
@@ -95,7 +96,9 @@ async function handle(req: IncomingMessage, res: ServerResponse, config: CcProxy
 	if (method === 'POST' && reqPath === '/v1/messages/count_tokens') {
 		const buf = await readBody(req);
 		const body = parseJson(buf) as AnthropicMessagesRequest;
-		if (body?.model === config.composerModelId) {
+		const isComposer = body?.model === config.composerModelId;
+		trace(`POST /count_tokens  model=${body?.model}  →  ${isComposer ? 'estimate (Composer)' : 'passthrough'}`);
+		if (isComposer) {
 			return sendJson(res, 200, { input_tokens: estimateInputTokens(body) });
 		}
 		return passthrough(req, res, buf, config);
@@ -112,12 +115,14 @@ async function handleComposer(res: ServerResponse, body: AnthropicMessagesReques
 	// Probe guard: Claude Code pings tiny max_tokens requests to test the model.
 	// Don't spin up Composer for those — return a minimal valid "ok".
 	if (body.max_tokens != null && body.max_tokens <= 4) {
+		trace(`  probe guard (max_tokens=${body.max_tokens}) → quick ok, Composer NOT invoked`);
 		return body.stream ? streamProbe(res, model) : nonStreamMessage(res, model, 'ok');
 	}
 
 	const cwd = config.cwdOverride ?? extractCwd(body) ?? process.cwd();
 	const prompt = flattenRequest(body);
 	const inputTokens = estimateInputTokens(body);
+	trace(`  ⚙ invoking Composer agent  cwd=${cwd}  promptChars=${prompt.length}  stream=${!!body.stream}`);
 
 	if (body.stream) {
 		return streamComposer(res, { config, model, prompt, cwd, inputTokens });
@@ -131,8 +136,12 @@ async function handleComposer(res: ServerResponse, body: AnthropicMessagesReques
 		model,
 		prompt,
 		cwd,
-		onToolActivity: (line) => narration.push(line),
+		onToolActivity: (line) => {
+			trace(`    ${line}`);
+			narration.push(line);
+		},
 	});
+	trace(`  ✓ Composer done (${narration.length} tool calls, ${text.length} chars)`);
 	const full = (narration.length ? narration.join('\n') + '\n\n' : '') + text;
 	return nonStreamMessage(res, model, full, inputTokens);
 }
@@ -150,6 +159,7 @@ async function streamComposer(
 	res.write(encodeSSE('ping', ping()));
 
 	let outChars = 0;
+	let toolCalls = 0;
 	const writeText = (text: string) => {
 		if (!text) return;
 		outChars += text.length;
@@ -161,11 +171,16 @@ async function streamComposer(
 		model,
 		prompt,
 		cwd,
-		onToolActivity: (line) => writeText(`\n${line}`),
+		onToolActivity: (line) => {
+			toolCalls++;
+			trace(`    ${line}`);
+			writeText(`\n${line}`);
+		},
 		onText: (delta) => writeText(delta),
 	});
 	// Backstop: if streaming yielded nothing but wait() returned text, flush it.
 	if (outChars === 0 && text) writeText(text);
+	trace(`  ✓ Composer done (${toolCalls} tool calls, ${outChars} chars streamed)`);
 
 	res.write(encodeSSE('content_block_stop', contentBlockStop({ index: 0 })));
 	res.write(
@@ -309,4 +324,11 @@ function sendJson(res: ServerResponse, status: number, obj: unknown) {
 
 function errMsg(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
+}
+
+// Server-side trace so the proxy terminal shows which branch fired and what
+// Composer actually did — the ground-truth check that Composer ran under the hood.
+function trace(msg: string): void {
+	const t = new Date().toISOString().slice(11, 19);
+	console.log(`[cc ${t}] ${msg}`);
 }
