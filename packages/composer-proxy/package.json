@@ -1,0 +1,42 @@
+{
+  "name": "@davstack/composer-proxy",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Local OpenAI-compatible proxy in front of Cursor's Composer (composer-2.5) via @cursor/sdk. Lets any OpenAI client — e.g. claude-code-router's background/haiku slot — route text completions through Composer.",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsup",
+    "start": "node dist/index.js"
+  },
+  "bin": {
+    "composer-proxy": "./bin/composer-proxy.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "bin/**",
+    "dist/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@connectrpc/connect-node": "^1.6.1",
+    "@cursor/sdk": "^1.0.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
