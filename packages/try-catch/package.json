@@ -1,6 +1,6 @@
 {
 	"name": "@davstack/try-catch",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"license": "MIT",
 	"type": "module",
 	"description": "Tiny zero-dependency helper that wraps a promise or thunk into a { data, error } result — no try/catch boilerplate.",

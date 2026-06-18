@@ -1,6 +1,6 @@
 {
 	"name": "@davstack/fn-trpc",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"license": "MIT",
 	"type": "module",
 	"description": "tRPC adapter for @davstack/fn — turn directly-callable fns into tRPC procedures.",

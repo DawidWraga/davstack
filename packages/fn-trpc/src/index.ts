@@ -4,7 +4,7 @@ import {
 	QueryProcedure,
 } from '@trpc/server/unstable-core-do-not-import';
 import { z } from 'zod';
-import { zInferInput, ZodTypeAny, Simplify } from '@davstack/fn';
+import { zInfer, zInferInput, ZodTypeAny, Simplify } from '@davstack/fn';
 
 /**
  * Creates a factory function for tRPC procedures from Fn definitions
@@ -35,6 +35,7 @@ export function initProcedureFactory<
 	return function createTrpcProcedureFromFn<
 		TFn extends {
 			inputSchema?: ZodTypeAny;
+			outputSchema?: ZodTypeAny;
 			handler: (...args: any[]) => any;
 		},
 		TType extends 'mutation' | 'query',
@@ -47,11 +48,12 @@ export function initProcedureFactory<
 			? zInferInput<TFn['inputSchema']>
 			: void;
 
-		type OutputType = Awaited<ReturnType<TFn['handler']>>;
-		// type OutputType =
-		//   ReturnType<TFn["handler"]> extends Promise<infer TOutput>
-		//     ? TOutput
-		//     : never;
+		// Prefer a declared outputSchema (already a flat, resolved type) over
+		// re-inferring through the handler return type — mirrors InputType above
+		// and keeps consumer tRPC router types flat (avoids TS-server lag).
+		type OutputType = TFn['outputSchema'] extends ZodTypeAny
+			? zInfer<TFn['outputSchema']>
+			: Awaited<ReturnType<TFn['handler']>>;
 
 		type InputOutput = Simplify<{
 			input: InputType;
