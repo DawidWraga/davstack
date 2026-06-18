@@ -166,6 +166,14 @@ async function streamComposer(
 		res.write(encodeSSE('content_block_delta', contentBlockDelta({ index: 0, text })));
 	};
 
+	// Lead-in so the subagent output opens with a clear "Composer is working"
+	// banner in Claude Code's view, then the activity log, then the answer.
+	const repo = cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd;
+	writeText(`> 🤖 **Composer** (cursor) working in \`${repo}\`\n`);
+
+	// Keep activity (blockquotes) visually separated from answer prose: insert a
+	// blank line when we transition from tool narration back to assistant text.
+	let lastWasTool = false;
 	const { text } = await runComposerAgent({
 		apiKey: config.apiKey,
 		model,
@@ -175,8 +183,15 @@ async function streamComposer(
 			toolCalls++;
 			trace(`    ${line}`);
 			writeText(`\n${line}`);
+			lastWasTool = true;
 		},
-		onText: (delta) => writeText(delta),
+		onText: (delta) => {
+			if (lastWasTool) {
+				writeText('\n\n');
+				lastWasTool = false;
+			}
+			writeText(delta);
+		},
 	});
 	// Backstop: if streaming yielded nothing but wait() returned text, flush it.
 	if (outChars === 0 && text) writeText(text);

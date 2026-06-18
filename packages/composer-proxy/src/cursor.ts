@@ -144,10 +144,11 @@ export async function runComposerAgent(opts: RunAgentOpts): Promise<RunAgentResu
 				if (b?.type === 'text' && typeof b.text === 'string') emitText(b.text);
 			}
 		} else if (type === 'tool_call') {
-			// Composer's OWN tool execution. Narrate it once, when it starts.
+			// Composer's OWN tool execution. Narrate it once, when it starts, as a
+			// clean human-readable line so it stays legible in Claude Code's UI.
 			const tc = event as { name?: string; status?: string; args?: unknown };
 			if (tc.status === 'running') {
-				onToolActivity?.(`› ${tc.name ?? 'tool'} ${shortArgs(tc.args)}`.trimEnd());
+				onToolActivity?.(narrate(tc.name ?? 'tool', tc.args));
 			}
 		}
 	}
@@ -160,6 +161,40 @@ export async function runComposerAgent(opts: RunAgentOpts): Promise<RunAgentResu
 	}
 
 	return { text: full };
+}
+
+// Turn a Composer tool call into one clean human line, pulling the meaningful
+// field per tool type. Rendered as a markdown blockquote + code span so Claude
+// Code shows it distinct from the answer prose.
+const TOOL_ICON: Record<string, string> = {
+	glob: '🔍',
+	grep: '🔍',
+	search: '🔍',
+	shell: '⚡',
+	read: '📄',
+	write: '✏️',
+	edit: '✏️',
+	mcp: '🔧',
+};
+
+function narrate(name: string, args: unknown): string {
+	const a = args && typeof args === 'object' ? (args as Record<string, unknown>) : {};
+	const detail =
+		(a.globPattern as string) ??
+		(a.pattern as string) ??
+		(a.command as string) ??
+		(a.path as string) ??
+		(a.filePath as string) ??
+		(a.query as string) ??
+		(a.targetDirectory as string) ??
+		shortArgs(args);
+	const icon = TOOL_ICON[name] ?? '🔧';
+	const text = `${name} ${String(detail ?? '')}`.trim().replace(/\s+/g, ' ');
+	return `> ${icon} \`${truncate(text, 110)}\``;
+}
+
+function truncate(s: string, n: number): string {
+	return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
 // Render tool args as a compact one-liner, truncated to ~80 chars.
