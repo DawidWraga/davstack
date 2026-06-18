@@ -89,6 +89,95 @@ export async function runComposer(opts: RunComposerOpts): Promise<RunComposerRes
 	return { text: full };
 }
 
+//* MARK: Agent
+
+export interface RunAgentOpts {
+	apiKey: string;
+	/** Cursor model id, e.g. "composer-2.5". */
+	model: string;
+	/** Flattened prompt (system + conversation) — see anthropic-request.ts. */
+	prompt: string;
+	/** REAL working tree Composer acts on. Defaults to process.cwd(). */
+	cwd?: string;
+	/** Incremental assistant text deltas. */
+	onText?: (delta: string) => void;
+	/** One-line narrations of Composer's OWN tool executions (grep/edit/shell). */
+	onToolActivity?: (line: string) => void;
+}
+
+export interface RunAgentResult {
+	text: string;
+}
+
+// Run Composer as a self-executing agent in the user's REAL repo. Unlike
+// runComposer (text-only, scratch cwd), this points local.cwd at the actual
+// working tree so Composer's own tools edit real files. Assistant text streams
+// out as deltas; Composer's tool_call events are surfaced as concise narration
+// so the work stays visible in Claude Code's subagent view.
+export async function runComposerAgent(opts: RunAgentOpts): Promise<RunAgentResult> {
+	const { apiKey, model, prompt, cwd, onText, onToolActivity } = opts;
+
+	const agent = await Agent.create({
+		apiKey,
+		model: { id: model },
+		local: { cwd: cwd ?? process.cwd() },
+	});
+
+	const run = await agent.send(prompt);
+
+	// Accumulate assistant text, diffing each block against what we've emitted
+	// (blocks may be cumulative OR incremental across SDK versions).
+	let full = '';
+	const emitText = (blockText: string) => {
+		const delta = computeDelta(full, blockText);
+		if (!delta) return;
+		full += delta;
+		onText?.(delta);
+	};
+
+	for await (const event of run.stream() as AsyncIterable<Record<string, unknown>>) {
+		const type = event?.type;
+		if (type === 'assistant') {
+			const content = (event as { message?: { content?: unknown[] } }).message?.content ?? [];
+			for (const block of content) {
+				const b = block as { type?: string; text?: unknown };
+				if (b?.type === 'text' && typeof b.text === 'string') emitText(b.text);
+			}
+		} else if (type === 'tool_call') {
+			// Composer's OWN tool execution. Narrate it once, when it starts.
+			const tc = event as { name?: string; status?: string; args?: unknown };
+			if (tc.status === 'running') {
+				onToolActivity?.(`› ${tc.name ?? 'tool'} ${shortArgs(tc.args)}`.trimEnd());
+			}
+		}
+	}
+
+	// Backstop: prefer accumulated text; fall back to the final result.
+	const final = await run.wait();
+	if (!full) {
+		const text = extractFinalText(final);
+		if (text) full = text;
+	}
+
+	return { text: full };
+}
+
+// Render tool args as a compact one-liner, truncated to ~80 chars.
+function shortArgs(args: unknown): string {
+	if (args == null) return '';
+	let s: string;
+	if (typeof args === 'string') s = args;
+	else {
+		try {
+			s = JSON.stringify(args);
+		} catch {
+			s = String(args);
+		}
+	}
+	s = s.replace(/\s+/g, ' ').trim();
+	return s.length > 80 ? s.slice(0, 79) + '…' : s;
+}
+
 // Given what's already been emitted (`prev`) and the next block (`next`),
 // return only the new tail. Covers both wire styles:
 //   - cumulative: next = prev + tail  → returns tail

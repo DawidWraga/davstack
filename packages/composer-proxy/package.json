@@ -12,7 +12,8 @@
   },
   "bin": {
     "composer-proxy": "./bin/composer-proxy.mjs",
-    "composer-capture": "./bin/composer-capture.mjs"
+    "composer-capture": "./bin/composer-capture.mjs",
+    "composer-cc": "./bin/composer-cc.mjs"
   },
   "exports": {
     ".": {
