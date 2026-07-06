@@ -87,6 +87,16 @@ export default defineWorkspace([
 	{
 		resolve: { alias: { vitest: vitestAlias } },
 		test: {
+			name: 'status-bar',
+			root: './packages/status-bar',
+			environment: 'node',
+			include: ['__tests__/**/*.test.ts'],
+			exclude: ['**/node_modules/**'],
+		},
+	},
+	{
+		resolve: { alias: { vitest: vitestAlias } },
+		test: {
 			name: 'fn',
 			root: './packages/fn',
 			environment: 'node',
