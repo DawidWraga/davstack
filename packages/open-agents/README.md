@@ -3,7 +3,7 @@
 A thin self-waiting job primitive over a configured agent CLI (default
 `cursor-agent -p`; pluggable adapters for `gemini-cli` and `agy`). Delegate
 scoped explore (read-only) and fast-edit (mechanical) work to a fast/cheap
-model (`composer-2.5` by default), one or many in parallel, with each result
+model (`cursor-grok-4.6-high-fast` by default), one or many in parallel, with each result
 persisted and re-printable.
 
 Not an orchestrator — the design goal is to **make a Cursor job a
@@ -32,6 +32,7 @@ different profile bound (read-only vs `--force` edit).
 
 ```
 submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeout s] [--cwd d]
+        --model <id> overrides the configured/provider default for this submission.
         default: BLOCKS until all done, exits worst code. Each job's clean
           deliverable → its OWN <id>.result.md; stdout is just an index
           (`result → <path>`) — no input echo, jobs never mix. Read the file(s).
@@ -39,7 +40,8 @@ submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeo
         --parallel-mode asap|all-together (default asap): asap prints each
           index line as its job finishes; all-together waits, submission order
         --compact-mode: treat the inline input as a very short task title
-          (roughly 5-10 words) and let a Cursor composer-2.5 spec-writer distill
+          (roughly 5-10 words) and let a Cursor spec-writer using the built-in
+          default model distill
           recent conversation history into the executor spec. Do not paste
           details, quotes, or file lists into the inline prompt when the current
           conversation already has that context.

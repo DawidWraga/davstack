@@ -17,7 +17,7 @@ export interface Profile {
   mode: ProfileMode;
   /**
    * Build the full subagent prompt from the raw spec body. `addendum` is
-   * optional extra guard line(s) the adapter contributes (provider/tier
+   * optional extra guard line(s) the adapter contributes (provider/model
    * specific — e.g. a line-number-verify directive for gemini flash explore).
    * Empty/omitted ⇒ byte-identical to the no-addendum scaffold.
    */

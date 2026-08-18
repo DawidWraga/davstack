@@ -47,19 +47,17 @@ function resolveCursorAgentOnPath(): string | null {
   return null;
 }
 
-// Probe whether a binary can actually be spawned. existsSync alone is
-// insufficient — on Windows, SmartScreen / Defender can block an existing
-// .exe at spawn time (EUNKNOWN uv_spawn). check runs this once at user
-// request, so the ~100ms cost is fine; the hot path (resolveBin in the
-// adapter) deliberately stays probe-free.
+// Probe whether an override/PATH binary can start successfully. existsSync
+// alone is insufficient: Windows policy can allow process creation but block a
+// native dependency during module load, yielding a non-zero exit.
 function canSpawn(bin: string, extraArgs: string[] = []): boolean {
   try {
     const result = spawnSync(bin, [...extraArgs, '--version'], {
-      timeout: 1500,
+      timeout: 15_000,
       stdio: 'ignore',
       windowsHide: true,
     });
-    return !result.error;
+    return result.status === 0 && result.error == null;
   } catch {
     return false;
   }
@@ -84,7 +82,7 @@ function checkCursorAgent(): CheckResult['cursorAgent'] {
     };
   }
   const vendored = resolveCursorAgentNode();
-  if (vendored && canSpawn(vendored.node, [vendored.index])) {
+  if (vendored) {
     return { ok: true, source: `vendored node entrypoint: ${vendored.index}` };
   }
   const onPath = resolveCursorAgentOnPath();

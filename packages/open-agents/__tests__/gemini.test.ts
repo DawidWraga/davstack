@@ -1,4 +1,4 @@
-// gemini adapter: tier map, --approval-mode arg construction, the delta-
+// gemini adapter: --approval-mode arg construction, the delta-
 // concatenating stream summarise (gemini has no result event), session-id
 // extraction, and binary resolution (GEMINI_CLI_BIN precedence + the Windows
 // npm-global node-entrypoint resolution). Plus the cli-level --provider /
@@ -16,13 +16,6 @@ import {
 } from '../src/adapters/gemini.js';
 import { cursorAdapter } from '../src/adapters/cursor.js';
 import { parseFlags, pickAdapter } from '../src/cli.js';
-
-describe('gemini adapter — tier map', () => {
-  test('smarter → 3-pro-preview, faster → 3.1-flash-lite-preview', () => {
-    expect(geminiAdapter.tierModel('smarter')).toBe('gemini-3-pro-preview');
-    expect(geminiAdapter.tierModel('faster')).toBe('gemini-3.1-flash-lite-preview');
-  });
-});
 
 describe('gemini adapter — buildArgs', () => {
   // explore (ask) uses yolo, NOT plan: gemini's plan mode suppresses tool
@@ -67,20 +60,19 @@ describe('gemini adapter — buildArgs', () => {
 });
 
 describe('gemini adapter — guardAddendum (flash explore line-verify)', () => {
-  test('explore + default/faster tier → the cat -n line-verify directive', () => {
-    const def = geminiAdapter.guardAddendum!('explore', undefined);
+  test('explore + flash model → the cat -n line-verify directive', () => {
+    const def = geminiAdapter.guardAddendum!('explore', 'gemini-3.1-flash-lite-preview');
     expect(def).toContain('cat -n');
     expect(def).toContain('LINE NUMBERS');
-    expect(geminiAdapter.guardAddendum!('explore', 'faster')).toBe(def);
   });
 
-  test('explore + smarter (pro self-verifies) → no addendum', () => {
-    expect(geminiAdapter.guardAddendum!('explore', 'smarter')).toBe('');
+  test('explore + explicit pro model → no addendum', () => {
+    expect(geminiAdapter.guardAddendum!('explore', 'gemini-3-pro-preview')).toBe('');
   });
 
-  test('non-explore profile → no addendum regardless of tier', () => {
-    expect(geminiAdapter.guardAddendum!('edit', undefined)).toBe('');
-    expect(geminiAdapter.guardAddendum!('edit', 'faster')).toBe('');
+  test('non-explore profile → no addendum regardless of model', () => {
+    expect(geminiAdapter.guardAddendum!('edit', 'gemini-3.1-flash-lite-preview')).toBe('');
+    expect(geminiAdapter.guardAddendum!('edit', 'gemini-3-pro-preview')).toBe('');
   });
 
   test('cursor adapter contributes no addendum (optional, unimplemented)', () => {

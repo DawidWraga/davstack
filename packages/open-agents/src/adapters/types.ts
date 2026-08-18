@@ -1,11 +1,9 @@
 // An *adapter* is "which CLI runs the subagent". It owns binary resolution,
-// the tier→model map, argv construction, stream parsing, and any CLI-specific
+// the default model, argv construction, stream parsing, and any CLI-specific
 // litter handling (pre-spawn / post-exit hooks). The generic run loop in
 // core/run.ts is adapter-agnostic and only talks to this interface.
 
 import type { ProfileMode } from '../profiles/types.js';
-
-export type Tier = 'smarter' | 'faster';
 
 export interface BuildArgsInput {
   model: string;
@@ -28,9 +26,7 @@ export interface AgentAdapter {
   /** Stable adapter name (e.g. "cursor"). */
   name: string;
 
-  /** Map a named tier to a concrete model id. */
-  tierModel(tier: Tier): string;
-  /** Default model when no tier/model is given. */
+  /** Default model when no explicit/configured model is given. */
   defaultModel(): string;
 
   /**
@@ -60,11 +56,11 @@ export interface AgentAdapter {
 
   /**
    * Optional extra guard line(s) to inject into the profile scaffold for a
-   * given profile + tier. Lets an adapter add provider-specific instructions
+   * given profile + resolved model. Lets an adapter add provider-specific instructions
    * without the (adapter-agnostic) profile knowing about it — e.g. gemini
    * adds an explicit "verify line numbers with a numbered read" directive for
-   * flash explore (the pro tier self-verifies, so it's skipped there).
+   * flash explore (the pro model self-verifies, so it's skipped there).
    * Undefined/'' ⇒ no addendum (scaffold byte-identical).
    */
-  guardAddendum?(profileName: string, tier?: Tier): string;
+  guardAddendum?(profileName: string, model: string): string;
 }

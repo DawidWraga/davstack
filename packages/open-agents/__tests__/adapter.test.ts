@@ -1,4 +1,4 @@
-// cursor adapter: arg construction, stream parse, chat-id, tier map, and
+// cursor adapter: arg construction, stream parse, chat-id, and
 // binary resolution (the vendored node-entrypoint resolution + CURSOR_AGENT_BIN
 // precedence — no shim, no shell spawn).
 
@@ -12,23 +12,16 @@ import {
   resolveCursorAgentNode,
 } from '../src/adapters/cursor.js';
 
-describe('cursor adapter — tier map', () => {
-  test('smarter → composer-2.5, faster → composer-2-fast', () => {
-    expect(cursorAdapter.tierModel('smarter')).toBe('composer-2.5');
-    expect(cursorAdapter.tierModel('faster')).toBe('composer-2-fast');
-  });
-});
-
 describe('cursor adapter — buildArgs', () => {
   test('ask mode appends --mode ask, no --force (explore parity)', () => {
-    const a = cursorAdapter.buildArgs({ model: 'composer-2.5', mode: 'ask', prompt: 'P' });
+    const a = cursorAdapter.buildArgs({ model: 'custom-model', mode: 'ask', prompt: 'P' });
     expect(a).toEqual([
       '-p',
       '--output-format',
       'stream-json',
       '--trust',
       '--model',
-      'composer-2.5',
+      'custom-model',
       '--mode',
       'ask',
       'P',
@@ -36,14 +29,14 @@ describe('cursor adapter — buildArgs', () => {
   });
 
   test('force mode appends --force, no --mode ask (edit parity)', () => {
-    const a = cursorAdapter.buildArgs({ model: 'composer-2.5', mode: 'force', prompt: 'P' });
+    const a = cursorAdapter.buildArgs({ model: 'custom-model', mode: 'force', prompt: 'P' });
     expect(a).toEqual([
       '-p',
       '--output-format',
       'stream-json',
       '--trust',
       '--model',
-      'composer-2.5',
+      'custom-model',
       '--force',
       'P',
     ]);
@@ -152,7 +145,7 @@ describe('cursor adapter — resolveCursorAgentNode (mirrors cursor-agent.ps1)',
     writeFileSync(join(base, 'index.js'), 'x');
     // A version dir also exists — the direct hit must still win.
     mkVersion('2026.05.16-abc123', { node: true, index: true });
-    const r = resolveCursorAgentNode();
+    const r = resolveCursorAgentNode(() => true);
     expect(r).toEqual({
       node: join(base, 'node.exe'),
       index: join(base, 'index.js'),
@@ -163,10 +156,27 @@ describe('cursor adapter — resolveCursorAgentNode (mirrors cursor-agent.ps1)',
     mkVersion('2026.05.09-0afadcc', { node: true, index: true });
     mkVersion('2026.05.15-3f71873', { node: true, index: true });
     const newest = mkVersion('2026.05.16-0338208', { node: true, index: true });
-    const r = resolveCursorAgentNode();
+    const r = resolveCursorAgentNode(() => true);
     expect(r).toEqual({
       node: join(newest, 'node.exe'),
       index: join(newest, 'index.js'),
+    });
+  });
+
+  test('skips a structurally valid version that fails the startup health check', () => {
+    const older = mkVersion('2026.05.15-3f71873', { node: true, index: true });
+    const newest = mkVersion('2026.05.16-0338208', { node: true, index: true });
+    const checked: string[] = [];
+
+    const resolved = resolveCursorAgentNode((candidate) => {
+      checked.push(candidate.node);
+      return candidate.node !== join(newest, 'node.exe');
+    });
+
+    expect(checked).toEqual([join(newest, 'node.exe'), join(older, 'node.exe')]);
+    expect(resolved).toEqual({
+      node: join(older, 'node.exe'),
+      index: join(older, 'index.js'),
     });
   });
 
@@ -174,7 +184,7 @@ describe('cursor adapter — resolveCursorAgentNode (mirrors cursor-agent.ps1)',
     // Lexical "2026.5.9" > "2026.05.16"; numeric 20260509 < 20260516.
     mkVersion('2026.5.9-aaaaaaa', { node: true, index: true });
     const newer = mkVersion('2026.05.16-bbbbbbb', { node: true, index: true });
-    expect(resolveCursorAgentNode()).toEqual({
+    expect(resolveCursorAgentNode(() => true)).toEqual({
       node: join(newer, 'node.exe'),
       index: join(newer, 'index.js'),
     });
@@ -183,7 +193,7 @@ describe('cursor adapter — resolveCursorAgentNode (mirrors cursor-agent.ps1)',
   test('skips a newer dir missing node.exe/index.js, falls to the next valid', () => {
     const valid = mkVersion('2026.05.15-3f71873', { node: true, index: true });
     mkVersion('2026.05.16-0338208', { node: true, index: false }); // newest but incomplete
-    const r = resolveCursorAgentNode();
+    const r = resolveCursorAgentNode(() => true);
     expect(r).toEqual({
       node: join(valid, 'node.exe'),
       index: join(valid, 'index.js'),
@@ -207,7 +217,7 @@ describe('cursor adapter — resolveCursorAgentNode (mirrors cursor-agent.ps1)',
     if (process.platform !== 'win32') return; // win32-only resolution branch
     delete process.env.CURSOR_AGENT_BIN;
     const newest = mkVersion('2026.05.16-0338208', { node: true, index: true });
-    expect(resolveBin()).toEqual({
+    expect(resolveBin(() => true)).toEqual({
       bin: join(newest, 'node.exe'),
       prelaunchArgs: [join(newest, 'index.js')],
       shell: false,

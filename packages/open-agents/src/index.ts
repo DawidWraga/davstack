@@ -26,7 +26,7 @@ export { SENTINEL } from './profiles/types.js';
 export { exploreProfile } from './profiles/explore.js';
 export { editProfile } from './profiles/edit.js';
 
-export type { AgentAdapter, Tier, BuildArgsInput, RunSummary } from './adapters/types.js';
+export type { AgentAdapter, BuildArgsInput, RunSummary } from './adapters/types.js';
 export {
   cursorAdapter,
   resolveBin,
