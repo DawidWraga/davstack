@@ -1,5 +1,13 @@
 # @davstack/open-agents
 
+## 2.0.0
+
+### Major Changes
+
+- a5ce721: Run profile entrypoints exactly once, fall back from unstartable Cursor Agent
+  installations, use `cursor-grok-4.6-high-fast` by default, and replace the
+  `--smarter`/`--faster` model tiers with the explicit `--model <id>` override.
+
 ## 1.3.0
 
 ### Minor Changes
