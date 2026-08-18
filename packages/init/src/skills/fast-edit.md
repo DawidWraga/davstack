@@ -11,28 +11,41 @@ description: >-
 
 <!-- GENERATED from skills/fast-edit/SKILL.md by scripts/sync-init-skills.ts — DO NOT EDIT BY HAND -->
 
-Run (backgrounded — the harness notifies you):
+Default to one short `--task` whenever the mechanical edit can be stated in one
+sentence, especially when conversation history already contains the details:
 
-    npx fast-edit submit --file ~/.davstack/specs/<slug>.md
+    fast-edit submit --task "Rename fooBar to computeFoo and update its callers without changing behavior"
 
-When the current conversation already contains the real context, prefer compact
-mode over writing a spec:
+Do not create a spec file or invent intent/changes/constraints tags merely to
+wrap a task the user already stated. Conversation history supplies the
+surrounding context automatically.
 
-    npx fast-edit submit --compact-mode "rename legacy adapter"
+Run one foreground submission with a long shell timeout. If the shell yields a
+running handle, wait on that same handle; completion wakes the agent. Never pass
+`--background`, poll `result`, or resubmit.
 
-Keep the inline compact prompt to roughly 5-10 words. Do not paste details,
-requirements, quotes, or file lists into it; the compact spec-writer reads the
-current transcript/history and distills that context for the executor. Trust the
-subagent handoff unless the edit is too risky or underspecified from
-conversation history.
+Conversation history is included automatically. Keep the task to roughly one
+sentence; do not repeat details, quotes, or file lists already present in the
+conversation. History up to the direct budget goes to the executor unchanged;
+oversized history is reduced to task-specific context first. Use `--no-history`
+only when the conversation is irrelevant. `--compact-mode` remains a legacy
+alias and is no longer needed.
 
-**Routing test.** Delegate when a *short* intent+constraints spec is enough
+If the conversation contains secrets, credentials, audit artifacts, or
+user/health data, use `--no-history` and provide a sanitized scoped spec.
+
+**Routing test.** Delegate when a short task is enough
 for the executor to produce the **full** intended edit. If writing the spec
 would mean pasting the new file contents or spelling out every line, the spec
 costs as much as the edit — just do it yourself. (Having read the files is
 fine; verbatim-detail specs are the only real waste.)
 
-Begin every spec with a markdown `# 3-5 word title` line — a short overview of
+Use `--spec-file` only when essential constraints not present in conversation
+cannot fit cleanly in one sentence, or when supplying an intentionally prepared
+multi-part spec. Never generate one pre-emptively.
+
+If a spec file is genuinely needed, begin it with a markdown `# 3-5 word title`
+line — a short overview of
 the task. The TUI agent viewer renders this as the job label; without it the
 viewer falls back to the first 5 words of the spec, which is rarely meaningful.
 
