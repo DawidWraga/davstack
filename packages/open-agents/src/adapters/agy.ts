@@ -18,11 +18,9 @@
 //     fallback bypasses the buffer problem entirely with zero new deps.
 //     See notes/agy-print-mode-hang-watchdog-gap.md for the full
 //     investigation, evidence, and the rejected alternatives.
-//   - tier→model map: agy CLI has NO model-selection mechanism (no --model
-//     flag, no env var, no settings.json key — the model is picked by the
-//     GUI's "Model Selection" setting and the CLI inherits it). So tierModel
-//     returns '' and buildArgs emits no model arg. --smarter / --faster are
-//     no-ops for this adapter until agy exposes CLI model selection.
+//   - model selection: agy CLI has NO model-selection mechanism (no --model
+//     flag, env var, or settings.json key). It inherits the GUI's selection,
+//     so buildArgs emits no model argument.
 //   - buildArgs: agy's only print-mode permission flags are --sandbox
 //     (terminal restrictions) and --dangerously-skip-permissions
 //     (auto-approve everything). Profile mode 'ask' (explore) ⇒ --sandbox;
@@ -45,10 +43,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmdirSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
-import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.js';
+import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary } from './types.js';
 
-// agy has a single CLI-visible model (whatever the GUI selected); no override
-// path. Tier flags become no-ops here — documented in the adapter header.
+// agy has a single CLI-visible model (whatever the GUI selected); no override path.
 const DEFAULT_MODEL = '';
 
 // Profile mode → agy permission flag. ask = read-only intent ⇒ --sandbox
@@ -394,9 +391,6 @@ export function summariseAgy(
 export const agyAdapter: AgentAdapter = {
   name: 'agy',
 
-  tierModel(_tier: Tier) {
-    return DEFAULT_MODEL;
-  },
   defaultModel() {
     return DEFAULT_MODEL;
   },

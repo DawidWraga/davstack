@@ -21,14 +21,6 @@ import {
 } from '../src/adapters/agy.js';
 import { parseFlags, pickAdapter } from '../src/cli.js';
 
-describe('agy adapter — tier map (no-op: CLI has no model selection)', () => {
-  test('tierModel returns empty for both tiers; defaultModel matches', () => {
-    expect(agyAdapter.tierModel('smarter')).toBe('');
-    expect(agyAdapter.tierModel('faster')).toBe('');
-    expect(agyAdapter.defaultModel()).toBe('');
-  });
-});
-
 describe('agy adapter — buildArgs', () => {
   test('ask mode → --sandbox (explore is read-only intent)', () => {
     const a = agyAdapter.buildArgs({ model: '', mode: 'ask', prompt: 'P' });

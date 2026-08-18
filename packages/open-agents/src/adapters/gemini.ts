@@ -8,8 +8,7 @@
 //     index.js and spawn `node` directly (the same shim-free, shell-free
 //     strategy cursor.ts uses for cursor-agent). GEMINI_CLI_BIN overrides
 //     everything, mirroring CURSOR_AGENT_BIN.
-//   - tier→model map: default `gemini-3.1-flash`; --smarter ⇒ the pro sibling
-//     for harder jobs. Raw --model still overrides both (cli.ts precedence).
+//   - default model plus explicit `--model` selection from the shared CLI
 //   - buildArgs: the abstract profile mode maps onto Gemini's --approval-mode
 //     (ask/explore ⇒ `plan`, read-only; force/edit ⇒ `yolo`, auto-approve all
 //     tools so a one-pass edit runs unattended).
@@ -30,24 +29,18 @@ import {
   parseLine as parseStreamLine,
   extractChatId as extractChatIdFromEvents,
 } from '../core/parse.js';
-import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.js';
+import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary } from './types.js';
 
 // Default: gemini-3.1-flash-lite-preview. Picked by the 2026-05-19 notes/exp
-// sweep over the three viable cheap-tier models (2.5-flash-lite, 3.1-flash-
+// sweep over the three viable low-cost models (2.5-flash-lite, 3.1-flash-
 // lite, 2.5-flash): with the explore `cat -n` directive present — which the
 // shipped adapter guarantees via guardAddendum — 3.1-flash-lite was 16/16
 // line-exact across Exp1+Exp2 (perfect every run), fastest, cheapest, and
 // uniquely tolerant of aggressive spec brevity (≥4/4 down to ~80-char specs).
 // 2.5-flash-lite is the documented fail-safe for paths where the directive
 // might be absent (2/4 bare vs 3.1's 0/4); 2.5-flash was dropped (0/16 EXACT,
-// 2× slowest). --smarter ⇒ the pro sibling for harder jobs (it self-verifies
-// without the directive). Raw --model still overrides both. These ids are the
-// only gemini-version knowledge in the codebase — change here when the
-// previews graduate or new defaults land.
-const TIER_MODEL: Record<Tier, string> = {
-  smarter: 'gemini-3-pro-preview',
-  faster: 'gemini-3.1-flash-lite-preview',
-};
+// 2× slowest). An explicit pro model self-verifies without the directive.
+// Change this default when the previews graduate or new defaults land.
 const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
 
 // Profile mode → Gemini approval mode. Both use `yolo` (auto-approve every
@@ -68,9 +61,9 @@ const APPROVAL: Record<BuildArgsInput['mode'], string> = {
 // notes/exp/exp1-directive-necessity.md). gemini-3-pro spontaneously self-
 // verifies (runs `cat -n`) and is exact without it. So for the non-pro explore
 // path we inject an explicit verify-don't-estimate directive; measured to
-// give 16/16 EXACT at the fast tier's latency. Skipped for the pro tier
-// (--smarter), which doesn't need it, and for non-explore profiles (edit
-// output isn't line citations).
+// give 16/16 EXACT at the low-cost model's latency. Skipped for pro models,
+// which don't need it, and for non-explore profiles (edit output isn't line
+// citations).
 const EXPLORE_LINE_VERIFY =
   '- LINE NUMBERS: never estimate. Before emitting any `path:Lstart-Lend`, read ' +
   'the target file WITH line numbers (e.g. `cat -n <file>`) and take the exact ' +
@@ -183,9 +176,6 @@ export function summariseGemini(events: ParsedEvent[]): RunSummary {
 export const geminiAdapter: AgentAdapter = {
   name: 'gemini',
 
-  tierModel(tier: Tier) {
-    return TIER_MODEL[tier] ?? DEFAULT_MODEL;
-  },
   defaultModel() {
     return DEFAULT_MODEL;
   },
@@ -207,10 +197,11 @@ export const geminiAdapter: AgentAdapter = {
     return extractChatIdFromEvents(events);
   },
 
-  // Only flash explore gets the line-verify directive: pro (--smarter) already
-  // self-verifies, and non-explore profiles don't emit line citations.
-  guardAddendum(profileName: string, tier?: Tier): string {
-    if (profileName !== 'explore' || tier === 'smarter') return '';
+  // Only non-pro explore gets the line-verify directive: pro models already
+  // self-verify, and non-explore profiles don't emit line citations.
+  guardAddendum(profileName: string, model: string): string {
+    const proModel = /(^|[-_.])pro($|[-_.])/i.test(model);
+    if (profileName !== 'explore' || proModel) return '';
     return EXPLORE_LINE_VERIFY;
   },
 

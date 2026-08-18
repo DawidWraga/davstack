@@ -9,7 +9,7 @@
 //
 // All cursor/Windows quirks live in adapters/cursor.ts; the explore/edit prompt
 // scaffolds live in profiles/. This file only parses flags, picks an adapter
-// (default cursor / composer-2.5) + profile, and dispatches verbs through core/.
+// (default cursor) + profile, and dispatches verbs through core/.
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { agyAdapter } from './adapters/agy.js';
 import { cursorAdapter } from './adapters/cursor.js';
 import { geminiAdapter } from './adapters/gemini.js';
-import type { AgentAdapter, Tier } from './adapters/types.js';
+import type { AgentAdapter } from './adapters/types.js';
 import {
   buildCompactSpecWriterTask,
   loadCompactHistory,
@@ -67,7 +67,6 @@ export interface Flags {
   all?: boolean;
   detach?: boolean;
   noInline?: boolean;
-  tier?: Tier;
   files?: string[];
   model?: string;
   cwd?: string;
@@ -76,6 +75,8 @@ export interface Flags {
   adapter?: string;
   compactMode?: boolean;
   historyFile?: string;
+  json?: boolean;
+  unknownOptions?: string[];
 }
 
 export function parseFlags(argv: string[]): { flags: Flags; positional: string[] } {
@@ -93,8 +94,6 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
     if (a === '--edit' || a === '--any' || a === '--all' || a === '--detach')
       (flags as any)[a.slice(2)] = true;
     else if (a === '--compact-mode') flags.compactMode = true;
-    else if (a === '--smarter') flags.tier = 'smarter';
-    else if (a === '--faster') flags.tier = 'faster';
     else if (a === '--background' || a === '--bg' || a === '--no-wait') flags.detach = true;
     else if (a === '--no-inline') flags.noInline = true;
     else if (a === '--file') (flags.files ||= []).push(val());
@@ -104,6 +103,8 @@ export function parseFlags(argv: string[]): { flags: Flags; positional: string[]
     else if (a === '--parallel-mode') flags.parallelMode = val();
     else if (a === '--adapter' || a === '--provider') flags.adapter = val();
     else if (a === '--history-file') flags.historyFile = val();
+    else if (a === '--json') flags.json = true;
+    else if (a.startsWith('--')) (flags.unknownOptions ||= []).push(a);
     else positional.push(argv[i]);
   }
   return { flags, positional };
@@ -124,7 +125,7 @@ export function combineAddendums(adapterAddendum: string, userExtension: string)
 }
 
 export function pickAdapter(flags: Flags, configAdapter?: string): AgentAdapter {
-  // Default: cursor (composer-2.5). Unknown adapter names fall back to cursor
+  // Default: cursor. Unknown adapter names fall back to cursor
   // too (no silent gemini on a typo). Flag wins over config; config wins over
   // built-in default.
   const name = flags.adapter || configAdapter || 'cursor';
@@ -248,20 +249,16 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
   const repoPath = flags.cwd || process.cwd();
   // Config provides defaults BELOW flags but ABOVE built-ins. Loaded once per
   // submit — cheap, single tiny dynamic import. Resolution order:
-  //   flag > config > tier flag / built-in
+  //   explicit --model > config > adapter built-in
   const config = await loadConfig(repoPath);
   const adapter = pickAdapter(flags, config.defaultAdapter);
   const profile = pickProfile(flags);
-  const model =
-    flags.model ||
-    (flags.tier && adapter.tierModel(flags.tier)) ||
-    config.defaultModel ||
-    adapter.defaultModel();
+  const model = flags.model || config.defaultModel || adapter.defaultModel();
   const timeoutSec = Number.isFinite(flags.timeout)
     ? flags.timeout!
     : (config.defaultTimeoutSec ?? DEFAULT_TIMEOUT_SEC);
   const compactTailTokens = DEFAULT_COMPACT_TAIL_TOKENS;
-  const adapterAddendum = adapter.guardAddendum?.(profile.name, flags.tier) ?? '';
+  const adapterAddendum = adapter.guardAddendum?.(profile.name, model) ?? '';
   const profileKey = profile.name as 'explore' | 'edit';
   const userExtension = config.profiles?.[profileKey]?.systemPromptExtension ?? '';
   const guardAddendum = combineAddendums(adapterAddendum, userExtension);
@@ -563,14 +560,13 @@ async function cmdTail(flags: Flags, positional: string[]): Promise<void> {
 // --- dispatch --------------------------------------------------------------
 const HELP = `open-agents cli — self-waiting subagent job primitive
 
-  submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--smarter|--faster] [--model m] [--provider p] [--timeout s] [--cwd d]
-           model tier: --smarter (default, composer-2.5) | --faster
-             (composer-2-fast, latency-sensitive). raw --model overrides both.
-           --provider cursor (default, cursor-agent, default composer-2.5)
+  submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model <id>] [--provider p] [--timeout s] [--cwd d]
+           --model <id>: use a specific provider model for this submission.
+             Overrides defaultModel in config and the provider's built-in default.
+           --provider cursor (default, cursor-agent, default cursor-grok-4.6-high-fast)
              | gemini (Gemini CLI, default gemini-3.1-flash-lite-preview)
              | agy (Antigravity CLI; model picked by the GUI's Model
-             Selection setting — --smarter/--faster are no-ops). --adapter
-             is an alias.
+             Selection setting; it has no CLI model override). --adapter is an alias.
            default: BLOCKS until all done. Each job's clean deliverable is
            written to its OWN file (<id>.result.md) AND inlined into stdout
            under a "--- deliverable ---" divider, so one read sees everything.
@@ -581,8 +577,9 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
            --parallel-mode asap|all-together (default asap): asap prints each
              index line the moment its job finishes; all-together = submit order.
            --compact-mode: treat the input as a very short task title
-             (roughly 5-10 words) and ask a Cursor composer-2.5 spec-writer to
-             distill recent history into a concise executor spec. Do not paste
+             (roughly 5-10 words) and ask a Cursor spec-writer using the
+             built-in default model to distill recent history into a concise
+             executor spec. Do not paste
              details, quotes, or file lists into the inline prompt when the
              conversation already contains that context.
              Uses --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
@@ -601,13 +598,19 @@ const HELP = `open-agents cli — self-waiting subagent job primitive
   exit codes: 0 ok · 1 job failed · 2 bad id/spec · 3 wait timeout
 
 common — ONE backgrounded, harness-tracked command (blocks, prints result(s)):
-  bun cli.ts submit --file spec.md
-  bun cli.ts submit --file a.md --file b.md --file c.md   # parallel
+  explore submit --file spec.md
+  explore submit --file a.md --file b.md --file c.md   # parallel
 `;
 
 export async function main(argvRest?: string[]): Promise<void> {
   const [verb, ...rest] = argvRest ?? process.argv.slice(2);
   const { flags, positional } = parseFlags(rest);
+  if (flags.unknownOptions?.length) {
+    process.stderr.write(
+      `open-agents: unsupported option(s): ${flags.unknownOptions.join(', ')}. See --help.\n`,
+    );
+    process.exit(2);
+  }
   switch (verb) {
     case '__run':
       return cmdRun(positional, flags);
@@ -623,23 +626,21 @@ export async function main(argvRest?: string[]): Promise<void> {
       return cmdTail(flags, positional);
     case 'check': {
       const code = await runCheck({
-        json: rest.includes('--json'),
+        json: flags.json,
         cwd: flags.cwd,
       });
       process.exit(code);
     }
+    case '--help':
+    case '-h':
+    case 'help':
+      process.stdout.write(HELP);
+      process.exit(0);
     default:
       process.stdout.write(HELP);
       process.exit(verb ? 1 : 0);
   }
 }
 
-// Auto-run only when this module IS the entrypoint (e.g. direct `bun cli.ts …`)
-// — NOT when imported by entrypoints/*.ts (which call main() after binding a
-// profile). `import.meta.main` is true for the process entry module under bun.
-if (import.meta.main) {
-  main().catch((err: any) => {
-    process.stderr.write(`open-agents: ${err?.stack || err}\n`);
-    process.exit(1);
-  });
-}
+// Intentionally no top-level invocation here. This module is bundled into the
+// profile entrypoints, which bind their profile and call main() exactly once.

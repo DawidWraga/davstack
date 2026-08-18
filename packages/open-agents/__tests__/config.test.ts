@@ -43,13 +43,13 @@ describe('loadConfig — .davstack/config/open-agents.config.ts present', () => 
     writeFileSync(
       join(sandbox, '.davstack', 'config', 'open-agents.config.ts'),
       `export default {
-        defaultModel: 'composer-2-fast',
+        defaultModel: 'configured-model',
         defaultAdapter: 'cursor',
         defaultTimeoutSec: 900,
       }`,
     );
     const cfg = await loadConfig(sandbox);
-    expect(cfg.defaultModel).toBe('composer-2-fast');
+    expect(cfg.defaultModel).toBe('configured-model');
     expect(cfg.defaultAdapter).toBe('cursor');
     expect(cfg.defaultTimeoutSec).toBe(900);
     expect(cfg._source).toContain('open-agents.config.ts');

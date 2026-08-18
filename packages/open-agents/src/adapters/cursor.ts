@@ -1,7 +1,7 @@
 // cursor adapter — runs the subagent via `cursor-agent -p`. Owns every
 // cursor/Windows-specific quirk that used to be hard-coded in the monolith:
 //   - binary resolution incl. the Windows shim / shell-spawn decision
-//   - the tier→model map (composer-2.5 / composer-2-fast)
+//   - the default model and explicit model argument
 //   - buildArgs (--mode ask vs --force from the abstract profile mode)
 //   - stream parsing (delegated to the vendored core/parse.ts)
 //   - the 0-byte `.test.ts` write-probe litter sweep, as preSpawn/postExit
@@ -17,17 +17,9 @@ import {
   summariseEvents,
   extractChatId as extractChatIdFromEvents,
 } from '../core/parse.js';
-import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary, Tier } from './types.js';
+import type { AgentAdapter, BuildArgsInput, ParsedEvent, RunSummary } from './types.js';
 
-// Two named tiers are the documented interface; raw --model still overrides.
-// composer-2.5 is the default: cheaper input than composer-2, same output,
-// smarter. faster is composer-2-fast for latency-sensitive jobs. composer-2.5-
-// fast is intentionally NOT a tier (≈2× cost, no quota headroom).
-const TIER_MODEL: Record<Tier, string> = {
-  smarter: 'composer-2.5',
-  faster: 'composer-2-fast',
-};
-const DEFAULT_MODEL = TIER_MODEL.smarter;
+const DEFAULT_MODEL = 'cursor-grok-4.6-high-fast';
 
 // --- binary resolution -----------------------------------------------------
 // Empirical decision (Phase 2, recorded in MIGRATION-PLAN Appendix D — FLIPPED
@@ -45,8 +37,38 @@ const DEFAULT_MODEL = TIER_MODEL.smarter;
 // Mirrors cursor-agent.ps1's resolution. Base = %LOCALAPPDATA%\cursor-agent.
 // If node.exe + index.js sit directly there, use them. Otherwise pick the
 // newest `versions\<YYYY.MM.DD-hash>\` dir (numeric YYYYMMDD desc) that
-// contains BOTH node.exe and index.js. null if none resolvable.
-export function resolveCursorAgentNode(): { node: string; index: string } | null {
+// contains BOTH node.exe and index.js and passes the supplied startup check.
+// The production check runs only `--version`: no prompt, repository context,
+// or model request. This lets Windows fall back when Application Control blocks
+// a newly installed native dependency while an older installed build is sound.
+export type CursorAgentNode = { node: string; index: string };
+export type CursorAgentHealthCheck = (candidate: CursorAgentNode) => boolean;
+
+const cursorAgentHealthCache = new Map<string, boolean>();
+
+function cursorAgentStarts(candidate: CursorAgentNode): boolean {
+  const key = `${candidate.node}\0${candidate.index}`;
+  const cached = cursorAgentHealthCache.get(key);
+  if (cached !== undefined) return cached;
+
+  let healthy = false;
+  try {
+    const result = spawnSync(candidate.node, [candidate.index, '--version'], {
+      stdio: 'ignore',
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    healthy = result.status === 0 && result.error == null;
+  } catch {
+    healthy = false;
+  }
+  cursorAgentHealthCache.set(key, healthy);
+  return healthy;
+}
+
+export function resolveCursorAgentNode(
+  healthCheck: CursorAgentHealthCheck = cursorAgentStarts,
+): CursorAgentNode | null {
   const localAppData = process.env.LOCALAPPDATA;
   if (!localAppData) return null;
   const base = join(localAppData, 'cursor-agent');
@@ -54,7 +76,8 @@ export function resolveCursorAgentNode(): { node: string; index: string } | null
   const directNode = join(base, 'node.exe');
   const directIndex = join(base, 'index.js');
   if (existsSync(directNode) && existsSync(directIndex)) {
-    return { node: directNode, index: directIndex };
+    const direct = { node: directNode, index: directIndex };
+    if (healthCheck(direct)) return direct;
   }
 
   const versionsDir = join(base, 'versions');
@@ -80,16 +103,19 @@ export function resolveCursorAgentNode(): { node: string; index: string } | null
   for (const c of candidates) {
     const node = join(versionsDir, c.name, 'node.exe');
     const index = join(versionsDir, c.name, 'index.js');
-    if (existsSync(node) && existsSync(index)) return { node, index };
+    const candidate = { node, index };
+    if (existsSync(node) && existsSync(index) && healthCheck(candidate)) return candidate;
   }
   return null;
 }
 
-export function resolveBin(): { bin: string; prelaunchArgs: string[]; shell: boolean } {
+export function resolveBin(
+  healthCheck: CursorAgentHealthCheck = cursorAgentStarts,
+): { bin: string; prelaunchArgs: string[]; shell: boolean } {
   const env = process.env.CURSOR_AGENT_BIN;
   if (env && env.trim()) return { bin: env.trim(), prelaunchArgs: [], shell: false };
   if (platform() === 'win32') {
-    const resolved = resolveCursorAgentNode();
+    const resolved = resolveCursorAgentNode(healthCheck);
     if (resolved) {
       return { bin: resolved.node, prelaunchArgs: [resolved.index], shell: false };
     }
@@ -151,9 +177,6 @@ export function sweepDotTest(repoPath: string, before: DotTestState | null): voi
 export const cursorAdapter: AgentAdapter = {
   name: 'cursor',
 
-  tierModel(tier: Tier) {
-    return TIER_MODEL[tier] ?? DEFAULT_MODEL;
-  },
   defaultModel() {
     return DEFAULT_MODEL;
   },

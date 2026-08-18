@@ -31,6 +31,13 @@ describe('compact mode helpers', () => {
     expect(positional).toEqual(['short task']);
   });
 
+  test('model override parses explicitly and unsupported options stay out of the prompt', () => {
+    const parsed = parseFlags(['--model', 'provider-model', '--typo', 'short task']);
+    expect(parsed.flags.model).toBe('provider-model');
+    expect(parsed.flags.unknownOptions).toEqual(['--typo']);
+    expect(parsed.positional).toEqual(['short task']);
+  });
+
   test('loads real JSONL messages for compaction', () => {
     const dir = mkdtempSync(join(tmpdir(), 'compact-messages-'));
     try {
