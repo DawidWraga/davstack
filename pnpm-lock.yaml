@@ -171,6 +171,18 @@ importers:
         specifier: ^5.0.0
         version: 5.3.3
 
+  packages/status-bar:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(tsx@4.22.3)(typescript@5.3.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.3.3
+
   packages/tui:
     dependencies:
       '@davstack/open-agents':

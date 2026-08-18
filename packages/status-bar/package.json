@@ -1,0 +1,37 @@
+{
+  "name": "@davstack/claude-status-bar",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Battery-like token usage status bar for Claude Code, installable via npx.",
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "tsup",
+    "test": "pnpm -w exec vitest run --project status-bar"
+  },
+  "bin": {
+    "davstack-status-bar": "bin/davstack-status-bar.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "bin/**",
+    "dist/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
