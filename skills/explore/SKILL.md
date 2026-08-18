@@ -8,32 +8,43 @@ description: >-
   you wouldn't otherwise open.
 ---
 
-Scope tightly, then run (backgrounded — the harness notifies you):
+Default to one short `--task`, especially for lookups, traces, and other simple
+requests. Use the user's request verbatim when it is already concise:
 
-    explore submit --file ~/.davstack/specs/<slug>.md
+explore submit --task "Find where Juno's realtime voice is locked to marin, with exact path:line citations"
 
-When the current conversation already contains the real context, prefer compact
-mode over writing a spec:
+Do not create a spec file or invent `<goal>`, `<context>`, or `<scope>` merely
+to wrap a task the user already stated. Conversation history supplies the
+surrounding context automatically.
 
-    explore submit --compact-mode "audit supervisor handoffs"
+Run one foreground submission with a long shell timeout. If the shell yields a
+running handle, wait on that same handle; completion wakes the agent. Never pass
+`--background`, poll `result`, or resubmit.
 
-Keep the inline compact prompt to roughly 5-10 words. Do not paste details,
-requirements, quotes, or file lists into it; the compact spec-writer reads the
-current transcript/history and distills that context for the executor. Trust the
-subagent handoff unless the task is genuinely too ambiguous from conversation
-history.
+Conversation history is included automatically. Keep the task to roughly one
+sentence; do not repeat details, quotes, or file lists already present in the
+conversation. History up to the direct budget goes to the executor unchanged;
+oversized history is reduced to task-specific context first. Use `--no-history`
+only when the conversation is irrelevant. `--compact-mode` remains a legacy
+alias and is no longer needed.
 
-For a **single scoped fact**, skip the spec file — inline it (no boilerplate):
+If the conversation contains secrets, credentials, audit artifacts, or
+user/health data, use `--no-history` and provide a sanitized scoped spec.
 
-    explore submit '<goal>Exact signature + return type of resolve_query_adapter</goal> <scope>backend/src/query/adapter.py only</scope>'
+For a single scoped fact, use `--task` with no boilerplate:
 
-Many `--file` run in parallel from one command. Read the `result → <path>`
-file for the answer.
+    explore submit --task "Find the exact signature and return type of resolve_query_adapter in backend/src/query/adapter.py"
 
-Begin every `--file` spec with a markdown `# 3-5 word title` line — a short
+Use `--spec-file` only when essential instructions not present in conversation
+cannot fit cleanly in one sentence, or when supplying an intentionally prepared
+multi-part spec. Never generate one pre-emptively. Multiple `--task` or
+`--spec-file` inputs can run in parallel.
+
+If a spec file is genuinely needed, begin it with a markdown `# 3-5 word title`
+line — a short
 overview of the task. The TUI agent viewer renders this as the job label;
 without it the viewer falls back to the first 5 words of the spec, which is
-rarely meaningful. (Inline single-fact submits can skip the heading.)
+rarely meaningful.
 
 The spec is just goal / context (the one gotcha) / scope tags. Do NOT add an
 output section — the structured `path:line` deliverable is automatic.

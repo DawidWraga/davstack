@@ -58,8 +58,7 @@
     "bun": ">=1.1"
   },
   "dependencies": {
-    "@davstack/cli-utils": "workspace:*",
-    "@davstack/context-compactor": "workspace:*"
+    "@davstack/cli-utils": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
