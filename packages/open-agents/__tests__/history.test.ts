@@ -166,6 +166,27 @@ describe("conversation history helpers", () => {
     expect(contexts.get("task-2")).toBe("adapter only");
   });
 
+  test("parses curator output despite preamble, glued sentinel, and trailing junk", () => {
+    const valid = JSON.stringify({
+      contexts: [{ taskId: "task-1", relevantHistory: "keep this" }],
+    });
+    // Observed live failure shape: prose with a glued (non-whole-line)
+    // sentinel, then the JSON object, then a stray `}` + `<|eos|>` artifact
+    // on the next line — one complete JSON value followed by more content.
+    const output = `Reading the task file now.___FINAL_OUTPUT___\n${valid}\n}<|eos|>\n`;
+    const contexts = parseCuratedHistory(output, ["task-1"]);
+    expect(contexts.get("task-1")).toBe("keep this");
+  });
+
+  test("still rejects curator output with no usable JSON", () => {
+    expect(() => parseCuratedHistory("no json here", ["task-1"])).toThrow(
+      "history curator returned no JSON object",
+    );
+    expect(() => parseCuratedHistory('{"other":1}', ["task-1"])).toThrow(
+      "history curator JSON is missing contexts",
+    );
+  });
+
   test("resolves explicit and env history paths before Claude session lookup", () => {
     expect(
       resolveConversationHistoryFile({

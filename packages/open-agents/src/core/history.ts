@@ -145,6 +145,7 @@ one shared summary: relevance is task-specific.
 
 Return strict JSON only, with exactly one entry for every supplied task ID:
 {"contexts":[{"taskId":"task-1","relevantHistory":"concise relevant context"}]}
+Emit the JSON object exactly once, with nothing after its final closing brace.
 
 Keep each relevantHistory value concise. Omit unrelated turns, tool chatter,
 status updates, stale decisions superseded later, and instructions unrelated to
@@ -162,20 +163,67 @@ ${input.historyText}
 `;
 }
 
+// End index of the balanced JSON object opening at `start`, honouring string
+// literals and escapes; -1 when the object never closes.
+function balancedObjectEnd(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
 export function parseCuratedHistory(
   text: string,
   taskIds: string[],
 ): Map<string, string> {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end < start) {
-    throw new Error("history curator returned no JSON object");
+  // Curator models sometimes wrap the strict JSON in preamble or append junk
+  // after it (observed live: prose with a glued sentinel, then the JSON, then
+  // a stray `}` and an `<|eos|>` artifact on the next line). Slicing from the
+  // first `{` to the LAST `}` glued that junk onto valid JSON and crashed
+  // JSON.parse, so instead take the first balanced object that parses and
+  // carries the contexts array, ignoring anything around it.
+  let parsed: { contexts: CuratedHistory[] } | null = null;
+  let sawJsonObject = false;
+  for (
+    let start = text.indexOf("{");
+    start >= 0 && !parsed;
+    start = text.indexOf("{", start + 1)
+  ) {
+    const end = balancedObjectEnd(text, start);
+    if (end < 0) continue;
+    let candidate: unknown;
+    try {
+      candidate = JSON.parse(text.slice(start, end + 1));
+    } catch {
+      continue;
+    }
+    if (candidate == null || typeof candidate !== "object") continue;
+    sawJsonObject = true;
+    if (Array.isArray((candidate as { contexts?: unknown }).contexts)) {
+      parsed = candidate as { contexts: CuratedHistory[] };
+    }
   }
-  const parsed = JSON.parse(text.slice(start, end + 1)) as {
-    contexts?: CuratedHistory[];
-  };
-  if (!Array.isArray(parsed.contexts)) {
-    throw new Error("history curator JSON is missing contexts");
+  if (!parsed) {
+    throw new Error(
+      sawJsonObject
+        ? "history curator JSON is missing contexts"
+        : "history curator returned no JSON object",
+    );
   }
   const expected = new Set(taskIds);
   const contexts = new Map<string, string>();
