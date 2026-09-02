@@ -277,6 +277,25 @@ async function generateRelevantHistory(input: {
   return contexts;
 }
 
+// A curator failure (bad model output, parse error, nonzero exit) must never
+// fail the submit itself: degrade to task-only context (as if --no-history)
+// with a single stderr warning, exactly like the manual retry users fell back
+// to. Exported for tests; `curate` is the real generateRelevantHistory call.
+export async function selectTaskContexts(input: {
+  curate: () => Promise<Map<string, string>>;
+  warn: (message: string) => void;
+}): Promise<{ contexts: Map<string, string>; failed: boolean }> {
+  try {
+    return { contexts: await input.curate(), failed: false };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    input.warn(
+      `open-agents: history curation failed (${detail}); continuing without conversation history (as if --no-history)\n`,
+    );
+    return { contexts: new Map(), failed: true };
+  }
+}
+
 function buildExecutorSpec(task: string, relevantHistory: string): string {
   if (!relevantHistory.trim()) return task.trim();
   return [
@@ -427,25 +446,37 @@ async function cmdSubmit(flags: Flags, positional: string[]): Promise<void> {
     task,
   }));
   let taskContexts = new Map<string, string>();
+  let curationFailed = false;
   if (history && needsCuration) {
-    taskContexts = await generateRelevantHistory({
-      repoPath,
-      timeoutSec,
-      tasks,
-      history,
+    const selected = await selectTaskContexts({
+      curate: () =>
+        generateRelevantHistory({
+          repoPath,
+          timeoutSec,
+          tasks,
+          history,
+        }),
+      warn: (message) => process.stderr.write(message),
     });
+    taskContexts = selected.contexts;
+    curationFailed = selected.failed;
   }
 
   const ids = tasks.map(({ taskId, task }) => {
-    const relevantHistory = history
-      ? needsCuration
-        ? taskContexts.get(taskId) ?? ""
-        : history.text
-      : "";
+    const relevantHistory =
+      history && !curationFailed
+        ? needsCuration
+          ? taskContexts.get(taskId) ?? ""
+          : history.text
+        : "";
     return createRunRecord(
       task,
       relevantHistory,
-      history ? (needsCuration ? "curated" : "direct") : "none",
+      history && !curationFailed
+        ? needsCuration
+          ? "curated"
+          : "direct"
+        : "none",
     );
   });
 
@@ -545,21 +576,43 @@ async function cmdRun(positional: string[], flags: Flags): Promise<void> {
   const pendingHistoryTask = job.historyTask ?? job.compactTask;
   const pendingHistoryFile = job.historySourceFile ?? job.compactHistoryFile;
   if (pendingHistoryTask) {
+    // History preparation is best-effort: any failure (missing transcript,
+    // curator crash, unparsable curator output) degrades to running the task
+    // without conversation history instead of failing the job outright.
+    let relevantHistory = "";
+    let historyMode: "none" | "direct" | "curated" = "none";
+    let historyTokens: number | undefined;
     try {
       if (!pendingHistoryFile)
         throw new Error("history source path is missing");
       const history = loadConversationHistory(pendingHistoryFile);
-      const curated = historyNeedsCuration(history.tokens);
-      const relevantHistory = curated
-        ? (
-            await generateRelevantHistory({
+      if (historyNeedsCuration(history.tokens)) {
+        const selected = await selectTaskContexts({
+          curate: () =>
+            generateRelevantHistory({
               repoPath,
               timeoutSec: job.timeoutSec ?? DEFAULT_TIMEOUT_SEC,
               tasks: [{ taskId: "task-1", task: pendingHistoryTask }],
               history,
-            })
-          ).get("task-1") ?? ""
-        : history.text;
+            }),
+          warn: (message) => process.stderr.write(message),
+        });
+        if (!selected.failed) {
+          relevantHistory = selected.contexts.get("task-1") ?? "";
+          historyMode = "curated";
+        }
+      } else {
+        relevantHistory = history.text;
+        historyMode = "direct";
+      }
+      historyTokens = history.tokens;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `open-agents: history preparation failed (${detail}); running task without conversation history\n`,
+      );
+    }
+    try {
       const config = await loadConfig(repoPath);
       const adapterAddendum =
         adapter.guardAddendum?.(profile.name, job.model) ?? "";
@@ -581,8 +634,8 @@ async function cmdRun(positional: string[], flags: Flags): Promise<void> {
         historySourceFile: undefined,
         compactTask: undefined,
         compactHistoryFile: undefined,
-        historyMode: curated ? "curated" : "direct",
-        historyTokens: history.tokens,
+        historyMode,
+        historyTokens,
       });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -590,7 +643,7 @@ async function cmdRun(positional: string[], flags: Flags): Promise<void> {
       try {
         writeFileSync(
           resultPath,
-          `history preparation failed: ${detail}\n`,
+          `executor spec preparation failed: ${detail}\n`,
           "utf8",
         );
       } catch {
@@ -600,7 +653,7 @@ async function cmdRun(positional: string[], flags: Flags): Promise<void> {
         status: "failed",
         exitCode: 1,
         finishedAt: new Date().toISOString(),
-        summary: `history preparation failed: ${detail}`,
+        summary: `executor spec preparation failed: ${detail}`,
         resultPath,
       });
       process.exit(1);

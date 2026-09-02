@@ -13,7 +13,7 @@ import {
   parseCuratedHistory,
   resolveConversationHistoryFile,
 } from "../src/core/history.js";
-import { parseFlags } from "../src/cli.js";
+import { parseFlags, selectTaskContexts } from "../src/cli.js";
 
 describe("conversation history helpers", () => {
   test("compact flags parse", () => {
@@ -185,6 +185,28 @@ describe("conversation history helpers", () => {
     expect(() => parseCuratedHistory('{"other":1}', ["task-1"])).toThrow(
       "history curator JSON is missing contexts",
     );
+  });
+
+  test("curator failure degrades to no-history instead of failing the submit", async () => {
+    const warnings: string[] = [];
+    const failed = await selectTaskContexts({
+      curate: async () => {
+        throw new Error("Unexpected non-whitespace character after JSON");
+      },
+      warn: (message) => warnings.push(message),
+    });
+    expect(failed.failed).toBe(true);
+    expect(failed.contexts.size).toBe(0);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("as if --no-history");
+
+    const ok = await selectTaskContexts({
+      curate: async () => new Map([["task-1", "context"]]),
+      warn: (message) => warnings.push(message),
+    });
+    expect(ok.failed).toBe(false);
+    expect(ok.contexts.get("task-1")).toBe("context");
+    expect(warnings).toHaveLength(1);
   });
 
   test("resolves explicit and env history paths before Claude session lookup", () => {
