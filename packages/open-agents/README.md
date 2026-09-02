@@ -8,7 +8,7 @@ persisted and re-printable.
 
 Not an orchestrator — the design goal is to **make a Cursor job a
 self-waiting, harness-trackable command** so the harness's own
-background-completion notification *is* the orchestration: no polling, no
+background-completion notification _is_ the orchestration: no polling, no
 status truncation, no near-miss re-send.
 
 ## Install
@@ -31,31 +31,26 @@ different profile bound (read-only vs `--force` edit).
 ## Verbs
 
 ```
-submit --file a.md [--file b.md …] | "<inline>"  [--edit] [--model m] [--timeout s] [--cwd d]
+submit --task "<short instruction>" | --spec-file a.md [--spec-file b.md …] | "<inline>"
+        [--no-history] [--edit] [--model m] [--timeout s] [--cwd d]
         --model <id> overrides the configured/provider default for this submission.
         default: BLOCKS until all done, exits worst code. Each job's clean
           deliverable → its OWN <id>.result.md; stdout is just an index
           (`result → <path>`) — no input echo, jobs never mix. Read the file(s).
-        many --file ⇒ run in parallel · --detach: print bare id(s), don't wait
+        --task and --spec-file may repeat; many inputs run in parallel
+        --file remains an alias for --spec-file · --detach: print bare id(s), don't wait
         --parallel-mode asap|all-together (default asap): asap prints each
           index line as its job finishes; all-together waits, submission order
-        --compact-mode: treat the inline input as a very short task title
-          (roughly 5-10 words) and let a Cursor spec-writer using the built-in
-          default model distill
-          recent conversation history into the executor spec. Do not paste
-          details, quotes, or file lists into the inline prompt when the current
-          conversation already has that context.
-          History resolves from --history-file <path>, OPEN_AGENTS_HISTORY_FILE,
-          CLAUDE_CODE_TRANSCRIPT_PATH, or the current Claude Code transcript
-          when CLAUDE_CODE_SESSION_ID is set. It also detects Codex sessions
-          from CODEX_THREAD_ID / ~/.codex/sessions and falls back to
-          ~/.codex/history.jsonl when no richer transcript is available.
-          Compact mode gives the spec-writer the last 50000 token-like history
-          units plus a pointer to the full history file, or 100000 when a local
-          Headroom proxy is healthy. The generated spec is kept concise and points
-          back to the history file for uncertain detail instead of copying the
-          transcript. Progress output includes the spec generation duration and
-          a ~/... path to the generated spec artifact.
+        current-session history is automatic. Up to 100000 token-like units go
+          directly to each executor without a preparatory model run. Above that
+          budget, one foreground curator run returns an isolated relevant-history
+          slice for each task; the submitted task itself remains verbatim.
+          Exact sessions resolve from --history-file, explicit transcript env
+          variables, CLAUDE_CODE_SESSION_ID, or CODEX_THREAD_ID. The CLI never
+          guesses the newest transcript. If no exact session is available it
+          warns and continues task-only. --no-history disables the behavior.
+          --include-relevant-history and --compact-mode remain compatibility
+          aliases for the default behavior.
         --headroom auto|off|require (default auto): probe the local Headroom
           proxy and, when healthy, run the Cursor adapter with
           OPENAI_BASE_URL=http://127.0.0.1:8787/v1. If the proxy is absent,
