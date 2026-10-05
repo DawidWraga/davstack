@@ -1,15 +1,11 @@
-// import { describe, test, expect } from 'vitest';
-// describe('initProcedureFactory', () => {
-// 	expect(true).toBe(true);
-// });
 import { describe, expect, test } from 'vitest';
-import { initProcedureFactory } from '../src/utils/init-procedure-factory';
+import { initProcedureFactory } from '../src';
 
 import { initTRPC } from '@trpc/server';
 import { MutationProcedure } from '@trpc/server/unstable-core-do-not-import';
 import { expectTypeOf } from 'vitest';
 import { z } from 'zod';
-import { createFn } from '../src';
+import { createFn } from '@davstack/fn';
 
 describe('initProcedureFactory', () => {
 	test('should create a hello world test', () => {

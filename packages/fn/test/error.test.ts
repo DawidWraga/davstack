@@ -48,9 +48,13 @@ describe('Core Error Handling', () => {
 		await expect(promise).rejects.toHaveProperty('code', 'INVALID_INPUT');
 	});
 
-	test('safeCall should return FnError on input validation failure', async () => {
-		const { data, error } = await basicFn.safeCall({ input: { id: '' } });
-		expect(data).toBeNull();
+	test('direct call should throw FnError on input validation failure (alt)', async () => {
+		let error: any;
+		try {
+			await basicFn({ input: { id: '' } });
+		} catch (e) {
+			error = e;
+		}
 		expect(error).toBeInstanceOf(FnError);
 		expect(error).toHaveProperty('code', 'INVALID_INPUT');
 	});
@@ -61,11 +65,13 @@ describe('Core Error Handling', () => {
 		await expect(promise).rejects.toHaveProperty('code', 'INVALID_OUTPUT');
 	});
 
-	test('safeCall should return FnError on output validation failure', async () => {
-		const { data, error } = await basicFn.safeCall({
-			input: { id: 'invalid-output' },
-		});
-		expect(data).toBeNull();
+	test('direct call should throw FnError on output validation failure (alt)', async () => {
+		let error: any;
+		try {
+			await basicFn({ input: { id: 'invalid-output' } });
+		} catch (e) {
+			error = e;
+		}
 		expect(error).toBeInstanceOf(FnError);
 		expect(error).toHaveProperty('code', 'INVALID_OUTPUT');
 	});

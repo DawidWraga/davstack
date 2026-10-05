@@ -1,0 +1,43 @@
+{
+	"name": "@davstack/fn-trpc",
+	"version": "0.2.0",
+	"license": "MIT",
+	"type": "module",
+	"description": "tRPC adapter for @davstack/fn — turn directly-callable fns into tRPC procedures.",
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "tsup",
+		"test": "pnpm -w exec vitest run --project fn-trpc"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist/**",
+		"README.md"
+	],
+	"engines": {
+		"node": ">=18"
+	},
+	"dependencies": {
+		"@trpc/server": "^11.4.3"
+	},
+	"peerDependencies": {
+		"@davstack/fn": ">=2.0.0",
+		"zod": "^3.25.0 || ^4.0.0"
+	},
+	"devDependencies": {
+		"@davstack/fn": "workspace:*",
+		"@types/node": "^25.9.1",
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0",
+		"zod": ">=3.25.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

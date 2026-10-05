@@ -41,7 +41,6 @@ describe('Clean Composition API', () => {
 			});
 
 			expect(typeof getPublicData).toBe('function');
-			expect(typeof getPublicData.safeCall).toBe('function');
 			expect(getPublicData.name).toBe('getPublicData');
 
 			const result = await getPublicData({
@@ -252,8 +251,8 @@ describe('Clean Composition API', () => {
 		});
 	});
 
-	describe('SafeCall behavior', () => {
-		test('should return proper result structure from safeCall', async () => {
+	describe('Direct call result behavior', () => {
+		test('direct call returns the value on success', async () => {
 			const createServerFn = initCreateFn<ServerFnCtx>([]);
 
 			const testFn = createServerFn({
@@ -264,19 +263,16 @@ describe('Clean Composition API', () => {
 				}),
 			});
 
-			const result = await testFn.safeCall({
+			const data = await testFn({
 				input: { value: 'hello' },
 				ctx: { logger, db: mockDb },
 			});
 
-			expect(typeof result).toBe('object');
-			expect(result).toHaveProperty('data');
-			expect(result).toHaveProperty('error');
-			expect(result.error).toBeNull();
-			expect(result.data).toEqual({ processed: 'HELLO' });
+			expect(typeof data).toBe('object');
+			expect(data).toEqual({ processed: 'HELLO' });
 		});
 
-		test('should handle validation errors in safeCall', async () => {
+		test('direct call throws FnError on validation error', async () => {
 			const createServerFn = initCreateFn<ServerFnCtx>([]);
 
 			const testFn = createServerFn({
@@ -285,14 +281,17 @@ describe('Clean Composition API', () => {
 				handler: async ({ input }) => input.value,
 			});
 
-			const result = await testFn.safeCall({
-				input: { value: 123 } as any, // Invalid input
-				ctx: { logger, db: mockDb },
-			});
+			let error: any;
+			try {
+				await testFn({
+					input: { value: 123 } as any, // Invalid input
+					ctx: { logger, db: mockDb },
+				});
+			} catch (e) {
+				error = e;
+			}
 
-			expect(typeof result).toBe('object');
-			expect(result.data).toBeNull();
-			expect(result.error).toBeInstanceOf(FnError);
+			expect(error).toBeInstanceOf(FnError);
 		});
 	});
 
@@ -591,11 +590,11 @@ describe('Clean Composition API', () => {
 			}>();
 		});
 
-		test('should properly type safeCall results', async () => {
+		test('should properly type direct call results', async () => {
 			const createServerFn = initCreateFn<ServerFnCtx>([]);
 
 			const typedFn = createServerFn({
-				name: 'typedSafeCall',
+				name: 'typedDirectCall',
 				inputSchema: z.object({ value: z.number() }),
 				handler: async ({ input }) => ({
 					doubled: input.value * 2,
@@ -603,36 +602,20 @@ describe('Clean Composition API', () => {
 				}),
 			});
 
-			const result = await typedFn.safeCall({
+			// The direct call resolves to the inferred output type (it throws on failure).
+			expectTypeOf<
+				Awaited<ReturnType<typeof typedFn>>
+			>().toEqualTypeOf<{ doubled: number; original: number }>();
+
+			const data = await typedFn({
 				input: { value: 42 },
 				ctx: { logger: createMockLogger(), db: mockDb },
 			});
 
-			type SuccessResult = {
-				data: { doubled: number; original: number };
-				error: null;
-			};
-			type ErrorResult = {
-				data: null;
-				error: FnError | Error;
-			};
-
-			expectTypeOf(result).toEqualTypeOf<SuccessResult | ErrorResult>();
-
-			if (result.error === null) {
-				expectTypeOf(result).toEqualTypeOf<SuccessResult>();
-			} else {
-				expectTypeOf(result).toEqualTypeOf<ErrorResult>();
-			}
-
-			if (!result.error) {
-				expectTypeOf(result.data).toEqualTypeOf<{
-					doubled: number;
-					original: number;
-				}>();
-			} else {
-				expectTypeOf(result.error).toEqualTypeOf<FnError | Error>();
-			}
+			expectTypeOf(data).toEqualTypeOf<{
+				doubled: number;
+				original: number;
+			}>();
 		});
 	});
 });
