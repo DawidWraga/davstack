@@ -141,9 +141,6 @@ importers:
       '@davstack/cli-utils':
         specifier: workspace:*
         version: link:../cli-utils
-      '@davstack/context-compactor':
-        specifier: workspace:*
-        version: link:../context-compactor
     devDependencies:
       '@types/node':
         specifier: ^25.9.1
